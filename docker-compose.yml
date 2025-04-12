@@ -1,46 +1,46 @@
 version: '3.8'
 
 services:
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    environment:
-      - VITE_API_URL=http://localhost:8080
-      - VITE_AUTH0_DOMAIN=edoardo-foco.eu.auth0.com
-      - VITE_AUTH0_CLIENT_ID=67f2cdb51101360d2c47f95e
-      - VITE_AUTH0_AUDIENCE=m8nLbm0oQQWOF8_tBENeSewbWx1QkU1enxiVIY2eQ1lsnA8J2-6XjmuSFx6pyajX
-    depends_on:
-      - backend
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "3000:3000"
+  #   volumes:
+  #     - ./frontend:/app
+  #     - /app/node_modules
+  #   environment:
+  #     - VITE_API_URL=http://localhost:8080
+  #     - VITE_AUTH0_DOMAIN=edoardo-foco.eu.auth0.com
+  #     - VITE_AUTH0_CLIENT_ID=67f2cdb51101360d2c47f95e
+  #     - VITE_AUTH0_AUDIENCE=m8nLbm0oQQWOF8_tBENeSewbWx1QkU1enxiVIY2eQ1lsnA8J2-6XjmuSFx6pyajX
+  #   depends_on:
+  #     - backend
 
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./backend:/app
-    environment:
-      - PORT=8080
-      - FRONTEND_URL=http://localhost:3000
-      - AUTH0_ISSUER_URL=https://edoardo-foco.eu.auth0.com/
-      - AUTH0_AUDIENCE=m8nLbm0oQQWOF8_tBENeSewbWx1QkU1enxiVIY2eQ1lsnA8J2-6XjmuSFx6pyajX
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_NAME=ems_dev
-    depends_on:
-      - postgres
+  # backend:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "8080:8080"
+  #   volumes:
+  #     - ./backend:/app
+  #   environment:
+  #     - PORT=8080
+  #     - FRONTEND_URL=http://localhost:3000
+  #     - AUTH0_ISSUER_URL=https://edoardo-foco.eu.auth0.com/
+  #     - AUTH0_AUDIENCE=m8nLbm0oQQWOF8_tBENeSewbWx1QkU1enxiVIY2eQ1lsnA8J2-6XjmuSFx6pyajX
+  #     - DB_HOST=postgres
+  #     - DB_PORT=5432
+  #     - DB_USER=postgres
+  #     - DB_PASSWORD=postgres
+  #     - DB_NAME=ems_dev
+  #   depends_on:
+  #     - postgres
 
   postgres:
-    image: postgres:15
+    image: postgres:16
     ports:
       - "5432:5432"
     environment:

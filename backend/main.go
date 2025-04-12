@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"os"
 
-	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
+	"ems.dev/backend/database"
+	"ems.dev/backend/routes"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/lestrrat-go/jwx/jwk"
 )
 
 func main() {
@@ -18,6 +18,9 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("Error loading .env file")
 	}
+
+	// Initialize database
+	database.InitDB()
 
 	// Initialize Gin router
 	r := gin.Default()
@@ -46,10 +49,7 @@ func main() {
 	protected := r.Group("/api")
 	protected.Use(authMiddleware())
 	{
-		protected.GET("/me", func(c *gin.Context) {
-			claims := c.Request.Context().Value(jwtmiddleware.ContextKey{}).(*validator.ValidatedClaims)
-			c.JSON(http.StatusOK, claims)
-		})
+		routes.SetupRoutes(protected, database.DB)
 	}
 
 	// Start server
@@ -65,11 +65,7 @@ func authMiddleware() gin.HandlerFunc {
 	validateToken := func(ctx context.Context, token string) (interface{}, error) {
 		validator, err := validator.New(
 			func(ctx context.Context) (interface{}, error) {
-				keySet, err := jwk.Fetch(ctx, issuerURL+".well-known/jwks.json")
-				if err != nil {
-					return nil, err
-				}
-				return keySet, nil
+				return []byte(os.Getenv("AUTH0_PUBLIC_KEY")), nil
 			},
 			validator.RS256,
 			issuerURL,
