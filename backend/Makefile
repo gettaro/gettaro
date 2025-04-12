@@ -6,8 +6,9 @@ DB_PASSWORD ?= postgres
 DB_NAME ?= ems_dev
 
 # Migration configuration
-MIGRATION_DIR = migrations
+MIGRATION_DIR = database/migrations
 MIGRATION_DSN = postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable
+MIGRATE_BIN = $(shell go env GOPATH)/bin/migrate
 
 .PHONY: migrate-up migrate-down migrate-create migrate-force migrate-status db-create db-drop
 
@@ -23,29 +24,29 @@ db-drop:
 # Migration operations
 migrate-up:
 	@echo "Running migrations up..."
-	@migrate -path $(MIGRATION_DIR) -database "$(MIGRATION_DSN)" up
+	@$(MIGRATE_BIN) -path $(MIGRATION_DIR) -database "$(MIGRATION_DSN)" up
 
 migrate-down:
 	@echo "Running migrations down..."
-	@migrate -path $(MIGRATION_DIR) -database "$(MIGRATION_DSN)" down
+	@$(MIGRATE_BIN) -path $(MIGRATION_DIR) -database "$(MIGRATION_DSN)" down
 
 migrate-down-1:
 	@echo "Running last migration down..."
-	@migrate -path $(MIGRATION_DIR) -database "$(MIGRATION_DSN)" down 1
+	@$(MIGRATE_BIN) -path $(MIGRATION_DIR) -database "$(MIGRATION_DSN)" down 1
 
 migrate-create:
 	@echo "Creating new migration..."
 	@read -p "Enter migration name: " name; \
-	migrate create -ext sql -dir $(MIGRATION_DIR) -seq $$name
+	$(MIGRATE_BIN) create -ext sql -dir $(MIGRATION_DIR) -seq $$name
 
 migrate-force:
 	@echo "Forcing migration version..."
 	@read -p "Enter version to force: " version; \
-	migrate -path $(MIGRATION_DIR) -database "$(MIGRATION_DSN)" force $$version
+	$(MIGRATE_BIN) -path $(MIGRATION_DIR) -database "$(MIGRATION_DSN)" force $$version
 
 migrate-status:
 	@echo "Checking migration status..."
-	@migrate -path $(MIGRATION_DIR) -database "$(MIGRATION_DSN)" version
+	@$(MIGRATE_BIN) -path $(MIGRATION_DIR) -database "$(MIGRATION_DSN)" version
 
 # Development setup
 setup: db-create migrate-up
