@@ -1,0 +1,381 @@
+openapi: 3.0.3
+info:
+  title: Engineering Insights API
+  version: 1.0.0
+  description: API for managing users, orgs, integrations, and engineering metrics.
+
+servers:
+  - url: http://localhost:3000/api
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        is_active: { type: boolean }
+        status: { type: string }
+        titleId: { type: string }
+        organizationId: { type: string }
+
+    AuthProvider:
+      type: object
+      properties:
+        id: { type: string }
+        provider: { type: string }
+        providerId: { type: string }
+
+    Team:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+
+paths:
+  /users:
+    get:
+      summary: Get all users
+      description: Returns a list of all users. Only accessible by admins or org managers.
+      responses:
+        "200":
+          description: List of users
+      security:
+        - bearerAuth: []
+
+    post:
+      summary: Create a new user
+      description: Only system admins can create users manually. Typically users register via auth.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/User"
+      responses:
+        "201":
+          description: Created user
+      security:
+        - bearerAuth: []
+
+  /users/{id}:
+    get:
+      summary: Get user by ID
+      description: Get details about a specific user.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+      responses:
+        "200":
+          description: User detail
+      security:
+        - bearerAuth: []
+
+    put:
+      summary: Update user
+      description: Update a user profile (e.g., title, status). Admin-only.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/User"
+      responses:
+        "200":
+          description: Updated user
+      security:
+        - bearerAuth: []
+
+    delete:
+      summary: Delete user
+      description: Soft delete or archive a user account. Admin-only.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+      responses:
+        "204":
+          description: Deleted
+      security:
+        - bearerAuth: []
+
+  /organizations:
+    post:
+      summary: Create an organization
+      description: Creates a new org with optional initial integration config.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                slug: { type: string }
+      responses:
+        "201":
+          description: Organization created
+      security:
+        - bearerAuth: []
+
+    get:
+      summary: List all organizations
+      description: Admin-only endpoint to list all orgs in the system.
+      responses:
+        "200":
+          description: List of orgs
+      security:
+        - bearerAuth: []
+
+  /integration-configs:
+    post:
+      summary: Create integration config
+      description: Attach a provider config (e.g., GitHub App credentials) to an organization.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                organizationId: { type: string }
+                providerName: { type: string }
+                providerType: { type: string }
+                encryptedToken: { type: string }
+                metadata: { type: object }
+      responses:
+        "201":
+          description: Integration created
+      security:
+        - bearerAuth: []
+
+  /teams:
+    get:
+      summary: Get all teams
+      responses:
+        "200":
+          description: List of teams
+      security:
+        - bearerAuth: []
+
+    post:
+      summary: Create team
+      description: Adds a new team to the org
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+      responses:
+        "201":
+          description: Created
+      security:
+        - bearerAuth: []
+
+  /teams/{id}/members:
+    post:
+      summary: Add user to team
+      description: Add an existing user to a team
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: { type: string }
+      responses:
+        "200":
+          description: Added
+      security:
+        - bearerAuth: []
+
+  /directs:
+    post:
+      summary: Create reporting relationship
+      description: Create a manager-report link with depth.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                managerId: { type: string }
+                reportId: { type: string }
+                depth: { type: integer }
+      responses:
+        "201":
+          description: Created
+      security:
+        - bearerAuth: []
+
+  /source-control-accounts:
+    get:
+      summary: List source control accounts
+      responses:
+        "200":
+          description: List of accounts
+      security:
+        - bearerAuth: []
+
+    post:
+      summary: Create a source control account
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: { type: string }
+                providerName: { type: string }
+                providerId: { type: string }
+                username: { type: string }
+                metadata: { type: object }
+      responses:
+        "201":
+          description: Created
+      security:
+        - bearerAuth: []
+
+  /pull-requests:
+    get:
+      summary: List PRs
+      responses:
+        "200":
+          description: List of PRs
+      security:
+        - bearerAuth: []
+
+    post:
+      summary: Create PR record
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sourceControlAccountId: { type: string }
+                providerId: { type: string }
+                url: { type: string }
+                title: { type: string }
+                status: { type: string }
+                createdAt: { type: string, format: date-time }
+                mergedAt: { type: string, format: date-time }
+                lastUpdatedAt: { type: string, format: date-time }
+                timeToFirstReview: { type: integer }
+                timeToMerge: { type: integer }
+      responses:
+        "201":
+          description: PR Created
+      security:
+        - bearerAuth: []
+
+  /pull-requests/{id}/comments:
+    post:
+      summary: Add a PR comment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                authorId: { type: string }
+                body: { type: string }
+      responses:
+        "201":
+          description: Comment created
+      security:
+        - bearerAuth: []
+
+  /pull-requests/{id}/reviewers:
+    post:
+      summary: Add a PR reviewer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reviewerId: { type: string }
+                reviewedAt: { type: string, format: date-time }
+                reviewState: { type: string }
+      responses:
+        "201":
+          description: Reviewer added
+      security:
+        - bearerAuth: []
+
+  /project-management-accounts:
+    get:
+      summary: List PM accounts
+      responses:
+        "200":
+          description: List of PM accounts
+      security:
+        - bearerAuth: []
+
+    post:
+      summary: Create PM account
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: { type: string }
+                providerName: { type: string }
+                providerId: { type: string }
+                metadata: { type: object }
+      responses:
+        "201":
+          description: Created
+      security:
+        - bearerAuth: []
+
+  /pm-tickets:
+    get:
+      summary: List project tickets
+      responses:
+        "200":
+          description: Ticket list
+      security:
+        - bearerAuth: []
+
+    post:
+      summary: Create PM ticket
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                projectManagementAccountId: { type: string }
+                providerId: { type: string }
+                title: { type: string }
+                epic: { type: string }
+                labels:
+                  type: array
+                  items: { type: string }
+                status: { type: string }
+                storyPoints: { type: integer }
+                createdAt: { type: string, format: date-time }
+                updatedAt: { type: string, format: date-time }
+                completedAt: { type: string, format: date-time }
+      responses:
+        "201":
+          description: Ticket created
+      security:
+        - bearerAuth: []

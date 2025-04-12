@@ -1,10 +1,8 @@
 package server
 
 import (
-	"net/http"
 	"os"
 
-	"ems.dev/backend/http/middleware"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -41,20 +39,6 @@ func (s *Server) setupMiddleware() {
 
 		c.Next()
 	})
-}
-
-func (s *Server) setupRoutes() {
-	// Public routes
-	s.router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
-
-	// Protected routes
-	protected := s.router.Group("/api")
-	protected.Use(middleware.AuthMiddleware())
-	{
-		// TODO: Add route handlers
-	}
 }
 
 func (s *Server) Run(addr string) error {

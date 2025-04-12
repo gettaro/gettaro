@@ -2,61 +2,55 @@ package middleware
 
 import (
 	"net/http"
+	"net/url"
 	"os"
-	"strings"
+	"time"
 
+	"github.com/auth0/go-jwt-middleware/v2/jwks"
+	"github.com/auth0/go-jwt-middleware/v2/validator"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 )
 
 func AuthMiddleware() gin.HandlerFunc {
+	issuerURL := os.Getenv("AUTH0_ISSUER_URL")
+	audience := os.Getenv("AUTH0_CLIENT_ID")
+
+	issuer, err := url.Parse(issuerURL)
+	if err != nil {
+		panic(err)
+	}
+
+	provider := jwks.NewCachingProvider(issuer, 5*time.Minute)
+
+	jwtValidator, err := validator.New(
+		provider.KeyFunc,
+		validator.RS256,
+		issuerURL,
+		[]string{audience},
+	)
+	if err != nil {
+		panic(err)
+	}
+
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
+		token := c.GetHeader("Authorization")
+		if token == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization header is required"})
 			return
 		}
 
-		// Extract the token from the Authorization header
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization header format"})
-			return
+		// Remove "Bearer " prefix if present
+		if len(token) > 7 && token[:7] == "Bearer " {
+			token = token[7:]
 		}
 
-		tokenString := parts[1]
-
-		// Parse and validate the token
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			// TODO: Replace with your actual secret key
-			return []byte(os.Getenv("JWT_SECRET")), nil
-		})
-
+		claims, err := jwtValidator.ValidateToken(c.Request.Context(), token)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token: " + err.Error()})
 			return
 		}
 
-		if !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
-			return
-		}
-
-		// Extract claims
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
-			return
-		}
-
-		// Set user ID in context
-		userID, ok := claims["user_id"].(string)
-		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID in token"})
-			return
-		}
-
-		c.Set("user_id", userID)
+		c.Set("claims", claims)
 		c.Next()
 	}
 }
