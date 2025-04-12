@@ -5,9 +5,8 @@ import (
 	"log"
 	"os"
 
-	"ems.dev/backend/models"
-
-	"gorm.io/driver/postgres"
+	"github.com/golang-migrate/migrate/v4"
+	gormpostgres "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -25,25 +24,28 @@ func InitDB() {
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		dbHost, dbPort, dbUser, dbPassword, dbName)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	// Configure GORM
+	db, err := gorm.Open(gormpostgres.Open(dsn), &gorm.Config{
+		PrepareStmt: true,
+	})
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	// Auto-migrate the schema
-	err = db.AutoMigrate(
-		&models.User{},
-		&models.Team{},
-		&models.Project{},
-		&models.Task{},
-		&models.WorkLog{},
-		&models.GenAIUsage{},
-		&models.TeamMetric{},
-		&models.ProjectMetric{},
-		&models.PerformanceMetric{},
+	// Run migrations
+	migrationDSN := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		dbUser, dbPassword, dbHost, dbPort, dbName)
+
+	m, err := migrate.New(
+		"file://database/migrations",
+		migrationDSN,
 	)
 	if err != nil {
-		log.Fatal("Failed to migrate database:", err)
+		log.Fatal("Failed to create migrate instance:", err)
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		log.Fatal("Failed to run migrations:", err)
 	}
 
 	DB = db
