@@ -15,7 +15,7 @@ func (s *Server) setupRoutes() {
 
 	// Protected routes
 	protected := s.router.Group("/api")
-	protected.Use(middleware.AuthMiddleware())
+	protected.Use(middleware.AuthMiddleware(s.userApi))
 	{
 		// User routes
 		users := protected.Group("/users")
@@ -25,6 +25,7 @@ func (s *Server) setupRoutes() {
 			users.GET("/:id", handlers.GetUser)
 			users.PUT("/:id", handlers.UpdateUser)
 			users.DELETE("/:id", handlers.DeleteUser)
+			users.GET("/me", handlers.NewUserHandler(s.userApi, middleware.AuthMiddleware(s.userApi)).GetMe)
 		}
 
 		// Organization routes

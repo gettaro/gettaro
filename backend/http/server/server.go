@@ -3,19 +3,24 @@ package server
 import (
 	"os"
 
+	"ems.dev/backend/http/middleware"
+	userapi "ems.dev/backend/services/user/api"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 type Server struct {
-	router *gin.Engine
-	db     *gorm.DB
+	router  *gin.Engine
+	db      *gorm.DB
+	userApi *userapi.Api
 }
 
-func New(db *gorm.DB) *Server {
+func New(db *gorm.DB, userApi *userapi.Api) *Server {
 	s := &Server{
-		router: gin.Default(),
-		db:     db,
+		router:  gin.Default(),
+		db:      db,
+		userApi: userApi,
 	}
 
 	s.setupMiddleware()
@@ -25,6 +30,10 @@ func New(db *gorm.DB) *Server {
 }
 
 func (s *Server) setupMiddleware() {
+	s.router.Use(gin.Logger())
+	s.router.Use(gin.Recovery())
+	s.router.Use(middleware.AuthMiddleware(s.userApi))
+
 	// CORS middleware
 	s.router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", os.Getenv("FRONTEND_URL"))

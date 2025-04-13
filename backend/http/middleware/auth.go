@@ -1,17 +1,41 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
+
+	userapi "ems.dev/backend/services/user/api"
 
 	"github.com/auth0/go-jwt-middleware/v2/jwks"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
 	"github.com/gin-gonic/gin"
 )
 
-func AuthMiddleware() gin.HandlerFunc {
+// CustomClaims represents the custom claims we expect from Auth0
+type CustomClaims struct {
+	Email string `json:"email"`
+	Name  string `json:"name"`
+}
+
+// Validate implements the validator.CustomClaims interface
+func (c CustomClaims) Validate(ctx context.Context) error {
+	return nil
+}
+
+// UserClaims represents the claims we expect from Auth0
+type UserClaims struct {
+	Sub      string `json:"sub"`
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+	Picture  string `json:"picture"`
+	Provider string `json:"provider"`
+}
+
+func AuthMiddleware(userApi *userapi.Api) gin.HandlerFunc {
 	issuerURL := os.Getenv("AUTH0_ISSUER_URL")
 	audience := os.Getenv("AUTH0_CLIENT_ID")
 
@@ -27,6 +51,9 @@ func AuthMiddleware() gin.HandlerFunc {
 		validator.RS256,
 		issuerURL,
 		[]string{audience},
+		validator.WithCustomClaims(func() validator.CustomClaims {
+			return &CustomClaims{}
+		}),
 	)
 	if err != nil {
 		panic(err)
@@ -50,7 +77,45 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("claims", claims)
+		// Extract user claims from the validated token
+		customClaims, ok := claims.(*validator.ValidatedClaims)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
+			return
+		}
+
+		// Get the custom claims
+		cc, ok := customClaims.CustomClaims.(*CustomClaims)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid custom claims format"})
+			return
+		}
+
+		// Create user claims from the token
+		userClaims := &UserClaims{
+			Sub:      customClaims.RegisteredClaims.Subject,
+			Email:    cc.Email,
+			Name:     cc.Name,
+			Provider: "auth0", // Auth0 is our provider
+		}
+
+		// Only perform user creation/retrieval for /me endpoint
+		if strings.HasSuffix(c.Request.URL.Path, "/api/users/me") && userApi != nil {
+			dbUser, err := userApi.GetOrCreateUserFromAuthProvider(
+				userClaims.Provider,
+				userClaims.Sub,
+				userClaims.Email,
+				userClaims.Name,
+			)
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to get or create user: " + err.Error()})
+				return
+			}
+			c.Set("db_user", dbUser)
+		}
+
+		// Store the claims in the context
+		c.Set("user", userClaims)
 		c.Next()
 	}
 }
