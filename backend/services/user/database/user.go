@@ -64,3 +64,38 @@ func (d *UserDB) GetOrCreateUserFromAuthProvider(provider string, providerID str
 
 	return &user, nil
 }
+
+// GetUserByEmail finds a user by their email address
+func (d *UserDB) GetUserByEmail(email string) (*types.User, error) {
+	var user types.User
+	err := d.db.Where("email = ?", email).First(&user).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+// FindUser searches for a user by ID or email
+func (d *UserDB) FindUser(params types.UserSearchParams) (*types.User, error) {
+	var user types.User
+	query := d.db.Model(&types.User{})
+
+	if params.ID != nil {
+		query = query.Where("id = ?", *params.ID)
+	}
+	if params.Email != nil {
+		query = query.Where("email = ?", *params.Email)
+	}
+
+	err := query.First(&user).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}

@@ -25,7 +25,7 @@ func (s *Server) setupRoutes() {
 			users.GET("/:id", handlers.GetUser)
 			users.PUT("/:id", handlers.UpdateUser)
 			users.DELETE("/:id", handlers.DeleteUser)
-			users.GET("/me", handlers.NewUserHandler(s.userApi, middleware.AuthMiddleware(s.userApi)).GetMe)
+			users.GET("/me", handlers.NewUserHandler(s.userApi).GetMe)
 		}
 
 		// Organization routes
