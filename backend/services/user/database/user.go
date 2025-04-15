@@ -65,19 +65,6 @@ func (d *UserDB) GetOrCreateUserFromAuthProvider(provider string, providerID str
 	return &user, nil
 }
 
-// GetUserByEmail finds a user by their email address
-func (d *UserDB) GetUserByEmail(email string) (*types.User, error) {
-	var user types.User
-	err := d.db.Where("email = ?", email).First(&user).Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &user, nil
-}
-
 // FindUser searches for a user by ID or email
 func (d *UserDB) FindUser(params types.UserSearchParams) (*types.User, error) {
 	var user types.User
@@ -98,4 +85,42 @@ func (d *UserDB) FindUser(params types.UserSearchParams) (*types.User, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+
+// CreateOrganizationWithOwner creates a new organization and sets the specified user as its owner
+func (d *UserDB) CreateOrganizationWithOwner(org *types.Organization, userID string) error {
+	return d.db.Transaction(func(tx *gorm.DB) error {
+		// Create organization
+		if err := tx.Create(org).Error; err != nil {
+			return err
+		}
+
+		// Create user-organization relationship with owner flag
+		if err := tx.Exec(
+			"INSERT INTO user_organizations (user_id, organization_id, is_owner) VALUES (?, ?, true)",
+			userID,
+			org.ID,
+		).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+// GetUserOrganizations returns all organizations a user is part of, with ownership information
+func (d *UserDB) GetUserOrganizations(userID string) ([]types.Organization, error) {
+	var orgs []types.Organization
+	err := d.db.Raw(`
+		SELECT o.*, uo.is_owner
+		FROM organizations o
+		JOIN user_organizations uo ON o.id = uo.organization_id
+		WHERE uo.user_id = ?
+	`, userID).Scan(&orgs).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return orgs, nil
 }

@@ -17,7 +17,9 @@ CREATE TABLE users (
 -- Create titles table
 CREATE TABLE titles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(255) NOT NULL
+    name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create auth_providers table
@@ -27,6 +29,7 @@ CREATE TABLE auth_providers (
     provider VARCHAR(255) NOT NULL,
     provider_id VARCHAR(255) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -34,14 +37,18 @@ CREATE TABLE auth_providers (
 CREATE TABLE roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
-    permissions JSONB
+    permissions JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create teams table
 CREATE TABLE teams (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
-    description TEXT
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create team_members table
@@ -49,6 +56,8 @@ CREATE TABLE team_members (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,
     team_id UUID NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
 );
@@ -59,6 +68,8 @@ CREATE TABLE direct_reports (
     manager_id UUID NOT NULL,
     report_id UUID NOT NULL,
     depth INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (manager_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (report_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE (manager_id, report_id)
@@ -68,7 +79,22 @@ CREATE TABLE direct_reports (
 CREATE TABLE organizations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) UNIQUE NOT NULL,
-    slug VARCHAR(255) UNIQUE NOT NULL
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create user_organizations table
+CREATE TABLE user_organizations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    organization_id UUID NOT NULL,
+    is_owner BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    UNIQUE (user_id, organization_id)
 );
 
 -- Create integration_configs table
@@ -96,6 +122,8 @@ CREATE TABLE source_control_accounts (
     username VARCHAR(255) NOT NULL,
     metadata JSONB,
     last_synced_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL
 );
@@ -109,6 +137,7 @@ CREATE TABLE pull_requests (
     title TEXT NOT NULL,
     status VARCHAR(255) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     merged_at TIMESTAMP WITH TIME ZONE,
     last_updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
     time_to_first_review INTEGER,
@@ -123,7 +152,7 @@ CREATE TABLE pr_comments (
     author_id UUID,
     body TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (pr_id) REFERENCES pull_requests(id) ON DELETE CASCADE
 );
 
@@ -134,6 +163,8 @@ CREATE TABLE pr_reviewers (
     reviewer_id UUID NOT NULL,
     reviewed_at TIMESTAMP WITH TIME ZONE NOT NULL,
     review_state VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (pr_id) REFERENCES pull_requests(id) ON DELETE CASCADE,
     FOREIGN KEY (reviewer_id) REFERENCES source_control_accounts(id) ON DELETE CASCADE
 );
@@ -147,6 +178,8 @@ CREATE TABLE project_management_accounts (
     provider_id VARCHAR(255) NOT NULL,
     metadata JSONB,
     last_synced_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL
 );
@@ -162,7 +195,7 @@ CREATE TABLE pm_tickets (
     status VARCHAR(255) NOT NULL,
     story_points INTEGER,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP WITH TIME ZONE,
     FOREIGN KEY (project_management_account_id) REFERENCES project_management_accounts(id) ON DELETE CASCADE
 );

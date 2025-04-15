@@ -29,7 +29,7 @@ func (h *UserHandler) RegisterRoutes(router *gin.Engine) {
 
 // GetMe returns the current user's information
 func (h *UserHandler) GetMe(c *gin.Context) {
-	ctxUser, exists := c.Get("db_user")
+	ctxUser, exists := c.Get("user")
 	if !exists {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "user not found in context"})
 		return

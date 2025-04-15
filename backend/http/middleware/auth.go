@@ -1,39 +1,18 @@
 package middleware
 
 import (
-	"context"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"time"
 
+	authTypes "ems.dev/backend/http/types/auth"
 	userapi "ems.dev/backend/services/user/api"
-
 	"github.com/auth0/go-jwt-middleware/v2/jwks"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
 	"github.com/gin-gonic/gin"
 )
-
-// CustomClaims represents the custom claims we expect from Auth0
-type CustomClaims struct {
-	Email string `json:"email"`
-	Name  string `json:"name"`
-}
-
-// Validate implements the validator.CustomClaims interface
-func (c CustomClaims) Validate(ctx context.Context) error {
-	return nil
-}
-
-// UserClaims represents the claims we expect from Auth0
-type UserClaims struct {
-	Sub      string `json:"sub"`
-	Email    string `json:"email"`
-	Name     string `json:"name"`
-	Picture  string `json:"picture"`
-	Provider string `json:"provider"`
-}
 
 func AuthMiddleware(userApi *userapi.Api) gin.HandlerFunc {
 	issuerURL := os.Getenv("AUTH0_ISSUER_URL")
@@ -52,7 +31,7 @@ func AuthMiddleware(userApi *userapi.Api) gin.HandlerFunc {
 		issuerURL,
 		[]string{audience},
 		validator.WithCustomClaims(func() validator.CustomClaims {
-			return &CustomClaims{}
+			return &authTypes.CustomClaims{}
 		}),
 	)
 	if err != nil {
@@ -85,14 +64,14 @@ func AuthMiddleware(userApi *userapi.Api) gin.HandlerFunc {
 		}
 
 		// Get the custom claims
-		cc, ok := customClaims.CustomClaims.(*CustomClaims)
+		cc, ok := customClaims.CustomClaims.(*authTypes.CustomClaims)
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid custom claims format"})
 			return
 		}
 
 		// Create user claims from the token
-		userClaims := &UserClaims{
+		userClaims := &authTypes.UserClaims{
 			Sub:      customClaims.RegisteredClaims.Subject,
 			Email:    cc.Email,
 			Name:     cc.Name,
@@ -111,11 +90,11 @@ func AuthMiddleware(userApi *userapi.Api) gin.HandlerFunc {
 				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to get or create user: " + err.Error()})
 				return
 			}
-			c.Set("db_user", dbUser)
+			c.Set("user", dbUser)
 		}
 
 		// Store the claims in the context
-		c.Set("user", userClaims)
+		c.Set("user_claims", userClaims)
 		c.Next()
 	}
 }

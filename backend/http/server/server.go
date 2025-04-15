@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"ems.dev/backend/http/middleware"
+	orgapi "ems.dev/backend/services/organization/api"
 	userapi "ems.dev/backend/services/user/api"
 
 	"github.com/gin-gonic/gin"
@@ -14,13 +15,15 @@ type Server struct {
 	router  *gin.Engine
 	db      *gorm.DB
 	userApi *userapi.Api
+	orgApi  *orgapi.Api
 }
 
-func New(db *gorm.DB, userApi *userapi.Api) *Server {
+func New(db *gorm.DB, userApi *userapi.Api, orgApi *orgapi.Api) *Server {
 	s := &Server{
 		router:  gin.Default(),
 		db:      db,
 		userApi: userApi,
+		orgApi:  orgApi,
 	}
 
 	s.setupMiddleware()

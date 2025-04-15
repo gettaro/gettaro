@@ -39,6 +39,16 @@ components:
         id: { type: string }
         name: { type: string }
 
+    Organization:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        slug: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        isOwner: { type: boolean }
+
 paths:
   /users:
     get:
@@ -114,7 +124,71 @@ paths:
   /organizations:
     post:
       summary: Create an organization
-      description: Creates a new org with optional initial integration config.
+      description: Creates a new organization and sets the current user as its owner.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                slug: { type: string }
+              required:
+                - name
+                - slug
+      responses:
+        "201":
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+      security:
+        - bearerAuth: []
+
+    get:
+      summary: List user's organizations
+      description: Returns a list of organizations the current user is part of, including ownership information.
+      responses:
+        "200":
+          description: List of organizations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Organization"
+      security:
+        - bearerAuth: []
+
+  /organizations/{id}:
+    get:
+      summary: Get organization by ID
+      description: Returns details about a specific organization.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      responses:
+        "200":
+          description: Organization details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+      security:
+        - bearerAuth: []
+
+    put:
+      summary: Update organization
+      description: Updates an existing organization. Only organization owners can update.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
       requestBody:
         required: true
         content:
@@ -125,17 +199,26 @@ paths:
                 name: { type: string }
                 slug: { type: string }
       responses:
-        "201":
-          description: Organization created
+        "200":
+          description: Updated organization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
       security:
         - bearerAuth: []
 
-    get:
-      summary: List all organizations
-      description: Admin-only endpoint to list all orgs in the system.
+    delete:
+      summary: Delete organization
+      description: Deletes an organization. Only organization owners can delete.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
       responses:
-        "200":
-          description: List of orgs
+        "204":
+          description: Organization deleted
       security:
         - bearerAuth: []
 

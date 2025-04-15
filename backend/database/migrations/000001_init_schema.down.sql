@@ -1,4 +1,5 @@
 -- Drop tables in reverse order of creation to handle foreign key constraints
+DROP TABLE IF EXISTS user_organizations;
 DROP TABLE IF EXISTS pm_tickets;
 DROP TABLE IF EXISTS project_management_accounts;
 DROP TABLE IF EXISTS pr_reviewers;
