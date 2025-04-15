@@ -1,0 +1,255 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(uuid())
+  email           String   @unique
+  name            String
+  isActive        Boolean  @default(true)
+  status          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime
+
+  // Relations
+  authProviders         AuthProvider[]
+  userOrganizations     UserOrganization[]
+  userTitles            UserTitle[]
+  teams                 TeamMember[]
+  directReports         DirectReport[] @relation("DirectReports")
+  manager               DirectReport[] @relation("Manager")
+  sourceControlAccounts SourceControlAccount[]
+  pmAccounts            ProjectManagementAccount[]
+  prComments            PRComment[]
+}
+
+model Organization {
+  id                 String   @id @default(uuid())
+  name               String   @unique
+  slug               String   @unique
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime
+
+  // Relations
+  userOrganizations  UserOrganization[]
+  titles             Title[]
+  teams              Team[]
+  teamMembers        TeamMember[]
+  directReports      DirectReport[]
+  integrationConfigs IntegrationConfig[]
+  sourceControlAccounts SourceControlAccount[]
+  projectManagementAccounts ProjectManagementAccount[]
+  userTitles         UserTitle[]
+}
+
+model UserOrganization {
+  id             String   @id @default(uuid())
+  userId         String
+  organizationId String
+  isOwner        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
+
+  // Relations
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+}
+
+model Title {
+  id             String   @id @default(uuid())
+  name           String
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userTitles   UserTitle[]
+}
+
+model UserTitle {
+  id             String   @id @default(uuid())
+  userId         String
+  titleId        String
+  organizationId String
+
+  // Relations
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        Title        @relation(fields: [titleId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+}
+
+model AuthProvider {
+  id         String   @id @default(uuid())
+  userId     String
+  provider   String
+  providerId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+}
+
+model Team {
+  id             String   @id @default(uuid())
+  name           String
+  description    String?
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      TeamMember[]
+}
+
+model TeamMember {
+  id             String   @id @default(uuid())
+  userId         String
+  teamId         String
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team         Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId, organizationId])
+}
+
+model DirectReport {
+  id             String   @id @default(uuid())
+  managerId      String
+  reportId       String
+  organizationId String
+  depth          Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
+
+  manager       User         @relation("Manager", fields: [managerId], references: [id], onDelete: Cascade)
+  report        User         @relation("DirectReports", fields: [reportId], references: [id], onDelete: Cascade)
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([managerId, reportId, organizationId])
+}
+
+model IntegrationConfig {
+  id             String   @id @default(uuid())
+  organizationId String
+  providerName   String
+  providerType   String
+  encryptedToken String
+  metadata       Json?
+  lastSyncedAt   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, providerName])
+}
+
+model SourceControlAccount {
+  id             String   @id @default(uuid())
+  userId         String
+  organizationId String?
+  providerName   String
+  providerId     String
+  username       String
+  metadata       Json?
+  lastSyncedAt   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  pullRequests   PullRequest[]
+  reviews        PRReviewer[]
+}
+
+model PullRequest {
+  id                     String   @id @default(uuid())
+  sourceControlAccountId String
+  providerId             String
+  url                    String
+  title                  String
+  status                 String
+  createdAt              DateTime
+  mergedAt               DateTime?
+  lastUpdatedAt          DateTime
+  timeToFirstReview      Int?
+  timeToMerge            Int?
+  updatedAt              DateTime @default(now())
+
+  account    SourceControlAccount @relation(fields: [sourceControlAccountId], references: [id], onDelete: Cascade)
+  comments   PRComment[]
+  reviewers  PRReviewer[]
+}
+
+model PRComment {
+  id        String   @id @default(uuid())
+  prId      String
+  authorId  String?
+  body      String
+  createdAt DateTime
+  updatedAt DateTime @default(now())
+
+  pullRequest PullRequest @relation(fields: [prId], references: [id], onDelete: Cascade)
+}
+
+model PRReviewer {
+  id          String   @id @default(uuid())
+  prId        String
+  reviewerId  String
+  reviewedAt  DateTime
+  reviewState String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+
+  pullRequest PullRequest           @relation(fields: [prId], references: [id], onDelete: Cascade)
+  reviewer    SourceControlAccount  @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+}
+
+model ProjectManagementAccount {
+  id             String   @id @default(uuid())
+  userId         String
+  organizationId String?
+  providerName   String
+  providerId     String
+  metadata       Json?
+  lastSyncedAt   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
+
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  tickets        PMTicket[]
+}
+
+model PMTicket {
+  id                         String   @id @default(uuid())
+  projectManagementAccountId String
+  providerId                 String
+  title                      String
+  epic                       String?
+  labels                     String[]
+  status                     String
+  storyPoints                Int?
+  createdAt                  DateTime
+  updatedAt                  DateTime @default(now())
+  completedAt                DateTime?
+
+  account ProjectManagementAccount @relation(fields: [projectManagementAccountId], references: [id], onDelete: Cascade)
+}

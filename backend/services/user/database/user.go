@@ -2,6 +2,7 @@ package database
 
 import (
 	"ems.dev/backend/database"
+	orgtypes "ems.dev/backend/services/organization/types"
 	"ems.dev/backend/services/user/types"
 	"gorm.io/gorm"
 )
@@ -88,7 +89,7 @@ func (d *UserDB) FindUser(params types.UserSearchParams) (*types.User, error) {
 }
 
 // CreateOrganizationWithOwner creates a new organization and sets the specified user as its owner
-func (d *UserDB) CreateOrganizationWithOwner(org *types.Organization, userID string) error {
+func (d *UserDB) CreateOrganizationWithOwner(org *orgtypes.Organization, userID string) error {
 	return d.db.Transaction(func(tx *gorm.DB) error {
 		// Create organization
 		if err := tx.Create(org).Error; err != nil {
@@ -109,8 +110,8 @@ func (d *UserDB) CreateOrganizationWithOwner(org *types.Organization, userID str
 }
 
 // GetUserOrganizations returns all organizations a user is part of, with ownership information
-func (d *UserDB) GetUserOrganizations(userID string) ([]types.Organization, error) {
-	var orgs []types.Organization
+func (d *UserDB) GetUserOrganizations(userID string) ([]orgtypes.Organization, error) {
+	var orgs []orgtypes.Organization
 	err := d.db.Raw(`
 		SELECT o.*, uo.is_owner
 		FROM organizations o
