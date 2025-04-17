@@ -1,7 +1,6 @@
 package database
 
 import (
-	"ems.dev/backend/database"
 	orgtypes "ems.dev/backend/services/organization/types"
 	"ems.dev/backend/services/user/types"
 	"gorm.io/gorm"
@@ -11,9 +10,9 @@ type UserDB struct {
 	db *gorm.DB
 }
 
-func NewUserDB() *UserDB {
+func NewUserDB(db *gorm.DB) *UserDB {
 	return &UserDB{
-		db: database.DB,
+		db: db,
 	}
 }
 

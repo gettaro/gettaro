@@ -15,11 +15,11 @@ import (
 )
 
 type OrganizationHandler struct {
-	orgApi  *orgapi.Api
-	userApi *userapi.Api
+	orgApi  orgapi.OrganizationAPI
+	userApi userapi.UserAPI
 }
 
-func NewOrganizationHandler(orgApi *orgapi.Api, userApi *userapi.Api) *OrganizationHandler {
+func NewOrganizationHandler(orgApi orgapi.OrganizationAPI, userApi userapi.UserAPI) *OrganizationHandler {
 	return &OrganizationHandler{
 		orgApi:  orgApi,
 		userApi: userApi,

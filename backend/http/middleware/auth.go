@@ -14,7 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AuthMiddleware(userApi *userapi.Api) gin.HandlerFunc {
+func AuthMiddleware(userApi userapi.UserAPI) gin.HandlerFunc {
 	issuerURL := os.Getenv("AUTH0_ISSUER_URL")
 	audience := os.Getenv("AUTH0_CLIENT_ID")
 

@@ -10,10 +10,10 @@ import (
 )
 
 type TeamHandler struct {
-	teamApi *teamapi.Api
+	teamApi teamapi.TeamAPI
 }
 
-func NewTeamHandler(teamApi *teamapi.Api) *TeamHandler {
+func NewTeamHandler(teamApi teamapi.TeamAPI) *TeamHandler {
 	return &TeamHandler{
 		teamApi: teamApi,
 	}

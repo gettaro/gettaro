@@ -24,11 +24,11 @@ func main() {
 	database.InitDB()
 
 	// Initialize services
-	userDb := userdb.NewUserDB()
+	userDb := userdb.NewUserDB(database.DB)
 	userApi := userapi.NewApi(userDb)
-	orgDb := orgdb.NewOrganizationDB()
+	orgDb := orgdb.NewOrganizationDB(database.DB)
 	orgApi := orgapi.NewApi(orgDb)
-	teamDb := teamdb.NewTeamDB()
+	teamDb := teamdb.NewTeamDB(database.DB)
 	teamApi := teamapi.NewApi(teamDb)
 
 	// Initialize and run server

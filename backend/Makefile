@@ -10,7 +10,7 @@ MIGRATION_DIR = database/migrations
 MIGRATION_DSN = postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable
 MIGRATE_BIN = $(shell go env GOPATH)/bin/migrate
 
-.PHONY: migrate-up migrate-down migrate-create migrate-force migrate-status db-create db-drop
+.PHONY: migrate-up migrate-down migrate-create migrate-force migrate-status db-create db-drop test test-verbose test-coverage
 
 # Database operations
 db-create:
@@ -47,6 +47,21 @@ migrate-force:
 migrate-status:
 	@echo "Checking migration status..."
 	@$(MIGRATE_BIN) -path $(MIGRATION_DIR) -database "$(MIGRATION_DSN)" version
+
+# Test BE operations
+test-be:
+	@echo "Running tests..."
+	@go test ./... -count=1
+
+test-be-verbose:
+	@echo "Running tests in verbose mode..."
+	@go test ./... -v -count=1
+
+test-be-coverage:
+	@echo "Running tests with coverage..."
+	@go test ./... -coverprofile=coverage.out
+	@go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report generated at coverage.html"
 
 # Development setup
 setup: db-create migrate-up

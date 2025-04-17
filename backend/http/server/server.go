@@ -15,12 +15,12 @@ import (
 type Server struct {
 	router  *gin.Engine
 	db      *gorm.DB
-	userApi *userapi.Api
-	orgApi  *orgapi.Api
-	teamApi *teamapi.Api
+	userApi userapi.UserAPI
+	orgApi  orgapi.OrganizationAPI
+	teamApi teamapi.TeamAPI
 }
 
-func New(db *gorm.DB, userApi *userapi.Api, orgApi *orgapi.Api, teamApi *teamapi.Api) *Server {
+func New(db *gorm.DB, userApi userapi.UserAPI, orgApi orgapi.OrganizationAPI, teamApi teamapi.TeamAPI) *Server {
 	s := &Server{
 		router:  gin.Default(),
 		db:      db,

@@ -19,29 +19,11 @@ func (s *Server) setupRoutes() {
 	{
 		// User routes
 		usersHandler := handlers.NewUsersHandler(s.userApi)
-		users := protected.Group("/users")
-		{
-			users.GET("", usersHandler.ListUsers)
-			users.POST("", usersHandler.CreateUser)
-			users.GET("/:id", usersHandler.GetUser)
-			users.PUT("/:id", usersHandler.UpdateUser)
-			users.DELETE("/:id", usersHandler.DeleteUser)
-			users.GET("/me", usersHandler.GetMe)
-		}
+		usersHandler.RegisterRoutes(protected)
 
 		// Organization routes
 		orgHandler := handlers.NewOrganizationHandler(s.orgApi, s.userApi)
-		orgs := protected.Group("/organizations")
-		{
-			orgs.POST("", orgHandler.CreateOrganization)
-			orgs.GET("", orgHandler.ListOrganizations)
-			orgs.GET("/:id", orgHandler.GetOrganization)
-			orgs.PUT("/:id", orgHandler.UpdateOrganization)
-			orgs.DELETE("/:id", orgHandler.DeleteOrganization)
-			orgs.POST("/:id/members", orgHandler.AddOrganizationMember)
-			orgs.DELETE("/:id/members/:userId", orgHandler.RemoveOrganizationMember)
-			orgs.GET("/:id/members", orgHandler.ListOrganizationMembers)
-		}
+		orgHandler.RegisterRoutes(protected)
 
 		// Integration config routes
 		integrations := protected.Group("/integration-configs")
@@ -51,16 +33,7 @@ func (s *Server) setupRoutes() {
 
 		// Team routes
 		teamHandler := handlers.NewTeamHandler(s.teamApi)
-		teams := protected.Group("/teams")
-		{
-			teams.GET("", teamHandler.ListTeams)
-			teams.POST("", teamHandler.CreateTeam)
-			teams.GET("/:id", teamHandler.GetTeam)
-			teams.PUT("/:id", teamHandler.UpdateTeam)
-			teams.DELETE("/:id", teamHandler.DeleteTeam)
-			teams.POST("/:id/members", teamHandler.AddTeamMember)
-			teams.DELETE("/:id/members/:userId", teamHandler.RemoveTeamMember)
-		}
+		teamHandler.RegisterRoutes(protected)
 
 		// Direct reports routes
 		directs := protected.Group("/directs")
@@ -85,17 +58,7 @@ func (s *Server) setupRoutes() {
 		}
 
 		// Project management routes
-		pm := protected.Group("/project-management-accounts")
-		{
-			pm.GET("", handlers.ListPMAccounts)
-			pm.POST("", handlers.CreatePMAccount)
-		}
-
-		// PM tickets routes
-		tickets := protected.Group("/pm-tickets")
-		{
-			tickets.GET("", handlers.ListPMTickets)
-			tickets.POST("", handlers.CreatePMTicket)
-		}
+		pmHandler := handlers.NewProjectManagementHandler()
+		pmHandler.RegisterRoutes(protected)
 	}
 }

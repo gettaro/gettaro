@@ -11,11 +11,11 @@ import (
 )
 
 type UsersHandler struct {
-	usersApi       *usersApi.Api
+	usersApi       usersApi.UserAPI
 	authMiddleware gin.HandlerFunc
 }
 
-func NewUsersHandler(usersApi *usersApi.Api) *UsersHandler {
+func NewUsersHandler(usersApi usersApi.UserAPI) *UsersHandler {
 	return &UsersHandler{
 		usersApi:       usersApi,
 		authMiddleware: middleware.AuthMiddleware(usersApi),
@@ -68,4 +68,17 @@ func (h *UsersHandler) GetMe(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, userhttptypes.GetUserResponse{User: foundUser})
+}
+
+// RegisterRoutes registers all user-related routes
+func (h *UsersHandler) RegisterRoutes(api *gin.RouterGroup) {
+	users := api.Group("/users")
+	{
+		users.GET("", h.ListUsers)
+		users.POST("", h.CreateUser)
+		users.GET("/:id", h.GetUser)
+		users.PUT("/:id", h.UpdateUser)
+		users.DELETE("/:id", h.DeleteUser)
+		users.GET("/me", h.GetMe)
+	}
 }

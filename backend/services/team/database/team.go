@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"ems.dev/backend/database"
 	"ems.dev/backend/services/team/types"
 	"gorm.io/gorm"
 )
@@ -13,9 +12,9 @@ type TeamDB struct {
 	db *gorm.DB
 }
 
-func NewTeamDB() *TeamDB {
+func NewTeamDB(db *gorm.DB) *TeamDB {
 	return &TeamDB{
-		db: database.DB,
+		db: db,
 	}
 }
 

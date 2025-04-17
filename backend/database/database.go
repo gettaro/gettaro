@@ -5,6 +5,9 @@ import (
 	"log"
 	"os"
 
+	orgdb "ems.dev/backend/services/organization/database"
+	teamdb "ems.dev/backend/services/team/database"
+	userdb "ems.dev/backend/services/user/database"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -51,4 +54,16 @@ func InitDB() {
 	}
 
 	DB = db
+}
+
+func NewUserDB(db *gorm.DB) *userdb.UserDB {
+	return userdb.NewUserDB(db)
+}
+
+func NewOrganizationDB(db *gorm.DB) *orgdb.OrganizationDB {
+	return orgdb.NewOrganizationDB(db)
+}
+
+func NewTeamDB(db *gorm.DB) *teamdb.TeamDB {
+	return teamdb.NewTeamDB(db)
 }

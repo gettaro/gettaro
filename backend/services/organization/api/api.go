@@ -7,6 +7,19 @@ import (
 	"ems.dev/backend/services/organization/types"
 )
 
+// OrganizationAPI defines the interface for organization operations
+type OrganizationAPI interface {
+	CreateOrganization(ctx context.Context, org *types.Organization, ownerID string) error
+	GetUserOrganizations(ctx context.Context, userID string) ([]types.Organization, error)
+	GetOrganizationByID(ctx context.Context, id string) (*types.Organization, error)
+	UpdateOrganization(ctx context.Context, org *types.Organization) error
+	DeleteOrganization(ctx context.Context, id string) error
+	AddOrganizationMember(ctx context.Context, orgID string, userID string) error
+	RemoveOrganizationMember(ctx context.Context, orgID string, userID string) error
+	GetOrganizationMembers(ctx context.Context, orgID string) ([]types.OrganizationMember, error)
+	IsOrganizationOwner(ctx context.Context, orgID string, userID string) (bool, error)
+}
+
 type Api struct {
 	db *database.OrganizationDB
 }

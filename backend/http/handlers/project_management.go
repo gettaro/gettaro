@@ -6,6 +6,29 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type ProjectManagementHandler struct{}
+
+func NewProjectManagementHandler() *ProjectManagementHandler {
+	return &ProjectManagementHandler{}
+}
+
+// RegisterRoutes registers all project management-related routes
+func (h *ProjectManagementHandler) RegisterRoutes(api *gin.RouterGroup) {
+	pm := api.Group("/project-management")
+	{
+		accounts := pm.Group("/accounts")
+		{
+			accounts.GET("", ListPMAccounts)
+			accounts.POST("", CreatePMAccount)
+		}
+		tickets := pm.Group("/tickets")
+		{
+			tickets.GET("", ListPMTickets)
+			tickets.POST("", CreatePMTicket)
+		}
+	}
+}
+
 func ListPMAccounts(c *gin.Context) {
 	// TODO: Implement authorization check
 	c.JSON(http.StatusOK, gin.H{"message": "List project management accounts endpoint"})
