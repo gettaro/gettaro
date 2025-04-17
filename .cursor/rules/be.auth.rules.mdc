@@ -1,0 +1,40 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+description: Authentication logic and how to access user context from JWT claims.
+globs:
+  - "backend/http/middleware/auth.go"
+  - "backend/http/handlers/**/*.go"
+alwaysApply: true
+
+---
+
+## JWT Middleware
+- JWTs are validated using a custom middleware
+- Middleware extracts a `user_claims` object and injects it into the request context
+
+## Using `user_claims`
+- Handlers should extract `user_claims` from the context
+- Look up the corresponding user from the database using the `email` field
+
+## Example
+```go
+userClaims, exists := c.Get("user_claims")
+if !exists {
+  c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found in context"})
+  return
+}
+
+user, err := h.userApi.FindUser(usertypes.UserSearchParams{Email: &userClaims.(*authTypes.UserClaims).Email})
+if err != nil {
+  c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+  return
+}
+
+if user == nil {
+  c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+  return
+}
+```

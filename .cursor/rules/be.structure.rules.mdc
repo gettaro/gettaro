@@ -1,0 +1,37 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+description: Project folder layout and service organization.
+globs:
+  - "backend/**/*"
+alwaysApply: true
+
+---
+
+## Folder Layout
+```
+/frontend     # Frontend app
+/backend      # Backend app (REST API)
+```
+
+### `/backend/database`
+- `migrations/`: Contains migration files
+- `database.go`: DB initialization logic
+
+### `/backend/http`
+- `handlers/`: One file per resource (e.g. `user.go`, `team.go`)
+- `middleware/`: One file per middleware (e.g. `auth.go`)
+- `server/`: Contains `routes.go` and `server.go`
+- `types/`: Shared request/response models
+- `openapi.yml`: Must be updated whenever routes, types, or middleware change
+
+### `/backend/services/{resourceName}`
+- `api/`: Contains `api.go` for initialization and one file per method
+- `database/`: Contains DB logic for the resource in one file
+- `types/`: Internal business logic structs and models
+
+### `main.go`
+- Entry point of the application
+- Initializes services and injects dependencies

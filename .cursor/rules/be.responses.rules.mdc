@@ -1,0 +1,35 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+description: API response formatting and typing rules.
+globs:
+  - "backend/http/**/*.go"
+alwaysApply: true
+
+---
+
+## Enclosing Object
+- All responses must be wrapped in a single enclosing object
+- Example:
+```json
+{
+  "user": {
+    "name": "mario"
+  }
+}
+```
+
+## List Responses
+- Always return empty arrays instead of null for lists
+- Example:
+```json
+{
+  "users": []
+}
+```
+
+## Type Definitions
+- Define response types in `http/types/{resourceName}/get_{resourceName}.go`
+- Reuse types for multiple operations (e.g. `GetUser`, `CreateUser`)

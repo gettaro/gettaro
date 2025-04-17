@@ -1,0 +1,47 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+description: Rules for maintaining API documentation and code comments.
+globs:
+  - "backend/http/**/*.go"
+  - "backend/openapi.yml"
+alwaysApply: true
+
+---
+
+## OpenAPI Syncing
+- Any time a route, middleware, or payload (request or response) is added or modified, the `openapi.yml` file must be updated accordingly.
+- Keep the OpenAPI spec in sync with:
+  - Endpoint definitions
+  - Input/output types
+  - Auth requirements
+
+## Postman Collection Syncing
+- Any time a route, middleware, or payload (request or response) is added or modified, the `openapi.yml` file must be updated accordingly.
+- Keep the OpenAPI spec in sync with:
+  - Endpoint definitions
+  - Input/output types
+  - Auth requirements
+
+## Function Documentation
+- Every function must include a descriptive comment
+- Comments should explain:
+  - Purpose
+  - Parameters
+  - Return values
+  - Any important side effects or assumptions
+
+## Example Function Doc
+```go
+// GetUser handles the retrieval of a user by ID.
+// Params:
+// - c: the Gin context containing request and response
+// Returns a JSON object with the user data, or an error response.
+func (h *UserHandler) GetUser(c *gin.Context) { ... }
+```
+
+## Good Practices
+- Use consistent and clear language
+- Make it easy for other developers (and Cursor) to understand and extend the code
