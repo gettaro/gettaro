@@ -51,3 +51,6 @@ go.work
 *.sqlite
 *.sqlite3
 postgres_data/ 
+
+__debug*
+*secrets.sh
