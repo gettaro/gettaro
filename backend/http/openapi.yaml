@@ -246,16 +246,83 @@ paths:
   /teams:
     get:
       summary: Get all teams
+      description: Returns a list of teams with optional filters
+      parameters:
+        - in: query
+          name: organizationId
+          schema: { type: string }
+          description: Filter teams by organization ID
+        - in: query
+          name: name
+          schema: { type: string }
+          description: Filter teams by name
       responses:
         "200":
           description: List of teams
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Team"
       security:
         - bearerAuth: []
 
     post:
       summary: Create team
-      description: Adds a new team to the org
+      description: Creates a new team in an organization
       requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+                organizationId: { type: string }
+              required:
+                - name
+                - organizationId
+      responses:
+        "201":
+          description: Team created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+      security:
+        - bearerAuth: []
+
+  /teams/{id}:
+    get:
+      summary: Get team by ID
+      description: Returns details about a specific team
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      responses:
+        "200":
+          description: Team details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+      security:
+        - bearerAuth: []
+
+    put:
+      summary: Update team
+      description: Updates an existing team's details
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -264,25 +331,71 @@ paths:
                 name: { type: string }
                 description: { type: string }
       responses:
-        "201":
-          description: Created
+        "200":
+          description: Team updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+      security:
+        - bearerAuth: []
+
+    delete:
+      summary: Delete team
+      description: Deletes a team
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      responses:
+        "204":
+          description: Team deleted
       security:
         - bearerAuth: []
 
   /teams/{id}/members:
     post:
-      summary: Add user to team
-      description: Add an existing user to a team
+      summary: Add team member
+      description: Adds a user to a team
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               type: object
               properties:
                 userId: { type: string }
+                role: { type: string }
+              required:
+                - userId
       responses:
-        "200":
-          description: Added
+        "201":
+          description: Member added
+      security:
+        - bearerAuth: []
+
+  /teams/{id}/members/{userId}:
+    delete:
+      summary: Remove team member
+      description: Removes a user from a team
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+        - in: path
+          name: userId
+          schema: { type: string }
+          required: true
+      responses:
+        "204":
+          description: Member removed
       security:
         - bearerAuth: []
 

@@ -47,11 +47,16 @@ func (s *Server) setupRoutes() {
 		}
 
 		// Team routes
+		teamHandler := handlers.NewTeamHandler(s.teamApi)
 		teams := protected.Group("/teams")
 		{
-			teams.GET("", handlers.ListTeams)
-			teams.POST("", handlers.CreateTeam)
-			teams.POST("/:id/members", handlers.AddTeamMember)
+			teams.GET("", teamHandler.ListTeams)
+			teams.POST("", teamHandler.CreateTeam)
+			teams.GET("/:id", teamHandler.GetTeam)
+			teams.PUT("/:id", teamHandler.UpdateTeam)
+			teams.DELETE("/:id", teamHandler.DeleteTeam)
+			teams.POST("/:id/members", teamHandler.AddTeamMember)
+			teams.DELETE("/:id/members/:userId", teamHandler.RemoveTeamMember)
 		}
 
 		// Direct reports routes

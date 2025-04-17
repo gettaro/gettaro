@@ -7,6 +7,8 @@ import (
 	"ems.dev/backend/http/server"
 	orgapi "ems.dev/backend/services/organization/api"
 	orgdb "ems.dev/backend/services/organization/database"
+	teamapi "ems.dev/backend/services/team/api"
+	teamdb "ems.dev/backend/services/team/database"
 	userapi "ems.dev/backend/services/user/api"
 	userdb "ems.dev/backend/services/user/database"
 	"github.com/joho/godotenv"
@@ -26,9 +28,11 @@ func main() {
 	userApi := userapi.NewApi(userDb)
 	orgDb := orgdb.NewOrganizationDB()
 	orgApi := orgapi.NewApi(orgDb)
+	teamDb := teamdb.NewTeamDB()
+	teamApi := teamapi.NewApi(teamDb)
 
 	// Initialize and run server
-	srv := server.New(database.DB, userApi, orgApi)
+	srv := server.New(database.DB, userApi, orgApi, teamApi)
 	if err := srv.Run(":8080"); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
