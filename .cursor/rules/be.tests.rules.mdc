@@ -1,0 +1,16 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+description: Write tests
+globs:
+  - "backend/http/handlers/**/*.go"
+  - "backend/services/**/api/*.go"
+alwaysApply: true
+
+---
+
+## Tests
+- Write comprehensive tests for any logic
+- Document the tests by adding comments

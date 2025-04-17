@@ -23,7 +23,10 @@ alwaysApply: true
 ### `/backend/http`
 - `handlers/`: One file per resource (e.g. `user.go`, `team.go`)
 - `middleware/`: One file per middleware (e.g. `auth.go`)
-- `server/`: Contains `routes.go` (configures all the routes and the handlers) and `server.go` (initializes the server and the middleware)
+- `server/`: 
+- `server/routes.go`: Is where we configure and register the routes
+- `server/server.go` Is where we nitialize the server and the middlewares
+
 - `types/`: Shared request/response models
 - `openapi.yml`: Must be updated whenever routes, types, or middleware change
 
