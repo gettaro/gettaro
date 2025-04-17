@@ -55,8 +55,9 @@ type PostmanURL struct {
 }
 
 type PostmanBody struct {
-	Mode string `json:"mode"`
-	Raw  string `json:"raw"`
+	Mode    string                 `json:"mode"`
+	Raw     string                 `json:"raw"`
+	Options map[string]interface{} `json:"options,omitempty"`
 }
 
 func main() {
@@ -149,6 +150,11 @@ func convertToPostmanCollection(doc *openapi3.T) PostmanCollection {
 					item.Request.Body = &PostmanBody{
 						Mode: "raw",
 						Raw:  example,
+						Options: map[string]interface{}{
+							"raw": map[string]string{
+								"language": "json",
+							},
+						},
 					}
 				}
 			}
