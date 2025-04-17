@@ -18,15 +18,15 @@ func (s *Server) setupRoutes() {
 	protected.Use(middleware.AuthMiddleware(s.userApi))
 	{
 		// User routes
-		userHandler := handlers.NewUserHandler(s.userApi)
+		usersHandler := handlers.NewUsersHandler(s.userApi)
 		users := protected.Group("/users")
 		{
-			users.GET("", handlers.ListUsers)
-			users.POST("", handlers.CreateUser)
-			users.GET("/:id", handlers.GetUser)
-			users.PUT("/:id", handlers.UpdateUser)
-			users.DELETE("/:id", handlers.DeleteUser)
-			users.GET("/me", userHandler.GetMe)
+			users.GET("", usersHandler.ListUsers)
+			users.POST("", usersHandler.CreateUser)
+			users.GET("/:id", usersHandler.GetUser)
+			users.PUT("/:id", usersHandler.UpdateUser)
+			users.DELETE("/:id", usersHandler.DeleteUser)
+			users.GET("/me", usersHandler.GetMe)
 		}
 
 		// Organization routes
@@ -38,6 +38,9 @@ func (s *Server) setupRoutes() {
 			orgs.GET("/:id", orgHandler.GetOrganization)
 			orgs.PUT("/:id", orgHandler.UpdateOrganization)
 			orgs.DELETE("/:id", orgHandler.DeleteOrganization)
+			orgs.POST("/:id/members", orgHandler.AddOrganizationMember)
+			orgs.DELETE("/:id/members/:userId", orgHandler.RemoveOrganizationMember)
+			orgs.GET("/:id/members", orgHandler.ListOrganizationMembers)
 		}
 
 		// Integration config routes

@@ -5,7 +5,7 @@ info:
   description: API for managing users, orgs, integrations, and engineering metrics.
 
 servers:
-  - url: http://localhost:3000/api
+  - url: http://localhost:8080/api
 
 components:
   securitySchemes:
@@ -72,6 +72,20 @@ paths:
       responses:
         "201":
           description: Created user
+      security:
+        - bearerAuth: []
+
+  /users/me:
+    get:
+      summary: Get current user
+      description: Returns the current user's information based on their JWT token.
+      responses:
+        "200":
+          description: Current user details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
       security:
         - bearerAuth: []
 
