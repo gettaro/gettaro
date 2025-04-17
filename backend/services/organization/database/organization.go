@@ -100,3 +100,43 @@ func (d *OrganizationDB) DeleteOrganization(id string) error {
 		return nil
 	})
 }
+
+// AddOrganizationMember adds a user as a member to an organization
+func (d *OrganizationDB) AddOrganizationMember(orgID string, userID string) error {
+	return d.db.Exec(
+		"INSERT INTO user_organizations (user_id, organization_id, is_owner) VALUES (?, ?, false)",
+		userID,
+		orgID,
+	).Error
+}
+
+// RemoveOrganizationMember removes a user from an organization
+func (d *OrganizationDB) RemoveOrganizationMember(orgID string, userID string) error {
+	return d.db.Exec(
+		"DELETE FROM user_organizations WHERE organization_id = ? AND user_id = ? AND is_owner = false",
+		orgID,
+		userID,
+	).Error
+}
+
+// GetOrganizationMembers returns all members of an organization
+func (d *OrganizationDB) GetOrganizationMembers(orgID string) ([]types.OrganizationMember, error) {
+	var members []types.OrganizationMember
+	err := d.db.Raw(`
+		SELECT uo.*
+		FROM user_organizations uo
+		WHERE uo.organization_id = ?
+	`, orgID).Scan(&members).Error
+	return members, err
+}
+
+// IsOrganizationOwner checks if a user is the owner of an organization
+func (d *OrganizationDB) IsOrganizationOwner(orgID string, userID string) (bool, error) {
+	var count int64
+	err := d.db.Raw(`
+		SELECT COUNT(*)
+		FROM user_organizations
+		WHERE organization_id = ? AND user_id = ? AND is_owner = true
+	`, orgID, userID).Scan(&count).Error
+	return count > 0, err
+}

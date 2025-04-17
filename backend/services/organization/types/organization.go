@@ -48,3 +48,12 @@ type IntegrationConfig struct {
 	// Unique constraint
 	UniqueOrgProvider string `gorm:"uniqueIndex:idx_org_provider"`
 }
+
+type OrganizationMember struct {
+	ID             string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	UserID         string    `json:"userId"`
+	OrganizationID string    `json:"organizationId"`
+	IsOwner        bool      `json:"isOwner"`
+	CreatedAt      time.Time `json:"createdAt" gorm:"default:now()"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+}

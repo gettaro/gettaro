@@ -45,9 +45,19 @@ components:
         id: { type: string }
         name: { type: string }
         slug: { type: string }
+        isOwner: { type: boolean }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+
+    OrganizationMember:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        organizationId: { type: string }
         isOwner: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
 
 paths:
   /users:
@@ -170,9 +180,12 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Organization"
+                type: object
+                properties:
+                  organizations:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Organization"
       security:
         - bearerAuth: []
 
@@ -191,7 +204,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Organization"
+                type: object
+                properties:
+                  organization:
+                    $ref: "#/components/schemas/Organization"
       security:
         - bearerAuth: []
 
@@ -218,7 +234,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Organization"
+                type: object
+                properties:
+                  organization:
+                    $ref: "#/components/schemas/Organization"
       security:
         - bearerAuth: []
 
@@ -233,6 +252,73 @@ paths:
       responses:
         "204":
           description: Organization deleted
+      security:
+        - bearerAuth: []
+
+  /organizations/{id}/members:
+    get:
+      summary: List organization members
+      description: Returns a list of all members in an organization.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      responses:
+        "200":
+          description: List of organization members
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  members:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OrganizationMember"
+      security:
+        - bearerAuth: []
+
+    post:
+      summary: Add organization member
+      description: Adds a user as a member to an organization. Only organization owners can add members.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: { type: string }
+              required:
+                - userId
+      responses:
+        "201":
+          description: Member added
+      security:
+        - bearerAuth: []
+
+  /organizations/{id}/members/{userId}:
+    delete:
+      summary: Remove organization member
+      description: Removes a user from an organization. Only organization owners can remove members.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+        - in: path
+          name: userId
+          schema: { type: string }
+          required: true
+      responses:
+        "204":
+          description: Member removed
       security:
         - bearerAuth: []
 

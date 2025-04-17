@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
 	authTypes "ems.dev/backend/http/types/auth"
+	orghttptypes "ems.dev/backend/http/types/organization"
 	orgapi "ems.dev/backend/services/organization/api"
 	orgtypes "ems.dev/backend/services/organization/types"
 	userapi "ems.dev/backend/services/user/api"
@@ -24,6 +26,53 @@ func NewOrganizationHandler(orgApi *orgapi.Api, userApi *userapi.Api) *Organizat
 	}
 }
 
+// getUserFromContext extracts the user from the request context and returns it
+// It retrieves the user claims from the JWT token and looks up the corresponding user in the database
+// Returns:
+// - *usertypes.User: The user object if found
+// - error: If the user claims are missing, user not found, or database error occurs
+func (h *OrganizationHandler) getUserFromContext(c *gin.Context) (*usertypes.User, error) {
+	userClaims, exists := c.Get("user_claims")
+	if !exists {
+		return nil, fmt.Errorf("user not found in context")
+	}
+
+	user, err := h.userApi.FindUser(usertypes.UserSearchParams{Email: &userClaims.(*authTypes.UserClaims).Email})
+	if err != nil {
+		return nil, err
+	}
+
+	if user == nil {
+		return nil, fmt.Errorf("user not found")
+	}
+
+	return user, nil
+}
+
+// getOrganizationIDFromContext extracts the organization ID from the request context and returns it
+// It validates that the ID parameter is present in the URL
+// Returns:
+// - string: The organization ID if present
+// - error: If the ID parameter is missing
+func (h *OrganizationHandler) getOrganizationIDFromContext(c *gin.Context) (string, error) {
+	id := c.Param("id")
+	if id == "" {
+		return "", fmt.Errorf("organization ID is required")
+	}
+	return id, nil
+}
+
+// CreateOrganization handles the creation of a new organization
+// It:
+// 1. Validates the request body
+// 2. Gets the current user from context
+// 3. Creates a new organization with the provided name and slug
+// 4. Sets the current user as the owner
+// Returns:
+// - 201: The created organization
+// - 400: If the request body is invalid
+// - 401: If the user is not authenticated
+// - 500: If there's a database error
 func (h *OrganizationHandler) CreateOrganization(c *gin.Context) {
 	var req orgtypes.CreateOrganizationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -31,21 +80,9 @@ func (h *OrganizationHandler) CreateOrganization(c *gin.Context) {
 		return
 	}
 
-	// Get user_claims from context (set by auth middleware)
-	userClaims, exists := c.Get("user_claims")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found in context"})
-		return
-	}
-
-	user, err := h.userApi.FindUser(usertypes.UserSearchParams{Email: &userClaims.(*authTypes.UserClaims).Email})
+	user, err := h.getUserFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -65,22 +102,18 @@ func (h *OrganizationHandler) CreateOrganization(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"organization": org})
 }
 
+// ListOrganizations handles listing all organizations the current user is a member of
+// It:
+// 1. Gets the current user from context
+// 2. Retrieves all organizations where the user is a member
+// Returns:
+// - 200: List of organizations with ownership information
+// - 401: If the user is not authenticated
+// - 500: If there's a database error
 func (h *OrganizationHandler) ListOrganizations(c *gin.Context) {
-	// Get user_claims from context (set by auth middleware)
-	userClaims, exists := c.Get("user_claims")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found in context"})
-		return
-	}
-
-	user, err := h.userApi.FindUser(usertypes.UserSearchParams{Email: &userClaims.(*authTypes.UserClaims).Email})
+	user, err := h.getUserFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -94,28 +127,27 @@ func (h *OrganizationHandler) ListOrganizations(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"organizations": orgs})
 }
 
+// GetOrganization handles retrieving a specific organization by ID
+// It:
+// 1. Gets the current user from context
+// 2. Validates the organization ID
+// 3. Checks if the user has access to the organization
+// Returns:
+// - 200: The organization details
+// - 400: If the organization ID is missing
+// - 401: If the user is not authenticated
+// - 404: If the organization is not found or user has no access
+// - 500: If there's a database error
 func (h *OrganizationHandler) GetOrganization(c *gin.Context) {
-	// Get user_claims from context (set by auth middleware)
-	userClaims, exists := c.Get("user_claims")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found in context"})
-		return
-	}
-
-	user, err := h.userApi.FindUser(usertypes.UserSearchParams{Email: &userClaims.(*authTypes.UserClaims).Email})
+	user, err := h.getUserFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
-	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
-		return
-	}
-
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "organization ID is required"})
+	id, err := h.getOrganizationIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -142,28 +174,29 @@ func (h *OrganizationHandler) GetOrganization(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"organization": org})
 }
 
+// UpdateOrganization handles updating an existing organization
+// It:
+// 1. Gets the current user from context
+// 2. Validates the organization ID
+// 3. Checks if the user is the owner of the organization
+// 4. Updates the organization with the provided fields
+// Returns:
+// - 200: The updated organization
+// - 400: If the request body is invalid
+// - 401: If the user is not authenticated
+// - 403: If the user is not the owner
+// - 404: If the organization is not found
+// - 500: If there's a database error
 func (h *OrganizationHandler) UpdateOrganization(c *gin.Context) {
-	// Get user_claims from context (set by auth middleware)
-	userClaims, exists := c.Get("user_claims")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found in context"})
-		return
-	}
-
-	user, err := h.userApi.FindUser(usertypes.UserSearchParams{Email: &userClaims.(*authTypes.UserClaims).Email})
+	user, err := h.getUserFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
-	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
-		return
-	}
-
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "organization ID is required"})
+	id, err := h.getOrganizationIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -211,6 +244,14 @@ func (h *OrganizationHandler) UpdateOrganization(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"organization": org})
 }
 
+// DeleteOrganization handles deleting an organization
+// It:
+// 1. Validates the organization ID
+// 2. Deletes the organization
+// Returns:
+// - 204: If the organization was deleted successfully
+// - 400: If the organization ID is missing
+// - 500: If there's a database error
 func (h *OrganizationHandler) DeleteOrganization(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -225,4 +266,153 @@ func (h *OrganizationHandler) DeleteOrganization(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+// AddOrganizationMember handles adding a user as a member to an organization
+// It:
+// 1. Gets the current user from context
+// 2. Validates the organization ID
+// 3. Checks if the current user is the owner
+// 4. Adds the specified user as a member
+// Returns:
+// - 201: If the member was added successfully
+// - 400: If the request body is invalid
+// - 401: If the user is not authenticated
+// - 403: If the user is not the owner
+// - 500: If there's a database error
+func (h *OrganizationHandler) AddOrganizationMember(c *gin.Context) {
+	user, err := h.getUserFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	orgID, err := h.getOrganizationIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if user is the owner of the organization
+	isOwner, err := h.orgApi.IsOrganizationOwner(c.Request.Context(), orgID, user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !isOwner {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only organization owners can add members"})
+		return
+	}
+
+	var req orghttptypes.AddOrganizationMemberRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Add user as member
+	err = h.orgApi.AddOrganizationMember(c.Request.Context(), orgID, req.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusCreated)
+}
+
+// RemoveOrganizationMember handles removing a user from an organization
+// It:
+// 1. Gets the current user from context
+// 2. Validates the organization ID and user ID
+// 3. Checks if the current user is the owner
+// 4. Removes the specified user from the organization
+// Returns:
+// - 204: If the member was removed successfully
+// - 400: If the IDs are missing
+// - 401: If the user is not authenticated
+// - 403: If the user is not the owner
+// - 500: If there's a database error
+func (h *OrganizationHandler) RemoveOrganizationMember(c *gin.Context) {
+	user, err := h.getUserFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	orgID, err := h.getOrganizationIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if user is the owner of the organization
+	isOwner, err := h.orgApi.IsOrganizationOwner(c.Request.Context(), orgID, user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !isOwner {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only organization owners can remove members"})
+		return
+	}
+
+	userID := c.Param("userId")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user ID is required"})
+		return
+	}
+
+	// Remove user from organization
+	err = h.orgApi.RemoveOrganizationMember(c.Request.Context(), orgID, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// ListOrganizationMembers handles listing all members of an organization
+// It:
+// 1. Validates the organization ID
+// 2. Retrieves all members of the organization
+// Returns:
+// - 200: List of organization members
+// - 400: If the organization ID is missing
+// - 500: If there's a database error
+func (h *OrganizationHandler) ListOrganizationMembers(c *gin.Context) {
+	orgID, err := h.getOrganizationIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get organization members
+	members, err := h.orgApi.GetOrganizationMembers(c.Request.Context(), orgID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"members": members})
+}
+
+// RegisterRoutes registers all organization-related routes
+func (h *OrganizationHandler) RegisterRoutes(api *gin.RouterGroup) {
+	organizations := api.Group("/organizations")
+	{
+		// Organization CRUD operations
+		organizations.POST("", h.CreateOrganization)
+		organizations.GET("", h.ListOrganizations)
+		organizations.GET("/:id", h.GetOrganization)
+		organizations.PUT("/:id", h.UpdateOrganization)
+		organizations.DELETE("/:id", h.DeleteOrganization)
+
+		// Organization member operations
+		organizations.GET("/:id/members", h.ListOrganizationMembers)
+		organizations.POST("/:id/members", h.AddOrganizationMember)
+		organizations.DELETE("/:id/members/:userId", h.RemoveOrganizationMember)
+	}
 }
