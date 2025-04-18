@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 
-	"ems.dev/backend/services/organization/database"
 	"ems.dev/backend/services/organization/types"
 )
 
@@ -20,11 +19,24 @@ type OrganizationAPI interface {
 	IsOrganizationOwner(ctx context.Context, orgID string, userID string) (bool, error)
 }
 
-type Api struct {
-	db *database.OrganizationDB
+// OrganizationDB defines the interface for organization database operations
+type OrganizationDB interface {
+	CreateOrganization(org *types.Organization, ownerID string) error
+	GetUserOrganizations(userID string) ([]types.Organization, error)
+	GetOrganizationByID(id string) (*types.Organization, error)
+	UpdateOrganization(org *types.Organization) error
+	DeleteOrganization(id string) error
+	AddOrganizationMember(orgID string, userID string) error
+	RemoveOrganizationMember(orgID string, userID string) error
+	GetOrganizationMembers(orgID string) ([]types.OrganizationMember, error)
+	IsOrganizationOwner(orgID string, userID string) (bool, error)
 }
 
-func NewApi(orgDb *database.OrganizationDB) *Api {
+type Api struct {
+	db OrganizationDB
+}
+
+func NewApi(orgDb OrganizationDB) *Api {
 	return &Api{
 		db: orgDb,
 	}
