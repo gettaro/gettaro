@@ -12,8 +12,7 @@ import (
 // UsersHandler handles all user-related HTTP requests.
 // It provides endpoints for user management including CRUD operations and retrieving the current user's information.
 type UsersHandler struct {
-	usersApi       usersApi.UserAPI
-	authMiddleware gin.HandlerFunc
+	usersApi usersApi.UserAPI
 }
 
 // NewUsersHandler creates a new instance of UsersHandler.

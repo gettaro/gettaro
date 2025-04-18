@@ -7,6 +7,7 @@ import (
 
 	authTypes "ems.dev/backend/http/types/auth"
 	orghttptypes "ems.dev/backend/http/types/organization"
+	"ems.dev/backend/http/utils"
 	orgapi "ems.dev/backend/services/organization/api"
 	orgtypes "ems.dev/backend/services/organization/types"
 	userapi "ems.dev/backend/services/user/api"
@@ -259,6 +260,11 @@ func (h *OrganizationHandler) DeleteOrganization(c *gin.Context) {
 		return
 	}
 
+	// Check if user is an owner of the organization
+	if !utils.CheckOrganizationOwnership(c, h.orgApi, id) {
+		return
+	}
+
 	err := h.orgApi.DeleteOrganization(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -281,27 +287,14 @@ func (h *OrganizationHandler) DeleteOrganization(c *gin.Context) {
 // - 403: If the user is not the owner
 // - 500: If there's a database error
 func (h *OrganizationHandler) AddOrganizationMember(c *gin.Context) {
-	user, err := h.getUserFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+	orgID := c.Param("id")
+	if orgID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "organization ID is required"})
 		return
 	}
 
-	orgID, err := h.getOrganizationIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Check if user is the owner of the organization
-	isOwner, err := h.orgApi.IsOrganizationOwner(c.Request.Context(), orgID, user.ID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	if !isOwner {
-		c.JSON(http.StatusForbidden, gin.H{"error": "only organization owners can add members"})
+	// Check if user is an owner of the organization
+	if !utils.CheckOrganizationOwnership(c, h.orgApi, orgID) {
 		return
 	}
 
@@ -311,9 +304,7 @@ func (h *OrganizationHandler) AddOrganizationMember(c *gin.Context) {
 		return
 	}
 
-	// Add user as member
-	err = h.orgApi.AddOrganizationMember(c.Request.Context(), orgID, req.UserID)
-	if err != nil {
+	if err := h.orgApi.AddOrganizationMemberByEmail(c.Request.Context(), orgID, req.Email); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -334,39 +325,19 @@ func (h *OrganizationHandler) AddOrganizationMember(c *gin.Context) {
 // - 403: If the user is not the owner
 // - 500: If there's a database error
 func (h *OrganizationHandler) RemoveOrganizationMember(c *gin.Context) {
-	user, err := h.getUserFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		return
-	}
-
-	orgID, err := h.getOrganizationIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Check if user is the owner of the organization
-	isOwner, err := h.orgApi.IsOrganizationOwner(c.Request.Context(), orgID, user.ID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	if !isOwner {
-		c.JSON(http.StatusForbidden, gin.H{"error": "only organization owners can remove members"})
-		return
-	}
-
+	orgID := c.Param("id")
 	userID := c.Param("userId")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user ID is required"})
+	if orgID == "" || userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "organization ID and user ID are required"})
 		return
 	}
 
-	// Remove user from organization
-	err = h.orgApi.RemoveOrganizationMember(c.Request.Context(), orgID, userID)
-	if err != nil {
+	// Check if user is an owner of the organization
+	if !utils.CheckOrganizationOwnership(c, h.orgApi, orgID) {
+		return
+	}
+
+	if err := h.orgApi.RemoveOrganizationMember(c.Request.Context(), orgID, userID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -386,6 +357,11 @@ func (h *OrganizationHandler) ListOrganizationMembers(c *gin.Context) {
 	orgID, err := h.getOrganizationIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if user is an owner of the organization
+	if !utils.CheckOrganizationOwnership(c, h.orgApi, orgID) {
 		return
 	}
 

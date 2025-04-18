@@ -27,9 +27,9 @@ func main() {
 	userDb := userdb.NewUserDB(database.DB)
 	userApi := userapi.NewApi(userDb)
 	orgDb := orgdb.NewOrganizationDB(database.DB)
-	orgApi := orgapi.NewApi(orgDb)
+	orgApi := orgapi.NewApi(orgDb, userApi)
 	teamDb := teamdb.NewTeamDB(database.DB)
-	teamApi := teamapi.NewApi(teamDb)
+	teamApi := teamapi.NewApi(teamDb, orgApi)
 
 	// Initialize and run server
 	srv := server.New(database.DB, userApi, orgApi, teamApi)

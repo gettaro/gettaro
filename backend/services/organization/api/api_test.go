@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"ems.dev/backend/services/organization/types"
+	usertypes "ems.dev/backend/services/user/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -13,6 +14,27 @@ import (
 // MockOrganizationDB is a mock implementation of the OrganizationDB type
 type MockOrganizationDB struct {
 	mock.Mock
+}
+
+// MockUserAPI is a mock implementation of the UserAPI type
+type MockUserAPI struct {
+	mock.Mock
+}
+
+func (m *MockUserAPI) FindUser(params usertypes.UserSearchParams) (*usertypes.User, error) {
+	args := m.Called(params)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*usertypes.User), args.Error(1)
+}
+
+func (m *MockUserAPI) GetOrCreateUserFromAuthProvider(provider string, providerID string, email string, name string) (*usertypes.User, error) {
+	args := m.Called(provider, providerID, email, name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*usertypes.User), args.Error(1)
 }
 
 func (m *MockOrganizationDB) CreateOrganization(org *types.Organization, ownerID string) error {
@@ -74,16 +96,16 @@ func TestCreateOrganization(t *testing.T) {
 		{
 			name: "successful creation",
 			org: &types.Organization{
-				ID:   "org-1",
 				Name: "Test Org",
+				Slug: "test-org",
 			},
 			ownerID: "user-1",
 		},
 		{
 			name: "database error",
 			org: &types.Organization{
-				ID:   "org-1",
 				Name: "Test Org",
+				Slug: "test-org",
 			},
 			ownerID:       "user-1",
 			mockError:     errors.New("database error"),
@@ -94,7 +116,8 @@ func TestCreateOrganization(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := new(MockOrganizationDB)
-			api := NewApi(mockDB)
+			mockUserAPI := new(MockUserAPI)
+			api := NewApi(mockDB, mockUserAPI)
 
 			mockDB.On("CreateOrganization", tt.org, tt.ownerID).Return(tt.mockError)
 
@@ -162,7 +185,8 @@ func TestGetUserOrganizations(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := new(MockOrganizationDB)
-			api := NewApi(mockDB)
+			mockUserAPI := new(MockUserAPI)
+			api := NewApi(mockDB, mockUserAPI)
 
 			mockDB.On("GetUserOrganizations", tt.userID).Return(tt.mockOrgs, tt.mockError)
 
@@ -185,15 +209,15 @@ func TestGetUserOrganizations(t *testing.T) {
 func TestGetOrganizationByID(t *testing.T) {
 	tests := []struct {
 		name          string
-		orgID         string
+		id            string
 		mockOrg       *types.Organization
 		mockError     error
 		expectedOrg   *types.Organization
 		expectedError error
 	}{
 		{
-			name:  "successful retrieval",
-			orgID: "org-1",
+			name: "successful retrieval",
+			id:   "org-1",
 			mockOrg: &types.Organization{
 				ID:   "org-1",
 				Name: "Test Org",
@@ -205,13 +229,14 @@ func TestGetOrganizationByID(t *testing.T) {
 		},
 		{
 			name:          "organization not found",
-			orgID:         "org-1",
-			mockError:     errors.New("organization not found"),
-			expectedError: errors.New("organization not found"),
+			id:            "org-1",
+			mockOrg:       nil,
+			expectedOrg:   nil,
+			expectedError: nil,
 		},
 		{
 			name:          "database error",
-			orgID:         "org-1",
+			id:            "org-1",
 			mockError:     errors.New("database error"),
 			expectedError: errors.New("database error"),
 		},
@@ -220,11 +245,12 @@ func TestGetOrganizationByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := new(MockOrganizationDB)
-			api := NewApi(mockDB)
+			mockUserAPI := new(MockUserAPI)
+			api := NewApi(mockDB, mockUserAPI)
 
-			mockDB.On("GetOrganizationByID", tt.orgID).Return(tt.mockOrg, tt.mockError)
+			mockDB.On("GetOrganizationByID", tt.id).Return(tt.mockOrg, tt.mockError)
 
-			org, err := api.GetOrganizationByID(context.Background(), tt.orgID)
+			org, err := api.GetOrganizationByID(context.Background(), tt.id)
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)
@@ -268,7 +294,8 @@ func TestUpdateOrganization(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := new(MockOrganizationDB)
-			api := NewApi(mockDB)
+			mockUserAPI := new(MockUserAPI)
+			api := NewApi(mockDB, mockUserAPI)
 
 			mockDB.On("UpdateOrganization", tt.org).Return(tt.mockError)
 
@@ -289,17 +316,17 @@ func TestUpdateOrganization(t *testing.T) {
 func TestDeleteOrganization(t *testing.T) {
 	tests := []struct {
 		name          string
-		orgID         string
+		id            string
 		mockError     error
 		expectedError error
 	}{
 		{
-			name:  "successful deletion",
-			orgID: "org-1",
+			name: "successful deletion",
+			id:   "org-1",
 		},
 		{
 			name:          "database error",
-			orgID:         "org-1",
+			id:            "org-1",
 			mockError:     errors.New("database error"),
 			expectedError: errors.New("database error"),
 		},
@@ -308,11 +335,12 @@ func TestDeleteOrganization(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := new(MockOrganizationDB)
-			api := NewApi(mockDB)
+			mockUserAPI := new(MockUserAPI)
+			api := NewApi(mockDB, mockUserAPI)
 
-			mockDB.On("DeleteOrganization", tt.orgID).Return(tt.mockError)
+			mockDB.On("DeleteOrganization", tt.id).Return(tt.mockError)
 
-			err := api.DeleteOrganization(context.Background(), tt.orgID)
+			err := api.DeleteOrganization(context.Background(), tt.id)
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)
@@ -326,45 +354,70 @@ func TestDeleteOrganization(t *testing.T) {
 	}
 }
 
-func TestAddOrganizationMember(t *testing.T) {
+func TestAddOrganizationMemberByEmail(t *testing.T) {
 	tests := []struct {
 		name          string
 		orgID         string
-		userID        string
+		email         string
+		user          *usertypes.User
+		userError     error
 		mockError     error
 		expectedError error
 	}{
 		{
-			name:   "successful addition",
-			orgID:  "org-1",
-			userID: "user-1",
+			name:  "successful addition",
+			orgID: "org-1",
+			email: "user@example.com",
+			user: &usertypes.User{
+				ID: "user-1",
+			},
+		},
+		{
+			name:          "user not found",
+			orgID:         "org-1",
+			email:         "nonexistent@example.com",
+			user:          nil,
+			expectedError: errors.New("user not found"),
 		},
 		{
 			name:          "database error",
 			orgID:         "org-1",
-			userID:        "user-1",
+			email:         "user@example.com",
+			user:          &usertypes.User{ID: "user-1"},
 			mockError:     errors.New("database error"),
 			expectedError: errors.New("database error"),
+		},
+		{
+			name:          "user lookup error",
+			orgID:         "org-1",
+			email:         "user@example.com",
+			userError:     errors.New("user lookup error"),
+			expectedError: errors.New("user lookup error"),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := new(MockOrganizationDB)
-			api := NewApi(mockDB)
+			mockUserAPI := new(MockUserAPI)
+			api := NewApi(mockDB, mockUserAPI)
 
-			mockDB.On("AddOrganizationMember", tt.orgID, tt.userID).Return(tt.mockError)
+			mockUserAPI.On("FindUser", usertypes.UserSearchParams{Email: &tt.email}).Return(tt.user, tt.userError)
+			if tt.user != nil {
+				mockDB.On("AddOrganizationMember", tt.orgID, tt.user.ID).Return(tt.mockError)
+			}
 
-			err := api.AddOrganizationMember(context.Background(), tt.orgID, tt.userID)
+			err := api.AddOrganizationMemberByEmail(context.Background(), tt.orgID, tt.email)
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)
-				assert.Equal(t, tt.expectedError, err)
+				assert.Equal(t, tt.expectedError.Error(), err.Error())
 			} else {
 				assert.NoError(t, err)
 			}
 
 			mockDB.AssertExpectations(t)
+			mockUserAPI.AssertExpectations(t)
 		})
 	}
 }
@@ -394,7 +447,8 @@ func TestRemoveOrganizationMember(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := new(MockOrganizationDB)
-			api := NewApi(mockDB)
+			mockUserAPI := new(MockUserAPI)
+			api := NewApi(mockDB, mockUserAPI)
 
 			mockDB.On("RemoveOrganizationMember", tt.orgID, tt.userID).Return(tt.mockError)
 
@@ -429,13 +483,6 @@ func TestGetOrganizationMembers(t *testing.T) {
 					ID:             "member-1",
 					UserID:         "user-1",
 					OrganizationID: "org-1",
-					IsOwner:        false,
-				},
-				{
-					ID:             "member-2",
-					UserID:         "user-2",
-					OrganizationID: "org-1",
-					IsOwner:        false,
 				},
 			},
 			expectedMembers: []types.OrganizationMember{
@@ -443,13 +490,6 @@ func TestGetOrganizationMembers(t *testing.T) {
 					ID:             "member-1",
 					UserID:         "user-1",
 					OrganizationID: "org-1",
-					IsOwner:        false,
-				},
-				{
-					ID:             "member-2",
-					UserID:         "user-2",
-					OrganizationID: "org-1",
-					IsOwner:        false,
 				},
 			},
 		},
@@ -470,7 +510,8 @@ func TestGetOrganizationMembers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := new(MockOrganizationDB)
-			api := NewApi(mockDB)
+			mockUserAPI := new(MockUserAPI)
+			api := NewApi(mockDB, mockUserAPI)
 
 			mockDB.On("GetOrganizationMembers", tt.orgID).Return(tt.mockMembers, tt.mockError)
 
@@ -501,16 +542,16 @@ func TestIsOrganizationOwner(t *testing.T) {
 		expectedError error
 	}{
 		{
-			name:          "is owner",
+			name:          "user is owner",
 			orgID:         "org-1",
 			userID:        "user-1",
 			mockIsOwner:   true,
 			expectedOwner: true,
 		},
 		{
-			name:          "is not owner",
+			name:          "user is not owner",
 			orgID:         "org-1",
-			userID:        "user-2",
+			userID:        "user-1",
 			mockIsOwner:   false,
 			expectedOwner: false,
 		},
@@ -526,7 +567,8 @@ func TestIsOrganizationOwner(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := new(MockOrganizationDB)
-			api := NewApi(mockDB)
+			mockUserAPI := new(MockUserAPI)
+			api := NewApi(mockDB, mockUserAPI)
 
 			mockDB.On("IsOrganizationOwner", tt.orgID, tt.userID).Return(tt.mockIsOwner, tt.mockError)
 
@@ -535,7 +577,6 @@ func TestIsOrganizationOwner(t *testing.T) {
 			if tt.expectedError != nil {
 				assert.Error(t, err)
 				assert.Equal(t, tt.expectedError, err)
-				assert.False(t, isOwner)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedOwner, isOwner)

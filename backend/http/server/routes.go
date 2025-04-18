@@ -32,7 +32,7 @@ func (s *Server) setupRoutes() {
 		}
 
 		// Team routes
-		teamHandler := handlers.NewTeamHandler(s.teamApi)
+		teamHandler := handlers.NewTeamHandler(s.teamApi, s.orgApi)
 		teamHandler.RegisterRoutes(protected)
 
 		// Direct reports routes

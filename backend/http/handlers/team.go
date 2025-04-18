@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	teamtypes "ems.dev/backend/http/types/team"
+	"ems.dev/backend/http/utils"
+	orgapi "ems.dev/backend/services/organization/api"
 	teamapi "ems.dev/backend/services/team/api"
 	"ems.dev/backend/services/team/types"
 	"github.com/gin-gonic/gin"
@@ -13,13 +15,15 @@ import (
 // It provides endpoints for team management including CRUD operations and member management.
 type TeamHandler struct {
 	teamApi teamapi.TeamAPI
+	orgApi  orgapi.OrganizationAPI
 }
 
 // NewTeamHandler creates a new instance of TeamHandler.
 // It initializes the handler with the provided TeamAPI.
-func NewTeamHandler(teamApi teamapi.TeamAPI) *TeamHandler {
+func NewTeamHandler(teamApi teamapi.TeamAPI, orgApi orgapi.OrganizationAPI) *TeamHandler {
 	return &TeamHandler{
 		teamApi: teamApi,
+		orgApi:  orgApi,
 	}
 }
 
@@ -55,6 +59,11 @@ func (h *TeamHandler) CreateTeam(c *gin.Context) {
 	var req types.CreateTeamRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if user is an owner of the organization
+	if !utils.CheckOrganizationOwnership(c, h.orgApi, req.OrganizationID) {
 		return
 	}
 
@@ -110,8 +119,14 @@ func (h *TeamHandler) ListTeams(c *gin.Context) {
 	if orgID := c.Query("organizationId"); orgID != "" {
 		params.OrganizationID = &orgID
 	}
+
 	if name := c.Query("name"); name != "" {
 		params.Name = &name
+	}
+
+	// Check if user is a member of the organization
+	if !utils.CheckOrganizationMembership(c, h.orgApi, params.OrganizationID) {
+		return
 	}
 
 	teams, err := h.teamApi.ListTeams(c.Request.Context(), params)
@@ -144,29 +159,34 @@ func (h *TeamHandler) UpdateTeam(c *gin.Context) {
 		return
 	}
 
+	// Check if user is an owner of the organization
+	team, err := h.teamApi.GetTeam(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !utils.CheckOrganizationOwnership(c, h.orgApi, team.OrganizationID) {
+		return
+	}
+
 	var req types.UpdateTeamRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	team := &types.Team{
+	teamParams := &types.Team{
 		Name:        *req.Name,
 		Description: *req.Description,
 	}
 
-	if err := h.teamApi.UpdateTeam(c.Request.Context(), id, team); err != nil {
+	if err := h.teamApi.UpdateTeam(c.Request.Context(), id, teamParams); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	updatedTeam, err := h.teamApi.GetTeam(c.Request.Context(), id)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, teamtypes.GetTeamResponse(updatedTeam))
+	c.JSON(http.StatusOK, teamtypes.GetTeamResponse(teamParams))
 }
 
 // DeleteTeam handles the DELETE /api/teams/:id endpoint.
@@ -179,6 +199,17 @@ func (h *TeamHandler) DeleteTeam(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "team ID is required"})
+		return
+	}
+
+	// Check if user is an owner of the organization
+	team, err := h.teamApi.GetTeam(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !utils.CheckOrganizationOwnership(c, h.orgApi, team.OrganizationID) {
 		return
 	}
 
@@ -200,6 +231,17 @@ func (h *TeamHandler) AddTeamMember(c *gin.Context) {
 	teamID := c.Param("id")
 	if teamID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "team ID is required"})
+		return
+	}
+
+	// Check if user is an owner of the organization
+	team, err := h.teamApi.GetTeam(c.Request.Context(), teamID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !utils.CheckOrganizationOwnership(c, h.orgApi, team.OrganizationID) {
 		return
 	}
 
@@ -234,6 +276,17 @@ func (h *TeamHandler) RemoveTeamMember(c *gin.Context) {
 	userID := c.Param("userId")
 	if teamID == "" || userID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "team ID and user ID are required"})
+		return
+	}
+
+	// Check if user is an owner of the organization
+	team, err := h.teamApi.GetTeam(c.Request.Context(), teamID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !utils.CheckOrganizationOwnership(c, h.orgApi, team.OrganizationID) {
 		return
 	}
 

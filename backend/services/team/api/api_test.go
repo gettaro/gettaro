@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	orgtypes "ems.dev/backend/services/organization/types"
 	"ems.dev/backend/services/team/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -12,6 +13,11 @@ import (
 
 // MockTeamDB is a mock implementation of the TeamDB type
 type MockTeamDB struct {
+	mock.Mock
+}
+
+// MockOrganizationAPI is a mock implementation of the OrganizationAPI type
+type MockOrganizationAPI struct {
 	mock.Mock
 }
 
@@ -53,6 +59,54 @@ func (m *MockTeamDB) RemoveTeamMember(ctx context.Context, teamID string, userID
 	return args.Error(0)
 }
 
+func (m *MockOrganizationAPI) CreateOrganization(ctx context.Context, org *orgtypes.Organization, ownerID string) error {
+	args := m.Called(ctx, org, ownerID)
+	return args.Error(0)
+}
+
+func (m *MockOrganizationAPI) GetUserOrganizations(ctx context.Context, userID string) ([]orgtypes.Organization, error) {
+	args := m.Called(ctx, userID)
+	return args.Get(0).([]orgtypes.Organization), args.Error(1)
+}
+
+func (m *MockOrganizationAPI) GetOrganizationByID(ctx context.Context, id string) (*orgtypes.Organization, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*orgtypes.Organization), args.Error(1)
+}
+
+func (m *MockOrganizationAPI) UpdateOrganization(ctx context.Context, org *orgtypes.Organization) error {
+	args := m.Called(ctx, org)
+	return args.Error(0)
+}
+
+func (m *MockOrganizationAPI) DeleteOrganization(ctx context.Context, id string) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockOrganizationAPI) AddOrganizationMemberByEmail(ctx context.Context, orgID string, email string) error {
+	args := m.Called(ctx, orgID, email)
+	return args.Error(0)
+}
+
+func (m *MockOrganizationAPI) RemoveOrganizationMember(ctx context.Context, orgID string, userID string) error {
+	args := m.Called(ctx, orgID, userID)
+	return args.Error(0)
+}
+
+func (m *MockOrganizationAPI) GetOrganizationMembers(ctx context.Context, orgID string) ([]orgtypes.OrganizationMember, error) {
+	args := m.Called(ctx, orgID)
+	return args.Get(0).([]orgtypes.OrganizationMember), args.Error(1)
+}
+
+func (m *MockOrganizationAPI) IsOrganizationOwner(ctx context.Context, orgID string, userID string) (bool, error) {
+	args := m.Called(ctx, orgID, userID)
+	return args.Bool(0), args.Error(1)
+}
+
 func TestCreateTeam(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -63,15 +117,17 @@ func TestCreateTeam(t *testing.T) {
 		{
 			name: "successful creation",
 			team: &types.Team{
-				ID:   "team-1",
-				Name: "Test Team",
+				ID:             "team-1",
+				Name:           "Test Team",
+				OrganizationID: "org-1",
 			},
 		},
 		{
 			name: "database error",
 			team: &types.Team{
-				ID:   "team-1",
-				Name: "Test Team",
+				ID:             "team-1",
+				Name:           "Test Team",
+				OrganizationID: "org-1",
 			},
 			mockError:     errors.New("database error"),
 			expectedError: errors.New("database error"),
@@ -81,9 +137,11 @@ func TestCreateTeam(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := new(MockTeamDB)
-			api := NewApi(mockDB)
+			mockOrgAPI := new(MockOrganizationAPI)
+			api := NewApi(mockDB, mockOrgAPI)
 
 			ctx := context.Background()
+			mockOrgAPI.On("GetOrganizationByID", ctx, tt.team.OrganizationID).Return(&orgtypes.Organization{ID: tt.team.OrganizationID}, nil)
 			mockDB.On("CreateTeam", ctx, tt.team).Return(tt.mockError)
 
 			err := api.CreateTeam(ctx, tt.team)
@@ -96,6 +154,7 @@ func TestCreateTeam(t *testing.T) {
 			}
 
 			mockDB.AssertExpectations(t)
+			mockOrgAPI.AssertExpectations(t)
 		})
 	}
 }
@@ -150,7 +209,8 @@ func TestListTeams(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := new(MockTeamDB)
-			api := NewApi(mockDB)
+			mockOrgAPI := new(MockOrganizationAPI)
+			api := NewApi(mockDB, mockOrgAPI)
 
 			ctx := context.Background()
 			mockDB.On("ListTeams", ctx, tt.params).Return(tt.mockTeams, tt.mockError)
@@ -209,7 +269,8 @@ func TestGetTeam(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := new(MockTeamDB)
-			api := NewApi(mockDB)
+			mockOrgAPI := new(MockOrganizationAPI)
+			api := NewApi(mockDB, mockOrgAPI)
 
 			ctx := context.Background()
 			mockDB.On("GetTeam", ctx, tt.teamID).Return(tt.mockTeam, tt.mockError)
@@ -261,7 +322,8 @@ func TestUpdateTeam(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := new(MockTeamDB)
-			api := NewApi(mockDB)
+			mockOrgAPI := new(MockOrganizationAPI)
+			api := NewApi(mockDB, mockOrgAPI)
 
 			ctx := context.Background()
 			mockDB.On("UpdateTeam", ctx, tt.teamID, tt.team).Return(tt.mockError)
@@ -302,7 +364,8 @@ func TestDeleteTeam(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := new(MockTeamDB)
-			api := NewApi(mockDB)
+			mockOrgAPI := new(MockOrganizationAPI)
+			api := NewApi(mockDB, mockOrgAPI)
 
 			ctx := context.Background()
 			mockDB.On("DeleteTeam", ctx, tt.teamID).Return(tt.mockError)
@@ -354,7 +417,8 @@ func TestAddTeamMember(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := new(MockTeamDB)
-			api := NewApi(mockDB)
+			mockOrgAPI := new(MockOrganizationAPI)
+			api := NewApi(mockDB, mockOrgAPI)
 
 			ctx := context.Background()
 			mockDB.On("AddTeamMember", ctx, tt.teamID, tt.member).Return(tt.mockError)
@@ -398,7 +462,8 @@ func TestRemoveTeamMember(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := new(MockTeamDB)
-			api := NewApi(mockDB)
+			mockOrgAPI := new(MockOrganizationAPI)
+			api := NewApi(mockDB, mockOrgAPI)
 
 			ctx := context.Background()
 			mockDB.On("RemoveTeamMember", ctx, tt.teamID, tt.userID).Return(tt.mockError)

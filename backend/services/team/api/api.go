@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 
+	orgapi "ems.dev/backend/services/organization/api"
 	"ems.dev/backend/services/team/types"
 )
 
@@ -42,11 +43,13 @@ type TeamDB interface {
 }
 
 type Api struct {
-	db TeamDB
+	db     TeamDB
+	orgApi orgapi.OrganizationAPI
 }
 
-func NewApi(teamDb TeamDB) *Api {
+func NewApi(teamDb TeamDB, orgApi orgapi.OrganizationAPI) *Api {
 	return &Api{
-		db: teamDb,
+		db:     teamDb,
+		orgApi: orgApi,
 	}
 }

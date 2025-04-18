@@ -2,8 +2,11 @@ package api
 
 import (
 	"context"
+	"fmt"
 
 	"ems.dev/backend/services/organization/types"
+	userapi "ems.dev/backend/services/user/api"
+	usertypes "ems.dev/backend/services/user/types"
 )
 
 // OrganizationAPI defines the interface for organization operations
@@ -13,7 +16,7 @@ type OrganizationAPI interface {
 	GetOrganizationByID(ctx context.Context, id string) (*types.Organization, error)
 	UpdateOrganization(ctx context.Context, org *types.Organization) error
 	DeleteOrganization(ctx context.Context, id string) error
-	AddOrganizationMember(ctx context.Context, orgID string, userID string) error
+	AddOrganizationMemberByEmail(ctx context.Context, orgID string, email string) error
 	RemoveOrganizationMember(ctx context.Context, orgID string, userID string) error
 	GetOrganizationMembers(ctx context.Context, orgID string) ([]types.OrganizationMember, error)
 	IsOrganizationOwner(ctx context.Context, orgID string, userID string) (bool, error)
@@ -33,18 +36,31 @@ type OrganizationDB interface {
 }
 
 type Api struct {
-	db OrganizationDB
+	db      OrganizationDB
+	userApi userapi.UserAPI
 }
 
-func NewApi(orgDb OrganizationDB) *Api {
+func NewApi(orgDb OrganizationDB, userApi userapi.UserAPI) *Api {
 	return &Api{
-		db: orgDb,
+		db:      orgDb,
+		userApi: userApi,
 	}
 }
 
-// AddOrganizationMember adds a user as a member to an organization
-func (a *Api) AddOrganizationMember(ctx context.Context, orgID string, userID string) error {
-	return a.db.AddOrganizationMember(orgID, userID)
+// AddOrganizationMemberByEmail adds a user as a member to an organization by their email
+func (a *Api) AddOrganizationMemberByEmail(ctx context.Context, orgID string, email string) error {
+	// Look up user by email
+	user, err := a.userApi.FindUser(usertypes.UserSearchParams{Email: &email})
+	if err != nil {
+		return err
+	}
+
+	if user == nil {
+		return fmt.Errorf("user not found")
+	}
+
+	// Add user as member
+	return a.db.AddOrganizationMember(orgID, user.ID)
 }
 
 // RemoveOrganizationMember removes a user from an organization

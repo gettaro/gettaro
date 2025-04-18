@@ -6,7 +6,7 @@ type CreateOrganizationRequest struct {
 }
 
 type AddOrganizationMemberRequest struct {
-	UserID string `json:"userId" binding:"required"`
+	Email string `json:"email" binding:"required"`
 }
 
 type RemoveOrganizationMemberRequest struct {
