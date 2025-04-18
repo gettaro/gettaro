@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 
-	"ems.dev/backend/services/team/database"
 	"ems.dev/backend/services/team/types"
 )
 
@@ -31,11 +30,22 @@ type TeamAPI interface {
 	RemoveTeamMember(ctx context.Context, teamID string, userID string) error
 }
 
-type Api struct {
-	db *database.TeamDB
+// TeamDB defines the interface for team database operations
+type TeamDB interface {
+	CreateTeam(ctx context.Context, team *types.Team) error
+	ListTeams(ctx context.Context, params types.TeamSearchParams) ([]types.Team, error)
+	GetTeam(ctx context.Context, id string) (*types.Team, error)
+	UpdateTeam(ctx context.Context, id string, team *types.Team) error
+	DeleteTeam(ctx context.Context, id string) error
+	AddTeamMember(ctx context.Context, teamID string, member *types.TeamMember) error
+	RemoveTeamMember(ctx context.Context, teamID string, userID string) error
 }
 
-func NewApi(teamDb *database.TeamDB) *Api {
+type Api struct {
+	db TeamDB
+}
+
+func NewApi(teamDb TeamDB) *Api {
 	return &Api{
 		db: teamDb,
 	}

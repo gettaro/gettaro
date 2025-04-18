@@ -9,16 +9,29 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// TeamHandler handles all team-related HTTP requests.
+// It provides endpoints for team management including CRUD operations and member management.
 type TeamHandler struct {
 	teamApi teamapi.TeamAPI
 }
 
+// NewTeamHandler creates a new instance of TeamHandler.
+// It initializes the handler with the provided TeamAPI.
 func NewTeamHandler(teamApi teamapi.TeamAPI) *TeamHandler {
 	return &TeamHandler{
 		teamApi: teamApi,
 	}
 }
 
+// RegisterRoutes registers all team-related routes with the provided router group.
+// It sets up the following routes:
+// - POST /api/teams - Create a new team
+// - GET /api/teams - List all teams
+// - GET /api/teams/:id - Get a specific team
+// - PUT /api/teams/:id - Update a team
+// - DELETE /api/teams/:id - Delete a team
+// - POST /api/teams/:id/members - Add a team member
+// - DELETE /api/teams/:id/members/:userId - Remove a team member
 func (h *TeamHandler) RegisterRoutes(router *gin.RouterGroup) {
 	teams := router.Group("/teams")
 	{
@@ -32,6 +45,12 @@ func (h *TeamHandler) RegisterRoutes(router *gin.RouterGroup) {
 	}
 }
 
+// CreateTeam handles the POST /api/teams endpoint.
+// It creates a new team with the provided information.
+// Returns:
+// - 201: The created team
+// - 400: If the request body is invalid
+// - 500: If there's a database error
 func (h *TeamHandler) CreateTeam(c *gin.Context) {
 	var req types.CreateTeamRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -53,6 +72,13 @@ func (h *TeamHandler) CreateTeam(c *gin.Context) {
 	c.JSON(http.StatusCreated, teamtypes.GetTeamResponse(team))
 }
 
+// GetTeam handles the GET /api/teams/:id endpoint.
+// It retrieves a specific team by its ID.
+// Returns:
+// - 200: The team details
+// - 400: If the team ID is missing
+// - 404: If the team is not found
+// - 500: If there's a database error
 func (h *TeamHandler) GetTeam(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -73,6 +99,11 @@ func (h *TeamHandler) GetTeam(c *gin.Context) {
 	c.JSON(http.StatusOK, teamtypes.GetTeamResponse(team))
 }
 
+// ListTeams handles the GET /api/teams endpoint.
+// It returns a list of teams, optionally filtered by organization ID or name.
+// Returns:
+// - 200: List of teams
+// - 500: If there's a database error
 func (h *TeamHandler) ListTeams(c *gin.Context) {
 	params := types.TeamSearchParams{}
 
@@ -99,6 +130,13 @@ func (h *TeamHandler) ListTeams(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// UpdateTeam handles the PUT /api/teams/:id endpoint.
+// It updates an existing team's information.
+// Returns:
+// - 200: The updated team
+// - 400: If the request body is invalid or team ID is missing
+// - 404: If the team is not found
+// - 500: If there's a database error
 func (h *TeamHandler) UpdateTeam(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -131,6 +169,12 @@ func (h *TeamHandler) UpdateTeam(c *gin.Context) {
 	c.JSON(http.StatusOK, teamtypes.GetTeamResponse(updatedTeam))
 }
 
+// DeleteTeam handles the DELETE /api/teams/:id endpoint.
+// It deletes a team from the system.
+// Returns:
+// - 204: If the team was successfully deleted
+// - 400: If the team ID is missing
+// - 500: If there's a database error
 func (h *TeamHandler) DeleteTeam(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -146,6 +190,12 @@ func (h *TeamHandler) DeleteTeam(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// AddTeamMember handles the POST /api/teams/:id/members endpoint.
+// It adds a user as a member to a team.
+// Returns:
+// - 201: If the member was added successfully
+// - 400: If the request body is invalid or team ID is missing
+// - 500: If there's a database error
 func (h *TeamHandler) AddTeamMember(c *gin.Context) {
 	teamID := c.Param("id")
 	if teamID == "" {
@@ -173,6 +223,12 @@ func (h *TeamHandler) AddTeamMember(c *gin.Context) {
 	c.Status(http.StatusCreated)
 }
 
+// RemoveTeamMember handles the DELETE /api/teams/:id/members/:userId endpoint.
+// It removes a user from a team's members.
+// Returns:
+// - 204: If the member was successfully removed
+// - 400: If the team ID or user ID is missing
+// - 500: If there's a database error
 func (h *TeamHandler) RemoveTeamMember(c *gin.Context) {
 	teamID := c.Param("id")
 	userID := c.Param("userId")
