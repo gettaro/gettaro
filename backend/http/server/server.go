@@ -3,7 +3,6 @@ package server
 import (
 	"os"
 
-	"ems.dev/backend/http/middleware"
 	orgapi "ems.dev/backend/services/organization/api"
 	teamapi "ems.dev/backend/services/team/api"
 	userapi "ems.dev/backend/services/user/api"
@@ -38,7 +37,7 @@ func New(db *gorm.DB, userApi userapi.UserAPI, orgApi orgapi.OrganizationAPI, te
 func (s *Server) setupMiddleware() {
 	s.router.Use(gin.Logger())
 	s.router.Use(gin.Recovery())
-	s.router.Use(middleware.AuthMiddleware(s.userApi))
+	//s.router.Use(middleware.AuthMiddleware(s.userApi))
 
 	// CORS middleware
 	s.router.Use(func(c *gin.Context) {

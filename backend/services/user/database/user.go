@@ -124,3 +124,54 @@ func (d *UserDB) GetUserOrganizations(userID string) ([]orgtypes.Organization, e
 
 	return orgs, nil
 }
+
+// CreateUser creates a new user in the database
+func (d *UserDB) CreateUser(user *types.User) error {
+	return d.db.Create(user).Error
+}
+
+// UpdateUser updates an existing user in the database
+func (d *UserDB) UpdateUser(user *types.User) error {
+	return d.db.Save(user).Error
+}
+
+// DeleteUser deletes a user from the database
+func (d *UserDB) DeleteUser(userID string) error {
+	return d.db.Delete(&types.User{}, "id = ?", userID).Error
+}
+
+// GetUserByID retrieves a user by their ID
+func (d *UserDB) GetUserByID(userID string) (*types.User, error) {
+	var user types.User
+	err := d.db.First(&user, "id = ?", userID).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+// GetUserByEmail retrieves a user by their email
+func (d *UserDB) GetUserByEmail(email string) (*types.User, error) {
+	var user types.User
+	err := d.db.First(&user, "email = ?", email).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+// ListUsers retrieves all users from the database
+func (d *UserDB) ListUsers() ([]types.User, error) {
+	var users []types.User
+	err := d.db.Find(&users).Error
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}
