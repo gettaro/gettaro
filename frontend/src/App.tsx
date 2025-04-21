@@ -1,28 +1,52 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Auth0ProviderWrapper from './providers/Auth0Provider';
-import MainLayout from './layouts/MainLayout';
-import Dashboard from './pages/Dashboard';
-import Teams from './pages/Teams';
-import Projects from './pages/Projects';
-import Tasks from './pages/Tasks';
-import Metrics from './pages/Metrics';
+import { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './hooks/useAuth';
+import { useUser } from './hooks/useUser';
+import { useOrganizations } from './hooks/useOrganizations';
+import OrganizationDashboard from './pages/OrganizationDashboard';
+import TeamOverview from './pages/TeamOverview';
+import Login from './pages/Login';
+import Loading from './components/Loading';
 
 function App() {
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { user, isLoading: isUserLoading, fetchUser } = useUser();
+  const { organizations, isLoading: isOrgsLoading, fetchOrganizations, setCurrentOrganization } = useOrganizations();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchUser();
+    }
+  }, [isAuthenticated, fetchUser]);
+
+  useEffect(() => {
+    if (user) {
+      fetchOrganizations();
+    }
+  }, [user, fetchOrganizations]);
+
+  useEffect(() => {
+    if (organizations.length > 0) {
+      setCurrentOrganization(organizations[0]);
+    }
+  }, [organizations, setCurrentOrganization]);
+
+  if (isAuthLoading || isUserLoading || isOrgsLoading) {
+    return <Loading />;
+  }
+
+  if (!isAuthenticated) {
+    return <Login />;
+  }
+
   return (
-    <Auth0ProviderWrapper>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/teams" element={<Teams />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/tasks" element={<Tasks />} />
-            <Route path="/metrics" element={<Metrics />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </Auth0ProviderWrapper>
+    <Router>
+      <Routes>
+        <Route path="/" element={<OrganizationDashboard />} />
+        <Route path="/teams/:id" element={<TeamOverview />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
   );
 }
 

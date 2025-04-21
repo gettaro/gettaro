@@ -1,10 +1,25 @@
 package database
 
 import (
+	"strings"
+
 	orgtypes "ems.dev/backend/services/organization/types"
 	"ems.dev/backend/services/user/types"
 	"gorm.io/gorm"
 )
+
+// DB defines the interface for user database operations
+type DB interface {
+	FindUser(params types.UserSearchParams) (*types.User, error)
+	CreateOrganizationWithOwner(org *orgtypes.Organization, userID string) error
+	GetUserOrganizations(userID string) ([]orgtypes.Organization, error)
+	CreateUser(user *types.User) (*types.User, error)
+	UpdateUser(user *types.User) error
+	DeleteUser(userID string) error
+	GetUserByID(userID string) (*types.User, error)
+	GetUserByEmail(email string) (*types.User, error)
+	ListUsers() ([]types.User, error)
+}
 
 type UserDB struct {
 	db *gorm.DB
@@ -14,55 +29,6 @@ func NewUserDB(db *gorm.DB) *UserDB {
 	return &UserDB{
 		db: db,
 	}
-}
-
-// GetOrCreateUserFromAuthProvider checks if a user exists for the given auth provider and ID,
-// and if not, creates a new user and auth provider entry
-func (d *UserDB) GetOrCreateUserFromAuthProvider(provider string, providerID string, email string, name string) (*types.User, error) {
-	var authProvider types.AuthProvider
-	err := d.db.Where("provider = ? AND provider_id = ?", provider, providerID).First(&authProvider).Error
-	if err == nil {
-		// Auth provider exists, return the associated user
-		var user types.User
-		err = d.db.First(&user, "id = ?", authProvider.UserID).Error
-		if err != nil {
-			return nil, err
-		}
-		return &user, nil
-	}
-
-	if err != gorm.ErrRecordNotFound {
-		return nil, err
-	}
-
-	// Create new user
-	user := types.User{
-		Email:    email,
-		Name:     name,
-		IsActive: true,
-		Status:   "active",
-	}
-
-	err = d.db.Create(&user).Error
-	if err != nil {
-		return nil, err
-	}
-
-	// Create auth provider
-	authProvider = types.AuthProvider{
-		UserID:     user.ID,
-		Provider:   provider,
-		ProviderID: providerID,
-	}
-
-	err = d.db.Create(&authProvider).Error
-	if err != nil {
-		// If auth provider creation fails, delete the user
-		d.db.Delete(&user)
-		return nil, err
-	}
-
-	return &user, nil
 }
 
 // FindUser searches for a user by ID or email
@@ -125,9 +91,22 @@ func (d *UserDB) GetUserOrganizations(userID string) ([]orgtypes.Organization, e
 	return orgs, nil
 }
 
-// CreateUser creates a new user in the database
-func (d *UserDB) CreateUser(user *types.User) error {
-	return d.db.Create(user).Error
+// CreateUser creates a new user in the database and returns the created user
+func (d *UserDB) CreateUser(user *types.User) (*types.User, error) {
+	err := d.db.Create(user).Error
+	// If error is a duplicate key error, return nil
+	if err != nil && strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+		existingUser, err := d.GetUserByEmail(user.Email)
+		if err != nil {
+			return nil, err
+		}
+		return existingUser, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 // UpdateUser updates an existing user in the database

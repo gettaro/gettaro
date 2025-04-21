@@ -23,14 +23,6 @@ func (m *MockUserDB) FindUser(params types.UserSearchParams) (*types.User, error
 	return args.Get(0).(*types.User), args.Error(1)
 }
 
-func (m *MockUserDB) GetOrCreateUserFromAuthProvider(provider string, providerID string, email string, name string) (*types.User, error) {
-	args := m.Called(provider, providerID, email, name)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*types.User), args.Error(1)
-}
-
 func (m *MockUserDB) CreateOrganizationWithOwner(org *orgtypes.Organization, userID string) error {
 	args := m.Called(org, userID)
 	return args.Error(0)
@@ -41,9 +33,9 @@ func (m *MockUserDB) GetUserOrganizations(userID string) ([]orgtypes.Organizatio
 	return args.Get(0).([]orgtypes.Organization), args.Error(1)
 }
 
-func (m *MockUserDB) CreateUser(user *types.User) error {
+func (m *MockUserDB) CreateUser(user *types.User) (*types.User, error) {
 	args := m.Called(user)
-	return args.Error(0)
+	return args.Get(0).(*types.User), args.Error(0)
 }
 
 func (m *MockUserDB) UpdateUser(user *types.User) error {
@@ -140,86 +132,6 @@ func TestFindUser(t *testing.T) {
 			mockDB.On("FindUser", tt.params).Return(tt.mockUser, tt.mockError)
 
 			user, err := api.FindUser(tt.params)
-
-			if tt.expectedError != nil {
-				assert.Error(t, err)
-				assert.Equal(t, tt.expectedError, err)
-				assert.Nil(t, user)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedUser, user)
-			}
-
-			mockDB.AssertExpectations(t)
-		})
-	}
-}
-
-func TestGetOrCreateUserFromAuthProvider(t *testing.T) {
-	tests := []struct {
-		name          string
-		provider      string
-		providerID    string
-		email         string
-		userName      string
-		mockUser      *types.User
-		mockError     error
-		expectedUser  *types.User
-		expectedError error
-	}{
-		{
-			name:       "existing user",
-			provider:   "auth0",
-			providerID: "auth0|123",
-			email:      "test@example.com",
-			userName:   "Test User",
-			mockUser: &types.User{
-				ID:    "user-1",
-				Email: "test@example.com",
-				Name:  "Test User",
-			},
-			expectedUser: &types.User{
-				ID:    "user-1",
-				Email: "test@example.com",
-				Name:  "Test User",
-			},
-		},
-		{
-			name:       "create new user",
-			provider:   "auth0",
-			providerID: "auth0|456",
-			email:      "new@example.com",
-			userName:   "New User",
-			mockUser: &types.User{
-				ID:    "user-2",
-				Email: "new@example.com",
-				Name:  "New User",
-			},
-			expectedUser: &types.User{
-				ID:    "user-2",
-				Email: "new@example.com",
-				Name:  "New User",
-			},
-		},
-		{
-			name:          "database error",
-			provider:      "auth0",
-			providerID:    "auth0|789",
-			email:         "error@example.com",
-			userName:      "Error User",
-			mockError:     errors.New("database error"),
-			expectedError: errors.New("database error"),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockDB := new(MockUserDB)
-			api := NewApi(mockDB)
-
-			mockDB.On("GetOrCreateUserFromAuthProvider", tt.provider, tt.providerID, tt.email, tt.userName).Return(tt.mockUser, tt.mockError)
-
-			user, err := api.GetOrCreateUserFromAuthProvider(tt.provider, tt.providerID, tt.email, tt.userName)
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)

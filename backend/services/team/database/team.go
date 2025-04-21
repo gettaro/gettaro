@@ -8,6 +8,17 @@ import (
 	"gorm.io/gorm"
 )
 
+// DB defines the interface for team database operations
+type DB interface {
+	CreateTeam(ctx context.Context, team *types.Team) error
+	ListTeams(ctx context.Context, params types.TeamSearchParams) ([]types.Team, error)
+	GetTeam(ctx context.Context, id string) (*types.Team, error)
+	UpdateTeam(ctx context.Context, id string, team *types.Team) error
+	DeleteTeam(ctx context.Context, id string) error
+	AddTeamMember(ctx context.Context, teamID string, member *types.TeamMember) error
+	RemoveTeamMember(ctx context.Context, teamID string, userID string) error
+}
+
 type TeamDB struct {
 	db *gorm.DB
 }

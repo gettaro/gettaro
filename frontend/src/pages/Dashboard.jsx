@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api';
 
 function Dashboard() {
-  const { isAuthenticated, getAccessTokenSilently, isLoading } = useAuth0();
+  const { isAuthenticated, getAccessTokenSilently, isLoading, getIdTokenClaims } = useAuth0();
   const [userData, setUserData] = useState(null);
   const navigate = useNavigate();
 
@@ -18,9 +18,12 @@ function Dashboard() {
     const fetchUserData = async () => {
       try {
         const token = await getAccessTokenSilently();
+        console.log('token', token);
+        const claims = await getIdTokenClaims();
+        console.log('claims', claims.__raw);
         localStorage.setItem('auth_token', token);
         
-        const response = await api.get('/api/me');
+        const response = await api.get('/api/users/me');
         setUserData(response.data);
       } catch (error) {
         console.error('Error fetching user data:', error);

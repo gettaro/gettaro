@@ -88,14 +88,37 @@ paths:
   /users/me:
     get:
       summary: Get current user
-      description: Returns the current user's information based on their JWT token.
+      description: Returns the current user's information based on their JWT token. This endpoint is used to get the authenticated user's profile information.
       responses:
         "200":
           description: Current user details
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/User"
+                type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized - Invalid or missing JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "unauthorized"
+        "404":
+          description: User not found - The user associated with the JWT token was not found in the database
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "user not found"
       security:
         - bearerAuth: []
 

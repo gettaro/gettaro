@@ -4,19 +4,21 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 
-	authTypes "ems.dev/backend/http/types/auth"
+	authhttptypes "ems.dev/backend/http/types/auth"
+	authapi "ems.dev/backend/services/auth/api"
+	authtypes "ems.dev/backend/services/auth/types"
 	userapi "ems.dev/backend/services/user/api"
+	usertypes "ems.dev/backend/services/user/types"
 	"github.com/auth0/go-jwt-middleware/v2/jwks"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
 	"github.com/gin-gonic/gin"
 )
 
-func AuthMiddleware(userApi userapi.UserAPI) gin.HandlerFunc {
-	issuerURL := os.Getenv("AUTH0_ISSUER_URL")
-	audience := os.Getenv("AUTH0_CLIENT_ID")
+func AuthMiddleware(userApi userapi.UserAPI, authApi authapi.AuthAPI) gin.HandlerFunc {
+	issuerURL := os.Getenv("AUTH0_AUTHORITY")
+	audience := os.Getenv("AUTH0_AUDIENCE")
 
 	issuer, err := url.Parse(issuerURL)
 	if err != nil {
@@ -31,7 +33,7 @@ func AuthMiddleware(userApi userapi.UserAPI) gin.HandlerFunc {
 		issuerURL,
 		[]string{audience},
 		validator.WithCustomClaims(func() validator.CustomClaims {
-			return &authTypes.CustomClaims{}
+			return &authhttptypes.CustomClaims{}
 		}),
 	)
 	if err != nil {
@@ -63,38 +65,60 @@ func AuthMiddleware(userApi userapi.UserAPI) gin.HandlerFunc {
 			return
 		}
 
-		// Get the custom claims
-		cc, ok := customClaims.CustomClaims.(*authTypes.CustomClaims)
-		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid custom claims format"})
+		externalAuth, err := authApi.GetExternalAuth(c.Request.Context(), customClaims.RegisteredClaims.Subject)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to get external auth: " + err.Error()})
 			return
 		}
 
-		// Create user claims from the token
-		userClaims := &authTypes.UserClaims{
-			Sub:      customClaims.RegisteredClaims.Subject,
-			Email:    cc.Email,
-			Name:     cc.Name,
-			Provider: "auth0", // Auth0 is our provider
-		}
-
-		// Only perform user creation/retrieval for /me endpoint
-		if strings.HasSuffix(c.Request.URL.Path, "/api/users/me") && userApi != nil {
-			dbUser, err := userApi.GetOrCreateUserFromAuthProvider(
-				userClaims.Provider,
-				userClaims.Sub,
-				userClaims.Email,
-				userClaims.Name,
-			)
+		user := &usertypes.User{}
+		if externalAuth == nil {
+			// Get user info from Auth0
+			userInfo, err := authApi.GetUserInfo(c.Request.Context(), token)
 			if err != nil {
-				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to get or create user: " + err.Error()})
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to get userinfo from auth: " + err.Error()})
 				return
 			}
-			c.Set("user", dbUser)
-		}
 
-		// Store the claims in the context
-		c.Set("user_claims", userClaims)
+			// Create user
+			user, err = userApi.CreateUser(&usertypes.User{
+				Email: userInfo.Email,
+				Name:  userInfo.Name,
+			})
+
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user: " + err.Error()})
+				return
+			}
+
+			// Create external auth
+			err = authApi.CreateExternalAuth(c.Request.Context(), &authtypes.AuthProvider{
+				UserID:     user.ID,
+				Provider:   "auth0",
+				ProviderID: customClaims.RegisteredClaims.Subject,
+			})
+
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to create external auth: " + err.Error()})
+				return
+			}
+
+		} else {
+			user, err = userApi.FindUser(usertypes.UserSearchParams{
+				ID: &externalAuth.UserID,
+			})
+
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to find user: " + err.Error()})
+				return
+			}
+
+			if user == nil {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+				return
+			}
+		}
+		c.Set("user", user)
 		c.Next()
 	}
 }

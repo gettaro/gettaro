@@ -15,7 +15,7 @@ func (s *Server) setupRoutes() {
 
 	// Protected routes
 	protected := s.router.Group("/api")
-	protected.Use(middleware.AuthMiddleware(s.userApi))
+	protected.Use(middleware.AuthMiddleware(s.userApi, s.authApi))
 	{
 		// User routes
 		usersHandler := handlers.NewUsersHandler(s.userApi)

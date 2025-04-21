@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	orgdb "ems.dev/backend/services/organization/database"
 	"ems.dev/backend/services/organization/types"
 	userapi "ems.dev/backend/services/user/api"
 	usertypes "ems.dev/backend/services/user/types"
@@ -22,25 +23,12 @@ type OrganizationAPI interface {
 	IsOrganizationOwner(ctx context.Context, orgID string, userID string) (bool, error)
 }
 
-// OrganizationDB defines the interface for organization database operations
-type OrganizationDB interface {
-	CreateOrganization(org *types.Organization, ownerID string) error
-	GetUserOrganizations(userID string) ([]types.Organization, error)
-	GetOrganizationByID(id string) (*types.Organization, error)
-	UpdateOrganization(org *types.Organization) error
-	DeleteOrganization(id string) error
-	AddOrganizationMember(orgID string, userID string) error
-	RemoveOrganizationMember(orgID string, userID string) error
-	GetOrganizationMembers(orgID string) ([]types.OrganizationMember, error)
-	IsOrganizationOwner(orgID string, userID string) (bool, error)
-}
-
 type Api struct {
-	db      OrganizationDB
+	db      orgdb.DB
 	userApi userapi.UserAPI
 }
 
-func NewApi(orgDb OrganizationDB, userApi userapi.UserAPI) *Api {
+func NewApi(orgDb orgdb.DB, userApi userapi.UserAPI) *Api {
 	return &Api{
 		db:      orgDb,
 		userApi: userApi,

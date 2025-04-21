@@ -29,8 +29,8 @@ func (m *MockUserAPI) FindUser(params usertypes.UserSearchParams) (*usertypes.Us
 	return args.Get(0).(*usertypes.User), args.Error(1)
 }
 
-func (m *MockUserAPI) GetOrCreateUserFromAuthProvider(provider string, providerID string, email string, name string) (*usertypes.User, error) {
-	args := m.Called(provider, providerID, email, name)
+func (m *MockUserAPI) CreateUser(user *usertypes.User) (*usertypes.User, error) {
+	args := m.Called(user)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

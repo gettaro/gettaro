@@ -5,6 +5,19 @@ import (
 	"gorm.io/gorm"
 )
 
+// DB defines the interface for organization database operations
+type DB interface {
+	CreateOrganization(org *types.Organization, ownerID string) error
+	GetUserOrganizations(userID string) ([]types.Organization, error)
+	GetOrganizationByID(id string) (*types.Organization, error)
+	UpdateOrganization(org *types.Organization) error
+	DeleteOrganization(id string) error
+	AddOrganizationMember(orgID string, userID string) error
+	RemoveOrganizationMember(orgID string, userID string) error
+	GetOrganizationMembers(orgID string) ([]types.OrganizationMember, error)
+	IsOrganizationOwner(orgID string, userID string) (bool, error)
+}
+
 type OrganizationDB struct {
 	db *gorm.DB
 }
