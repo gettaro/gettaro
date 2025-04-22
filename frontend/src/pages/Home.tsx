@@ -1,6 +1,6 @@
 import React from 'react'
 
-const Dashboard: React.FC = () => {
+const Home: React.FC = () => {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -50,4 +50,4 @@ const Dashboard: React.FC = () => {
   )
 }
 
-export default Dashboard 
+export default Home 
