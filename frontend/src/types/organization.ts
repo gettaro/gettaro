@@ -2,6 +2,9 @@ export interface Organization {
   id: string
   name: string
   slug: string
+  isOwner: boolean
+  createdAt: string
+  updatedAt: string
   logo?: string
 }
 

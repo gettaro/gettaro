@@ -1,5 +1,5 @@
 import { Organization } from '../types/organization'
-import { getAccessTokenSilently } from '@auth0/auth0-react'
+// import { getAccessTokenSilently } from '@auth0/auth0-react'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
 
@@ -49,5 +49,6 @@ export async function createOrganization(
     throw new Error('Failed to create organization')
   }
 
-  return response.json()
+  const data = await response.json()
+  return data.organization
 } 

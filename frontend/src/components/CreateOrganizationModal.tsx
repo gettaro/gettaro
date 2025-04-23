@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { OrganizationConflictError } from '../api/organizations'
+import { useNavigate } from 'react-router-dom'
 
 interface CreateOrganizationModalProps {
   isOpen: boolean
@@ -12,6 +13,7 @@ export default function CreateOrganizationModal({
   onClose,
   onCreate,
 }: CreateOrganizationModalProps) {
+  const navigate = useNavigate();
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -27,6 +29,8 @@ export default function CreateOrganizationModal({
       setName('')
       setSlug('')
       onClose()
+      // The organization object will be available in the parent component
+      // and the navigation will be handled there
     } catch (err) {
       if (err instanceof OrganizationConflictError) {
         setError('An organization with this name already exists. Please choose a different name.')
