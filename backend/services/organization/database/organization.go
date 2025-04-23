@@ -1,6 +1,9 @@
 package database
 
 import (
+	"strings"
+
+	"ems.dev/backend/services/errors"
 	"ems.dev/backend/services/organization/types"
 	"gorm.io/gorm"
 )
@@ -32,7 +35,16 @@ func NewOrganizationDB(db *gorm.DB) *OrganizationDB {
 func (d *OrganizationDB) CreateOrganization(org *types.Organization, userID string) error {
 	return d.db.Transaction(func(tx *gorm.DB) error {
 		// Create organization
-		if err := tx.Create(org).Error; err != nil {
+		err := tx.Create(org).Error
+		if err != nil {
+			// Check for unique constraint violation on slug
+			if strings.Contains(err.Error(), "duplicate key value") {
+				return &errors.ErrDuplicateConflict{
+					Resource: "organization",
+					Field:    "slug",
+					Value:    org.Slug,
+				}
+			}
 			return err
 		}
 

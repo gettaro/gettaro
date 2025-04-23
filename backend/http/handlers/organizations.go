@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	authTypes "ems.dev/backend/http/types/auth"
 	orghttptypes "ems.dev/backend/http/types/organization"
 	"ems.dev/backend/http/utils"
+	"ems.dev/backend/services/errors"
 	orgapi "ems.dev/backend/services/organization/api"
 	orgtypes "ems.dev/backend/services/organization/types"
 	userapi "ems.dev/backend/services/user/api"
@@ -33,21 +33,17 @@ func NewOrganizationHandler(orgApi orgapi.OrganizationAPI, userApi userapi.UserA
 // - *usertypes.User: The user object if found
 // - error: If the user claims are missing, user not found, or database error occurs
 func (h *OrganizationHandler) getUserFromContext(c *gin.Context) (*usertypes.User, error) {
-	userClaims, exists := c.Get("user_claims")
+	ctxUser, exists := c.Get("user")
 	if !exists {
 		return nil, fmt.Errorf("user not found in context")
 	}
 
-	user, err := h.userApi.FindUser(usertypes.UserSearchParams{Email: &userClaims.(*authTypes.UserClaims).Email})
-	if err != nil {
-		return nil, err
+	castedUser, ok := ctxUser.(*usertypes.User)
+	if !ok {
+		return nil, fmt.Errorf("user is not of type usertypes.User")
 	}
 
-	if user == nil {
-		return nil, fmt.Errorf("user not found")
-	}
-
-	return user, nil
+	return castedUser, nil
 }
 
 // getOrganizationIDFromContext extracts the organization ID from the request context and returns it
@@ -73,6 +69,7 @@ func (h *OrganizationHandler) getOrganizationIDFromContext(c *gin.Context) (stri
 // - 201: The created organization
 // - 400: If the request body is invalid
 // - 401: If the user is not authenticated
+// - 409: If the organization slug already exists
 // - 500: If there's a database error
 func (h *OrganizationHandler) CreateOrganization(c *gin.Context) {
 	var req orgtypes.CreateOrganizationRequest
@@ -96,6 +93,10 @@ func (h *OrganizationHandler) CreateOrganization(c *gin.Context) {
 	// Create organization and set user as owner
 	err = h.orgApi.CreateOrganization(c.Request.Context(), &org, user.ID)
 	if err != nil {
+		if errors.IsDuplicateConflict(err) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
