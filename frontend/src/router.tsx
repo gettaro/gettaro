@@ -1,7 +1,8 @@
 import { createBrowserRouter } from "react-router-dom";
 import RootLayout from "./layouts/RootLayout";
-import NoOrganization from "./pages/NoOrganization";
+import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
+import OrganizationDashboard from "./pages/OrganizationDashboard";
 
 export const router = createBrowserRouter([
   {
@@ -9,12 +10,16 @@ export const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       {
-        path: "no-organization",
-        element: <NoOrganization />,
+        path: "/",
+        element: <Home />,
       },
       {
-        path: "/",
+        path: "dashboard",
         element: <Dashboard />,
+      },
+      {
+        path: "organizations/:id/dashboard",
+        element: <OrganizationDashboard />,
       },
     ],
   },
