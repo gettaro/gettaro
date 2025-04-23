@@ -1,36 +1,20 @@
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { useUserOrganizations } from "../hooks/use-user-organizations";
+import { Outlet } from "react-router-dom";
+import Navigation from "../components/Navigation";
 
 export default function RootLayout() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { data: organizations, isLoading } = useUserOrganizations();
-  const [shouldRender, setShouldRender] = useState(false);
-
-  useEffect(() => {
-    if (isLoading) {
-      setShouldRender(false);
-      return;
-    }
-
-    // Don't redirect if we're already on the no-organization page
-    if (location.pathname === "/no-organization") {
-      setShouldRender(true);
-      return;
-    }
-
-    if (!organizations || organizations.length === 0) {
-      navigate("/no-organization", { replace: true });
-      setShouldRender(false);
-    } else {
-      setShouldRender(true);
-    }
-  }, [organizations, isLoading, navigate, location.pathname]);
-
-  if (!shouldRender) {
-    return null;
-  }
-
-  return <Outlet />;
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-background to-background/80">
+      <header className="bg-card/50 backdrop-blur-sm border-b">
+        <div className="container">
+          <div className="flex items-center justify-between py-4">
+            <h1 className="text-3xl font-bold text-foreground">EMS.dev</h1>
+            <Navigation />
+          </div>
+        </div>
+      </header>
+      <main className="flex-1">
+        <Outlet />
+      </main>
+    </div>
+  );
 } 

@@ -26,6 +26,21 @@ export async function getOrganizations(getToken: () => Promise<string>): Promise
   return data.organizations
 }
 
+export async function getOrganization(id: string, token: string): Promise<Organization> {
+  const response = await fetch(`${API_BASE_URL}/organizations/${id}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch organization')
+  }
+
+  const data = await response.json()
+  return data.organization
+}
+
 export async function createOrganization(
   name: string,
   slug: string,
