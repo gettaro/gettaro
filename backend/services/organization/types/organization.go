@@ -34,19 +34,33 @@ type UpdateOrganizationRequest struct {
 	Slug string `json:"slug"`
 }
 
-type IntegrationConfig struct {
-	ID             string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	OrganizationID string
-	ProviderName   string
-	ProviderType   string
-	EncryptedToken string
-	Metadata       datatypes.JSON
-	LastSyncedAt   *time.Time
-	CreatedAt      time.Time `gorm:"default:now()"`
-	UpdatedAt      time.Time
+type IntegrationProvider string
 
-	// Unique constraint
-	UniqueOrgProvider string `gorm:"uniqueIndex:idx_org_provider"`
+const (
+	IntegrationProviderGithub IntegrationProvider = "github"
+)
+
+type IntegrationConfig struct {
+	ID             string              `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	OrganizationID string              `json:"organizationId"`
+	ProviderName   IntegrationProvider `json:"providerName"`
+	ProviderType   string              `json:"providerType"`
+	EncryptedToken string              `json:"encryptedToken"`
+	Metadata       datatypes.JSON      `json:"metadata"`
+	LastSyncedAt   *time.Time          `json:"lastSyncedAt"`
+	CreatedAt      time.Time           `json:"createdAt" gorm:"default:now()"`
+	UpdatedAt      time.Time           `json:"updatedAt"`
+}
+
+type CreateIntegrationConfigRequest struct {
+	ProviderName IntegrationProvider `json:"providerName" binding:"required"`
+	Token        string              `json:"token" binding:"required"`
+	Metadata     datatypes.JSON      `json:"metadata"`
+}
+
+type UpdateIntegrationConfigRequest struct {
+	Token    string         `json:"token"`
+	Metadata datatypes.JSON `json:"metadata"`
 }
 
 type OrganizationMember struct {

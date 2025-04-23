@@ -18,3 +18,18 @@ func IsDuplicateConflict(err error) bool {
 	_, ok := err.(*ErrDuplicateConflict)
 	return ok
 }
+
+// ErrForbidden is returned when a user attempts to perform an action they don't have permission for
+type ErrForbidden struct {
+	Message string
+}
+
+func (e *ErrForbidden) Error() string {
+	return e.Message
+}
+
+// IsForbidden checks if an error is an ErrForbidden
+func IsForbidden(err error) bool {
+	_, ok := err.(*ErrForbidden)
+	return ok
+}

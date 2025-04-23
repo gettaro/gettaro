@@ -25,12 +25,6 @@ func (s *Server) setupRoutes() {
 		orgHandler := handlers.NewOrganizationHandler(s.orgApi, s.userApi)
 		orgHandler.RegisterRoutes(protected)
 
-		// Integration config routes
-		integrations := protected.Group("/integration-configs")
-		{
-			integrations.POST("", handlers.CreateIntegrationConfig)
-		}
-
 		// Team routes
 		teamHandler := handlers.NewTeamHandler(s.teamApi, s.orgApi)
 		teamHandler.RegisterRoutes(protected)

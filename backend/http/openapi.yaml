@@ -59,6 +59,39 @@ components:
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
+    IntegrationProvider:
+      type: string
+      enum: [github]
+
+    IntegrationConfig:
+      type: object
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        providerName: { type: string, enum: [github] }
+        providerType: { type: string }
+        encryptedToken: { type: string }
+        metadata: { type: object }
+        lastSyncedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CreateIntegrationConfigRequest:
+      type: object
+      properties:
+        providerName: { type: string, enum: [github] }
+        token: { type: string }
+        metadata: { type: object }
+      required:
+        - providerName
+        - token
+
+    UpdateIntegrationConfigRequest:
+      type: object
+      properties:
+        token: { type: string }
+        metadata: { type: object }
+
 paths:
   /users:
     get:
@@ -345,24 +378,169 @@ paths:
       security:
         - bearerAuth: []
 
-  /integration-configs:
+  /organizations/{id}/integrations:
     post:
       summary: Create integration config
-      description: Attach a provider config (e.g., GitHub App credentials) to an organization.
+      description: Creates a new integration configuration for an organization. Only organization owners can create integrations.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                organizationId: { type: string }
-                providerName: { type: string }
-                providerType: { type: string }
-                encryptedToken: { type: string }
-                metadata: { type: object }
+              $ref: "#/components/schemas/CreateIntegrationConfigRequest"
       responses:
         "201":
-          description: Integration created
+          description: Integration config created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  integration:
+                    $ref: "#/components/schemas/IntegrationConfig"
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization owner
+        "500":
+          description: Internal server error
+      security:
+        - bearerAuth: []
+
+    get:
+      summary: List integration configs
+      description: Returns all integration configurations for an organization. Organization members can view integrations.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      responses:
+        "200":
+          description: List of integration configs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  integrations:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/IntegrationConfig"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization member
+        "500":
+          description: Internal server error
+      security:
+        - bearerAuth: []
+
+  /organizations/{id}/integrations/{integrationId}:
+    get:
+      summary: Get integration config
+      description: Returns details about a specific integration configuration. Organization members can view integrations.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+        - in: path
+          name: integrationId
+          schema: { type: string }
+          required: true
+      responses:
+        "200":
+          description: Integration config details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  integration:
+                    $ref: "#/components/schemas/IntegrationConfig"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization member
+        "404":
+          description: Integration config not found
+        "500":
+          description: Internal server error
+      security:
+        - bearerAuth: []
+
+    put:
+      summary: Update integration config
+      description: Updates an existing integration configuration. Only organization owners can update integrations.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+        - in: path
+          name: integrationId
+          schema: { type: string }
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateIntegrationConfigRequest"
+      responses:
+        "200":
+          description: Integration config updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  integration:
+                    $ref: "#/components/schemas/IntegrationConfig"
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization owner
+        "404":
+          description: Integration config not found
+        "500":
+          description: Internal server error
+      security:
+        - bearerAuth: []
+
+    delete:
+      summary: Delete integration config
+      description: Deletes an integration configuration. Only organization owners can delete integrations.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+        - in: path
+          name: integrationId
+          schema: { type: string }
+          required: true
+      responses:
+        "204":
+          description: Integration config deleted
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization owner
+        "404":
+          description: Integration config not found
+        "500":
+          description: Internal server error
       security:
         - bearerAuth: []
 
