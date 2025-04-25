@@ -3,10 +3,8 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { useNavigate } from "react-router-dom";
-import Api from "../../api/api";
-import { useAuth0 } from "@auth0/auth0-react";
 import { OrganizationConflictError } from "../../api/errors/organizatinos";
-
+import { useOrganizationStore } from "../../stores/organization";
 export function CreateOrganizationForm() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -15,6 +13,7 @@ export function CreateOrganizationForm() {
   });
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { createOrganization } = useOrganizationStore()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +21,7 @@ export function CreateOrganizationForm() {
     setIsSubmitting(true);
 
     try {
-      const organization = await Api.createOrganization(formData.name, formData.slug);
+      const organization = await createOrganization(formData.name, formData.slug);
       
       if (!organization) {
         console.error("Organization is null or undefined");
@@ -35,7 +34,7 @@ export function CreateOrganizationForm() {
       }
 
       // Navigate to the organization's dashboard
-      navigate(`/organizations/${organization.id}/dashboard`);
+      navigate(`/dashboard`);
     } catch (err) {
       console.error("Error creating organization:", err);
       if (err instanceof OrganizationConflictError) {
