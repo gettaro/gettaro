@@ -1,13 +1,22 @@
 import React from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
+import { useAuth } from '../../hooks/useAuth'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
 }
 
+
+
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading } = useAuth0()
+  const { isAuthenticated, isLoading, getToken } = useAuth()
+  console.log("hello world")
+  if (isAuthenticated) {
+    console.log("initialising token...")
+    getToken()
+  }
+
   const location = useLocation()
 
   if (isLoading) {

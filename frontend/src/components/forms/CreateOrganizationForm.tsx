@@ -1,33 +1,28 @@
 import { useState } from "react";
-import { Button } from "../ui/Button";
+import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { useNavigate } from "react-router-dom";
-import { createOrganization } from "../../api/organizations";
+import Api from "../../api/api";
 import { useAuth0 } from "@auth0/auth0-react";
-import { OrganizationConflictError } from "../../api/organizations";
+import { OrganizationConflictError } from "../../api/errors/organizatinos";
 
-interface CreateOrganizationFormProps {
-  onSubmit: (data: { name: string; slug: string }) => void;
-  isLoading?: boolean;
-}
-
-export function CreateOrganizationForm({ onSubmit, isLoading }: CreateOrganizationFormProps) {
+export function CreateOrganizationForm() {
   const navigate = useNavigate();
-  const { getAccessTokenSilently } = useAuth0();
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
   });
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setIsLoading(true);
+    setIsSubmitting(true);
 
     try {
-      const organization = await createOrganization(formData.name, formData.slug, getAccessTokenSilently);
+      const organization = await Api.createOrganization(formData.name, formData.slug);
       
       if (!organization) {
         console.error("Organization is null or undefined");
@@ -49,7 +44,7 @@ export function CreateOrganizationForm({ onSubmit, isLoading }: CreateOrganizati
         setError("Failed to create organization. Please try again.");
       }
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -84,8 +79,8 @@ export function CreateOrganizationForm({ onSubmit, isLoading }: CreateOrganizati
           {error}
         </div>
       )}
-      <Button type="submit" disabled={isLoading}>
-        {isLoading ? "Creating..." : "Create Organization"}
+      <Button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? "Creating..." : "Create Organization"}
       </Button>
     </form>
   );

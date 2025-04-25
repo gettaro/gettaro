@@ -1,14 +1,10 @@
-import React from 'react'
 import { RouterProvider } from "react-router-dom";
 import { router } from "./router";
 import { Auth0Provider } from '@auth0/auth0-react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import Home from './pages/Home'
-import Dashboard from './pages/Dashboard'
-import ProtectedRoute from './components/auth/ProtectedRoute'
-import Navigation from './components/Navigation'
 import { Toaster } from "sonner";
-
+import { useEffect } from "react";
+import { useAuth } from "./hooks/useAuth";
 // Create a client
 const queryClient = new QueryClient()
 

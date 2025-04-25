@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { getOrganization } from "../api/organizations";
-import { useAuth0 } from "@auth0/auth0-react";
+import Api from "../api/api";
+import { useAuth } from "../hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Organization } from "../types/organization";
 
 export default function OrganizationDashboard() {
   const { id } = useParams<{ id: string }>();
-  const { getAccessTokenSilently } = useAuth0();
+  const { getAccessTokenSilently } = useAuth();
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,8 +17,7 @@ export default function OrganizationDashboard() {
       if (!id) return;
       
       try {
-        const token = await getAccessTokenSilently();
-        const org = await getOrganization(id, token);
+        const org = await Api.getOrganization(id);
         setOrganization(org);
       } catch (err) {
         setError("Failed to load organization");

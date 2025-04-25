@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getOrganizations } from "../api/organizations";
-import { useAuth0 } from "@auth0/auth0-react";
+import { getOrganizations } from "../api/api";
+import { useAuth } from "../hooks/useAuth";
 import { CreateOrganizationForm } from "../components/forms/CreateOrganizationForm";
 
 export default function NoOrganization() {
   const navigate = useNavigate();
-  const { getAccessTokenSilently, isAuthenticated, isLoading: isAuthLoading } = useAuth0();
-  const [isChecking, setIsChecking] = useState(true);
+  const { getAccessTokenSilently, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const [isChecking, setIsChecking] = useState(true);s
   const [hasOrganizations, setHasOrganizations] = useState(false);
 
   useEffect(() => {

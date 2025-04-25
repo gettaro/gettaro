@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getOrganizations } from "../api/organizations";
-import { useAuth0 } from "@auth0/auth0-react";
-
+import { useAuth } from "../hooks/useAuth";
+import Api from "../api/api";
 export default function OrganizationRedirect() {
   const navigate = useNavigate();
-  const { getAccessTokenSilently, isAuthenticated, isLoading: isAuthLoading } = useAuth0();
+  const { getToken, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,23 +23,16 @@ export default function OrganizationRedirect() {
       }
 
       try {
-        console.log("Checking organizations...");
-        const token = await getAccessTokenSilently();
-        console.log("Got token, fetching organizations...");
-        const organizations = await getOrganizations(() => Promise.resolve(token));
-        console.log("Organizations:", organizations);
+        const organizations = await Api.getOrganizations();
         
         if (!mounted) return;
 
         if (organizations.length === 0) {
-          console.log("No organizations found, redirecting to /no-organization");
           navigate("/no-organization", { replace: true });
         } else {
-          console.log("Found organizations, redirecting to first organization's dashboard");
           navigate(`/organizations/${organizations[0].slug}/dashboard`, { replace: true });
         }
       } catch (error) {
-        console.error("Error checking organizations:", error);
         if (!mounted) return;
         setError("Failed to load organizations");
         navigate("/no-organization", { replace: true });
@@ -56,10 +48,10 @@ export default function OrganizationRedirect() {
     return () => {
       mounted = false;
     };
-  }, [navigate, getAccessTokenSilently, isAuthenticated, isAuthLoading]);
+  }, [navigate, getToken, isAuthenticated, isAuthLoading]);
 
   if (isLoading || isAuthLoading) {
-    return nil;
+    return null;
   }
 
   if (error) {

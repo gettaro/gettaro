@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { OrganizationConflictError } from '../api/organizations'
+import { OrganizationConflictError } from '../api/errors/organizatinos'
 import { useNavigate } from 'react-router-dom'
 
 interface CreateOrganizationModalProps {

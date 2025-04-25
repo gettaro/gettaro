@@ -1,57 +1,21 @@
-import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { useAuth0 } from '@auth0/auth0-react'
+import { useState, useEffect } from 'react'
 import OrganizationDropdown from './OrganizationDropdown'
-import CreateOrganizationModal from './CreateOrganizationModal'
-import { Organization } from '../types/organization'
-import { getOrganizations, createOrganization } from '../api/organizations'
+import { useAuth } from '../hooks/useAuth'
+// import CreateOrganizationModal from './CreateOrganizationModal'
+// import { Organization } from '../types/organization'
+// import { createOrganization } from '../api/organizations'
 
 export default function Navigation() {
-  const { isAuthenticated, user, loginWithRedirect, logout, getAccessTokenSilently } = useAuth0()
+  const { isAuthenticated, user, login, logout } = useAuth()
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false)
   const [isOrgDropdownOpen, setIsOrgDropdownOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null)
-  const [organizations, setOrganizations] = useState<Organization[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchOrganizations()
-    }
-  }, [isAuthenticated])
-
-  const fetchOrganizations = async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const orgs = await getOrganizations(getAccessTokenSilently)
-      setOrganizations(orgs)
-      if (orgs.length > 0 && !currentOrganization) {
-        setCurrentOrganization(orgs[0])
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch organizations')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleSelectOrganization = (org: Organization) => {
-    setCurrentOrganization(org)
-    setIsOrgDropdownOpen(false)
-  }
-
-  const handleCreateOrganization = async (name: string, slug: string) => {
-    try {
-      const newOrg = await createOrganization(name, slug, getAccessTokenSilently)
-      setOrganizations([...organizations, newOrg])
-      setCurrentOrganization(newOrg)
-    } catch (err) {
-      throw err
-    }
-  }
+    console.log(user)
+  }, [user])
 
   return (
     <nav className="flex items-center justify-between w-full">
@@ -61,18 +25,13 @@ export default function Navigation() {
         {isAuthenticated && (
           <>
             <OrganizationDropdown
-              organizations={organizations}
-              currentOrganization={currentOrganization}
-              onSelectOrganization={handleSelectOrganization}
-              onCreateOrganization={() => setIsCreateModalOpen(true)}
               isOpen={isOrgDropdownOpen}
               onToggle={() => setIsOrgDropdownOpen(!isOrgDropdownOpen)}
             />
-            <CreateOrganizationModal
+            {/* <CreateOrganizationModal
               isOpen={isCreateModalOpen}
               onClose={() => setIsCreateModalOpen(false)}
-              onCreate={handleCreateOrganization}
-            />
+            /> */}
             <div className="relative">
               <button
                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
@@ -90,7 +49,7 @@ export default function Navigation() {
                     {user?.name}
                   </div>
                   <button
-                    onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+                    onClick={() => logout()}
                     className="block w-full text-left px-4 py-2 text-sm text-foreground hover:bg-primary hover:text-primary-foreground"
                   >
                     Log Out
@@ -102,7 +61,7 @@ export default function Navigation() {
         )}
         {!isAuthenticated && (
           <button
-            onClick={() => loginWithRedirect()}
+            onClick={() => login()}
             className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md"
           >
             Log In
