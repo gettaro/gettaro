@@ -45,8 +45,27 @@ export default function CreateOrganizationModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-card p-6 rounded-lg shadow-lg w-full max-w-md">
+    <div className="fixed top-64 left-0 right-0 bottom-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-card p-6 rounded-lg shadow-lg w-full max-w-md mx-4 relative">
+        <button
+          onClick={onClose}
+          className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
+        </button>
         <h2 className="text-2xl font-bold mb-4">Create Organization</h2>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">

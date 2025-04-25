@@ -56,7 +56,6 @@ export default function Navigation() {
   return (
     <nav className="flex items-center justify-between w-full">
       <div className="flex items-center space-x-4">
-        <Link to="/dashboard" className="text-foreground hover:text-primary">Dashboard</Link>
       </div>
       <div className="flex items-center space-x-4">
         {isAuthenticated && (

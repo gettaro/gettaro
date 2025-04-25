@@ -1,15 +1,24 @@
 import { useState } from "react";
+import { Button } from "../ui/Button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
 import { useNavigate } from "react-router-dom";
 import { createOrganization } from "../../api/organizations";
 import { useAuth0 } from "@auth0/auth0-react";
 import { OrganizationConflictError } from "../../api/organizations";
 
-export function CreateOrganizationForm() {
+interface CreateOrganizationFormProps {
+  onSubmit: (data: { name: string; slug: string }) => void;
+  isLoading?: boolean;
+}
+
+export function CreateOrganizationForm({ onSubmit, isLoading }: CreateOrganizationFormProps) {
   const navigate = useNavigate();
   const { getAccessTokenSilently } = useAuth0();
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    slug: "",
+  });
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -18,7 +27,7 @@ export function CreateOrganizationForm() {
     setIsLoading(true);
 
     try {
-      const organization = await createOrganization(name, slug, getAccessTokenSilently);
+      const organization = await createOrganization(formData.name, formData.slug, getAccessTokenSilently);
       
       if (!organization) {
         console.error("Organization is null or undefined");
@@ -45,33 +54,28 @@ export function CreateOrganizationForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label htmlFor="name" className="block text-sm font-medium text-foreground mb-1">
-          Organization Name
-        </label>
-        <input
-          type="text"
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-2">
+        <Label htmlFor="name">Organization Name</Label>
+        <Input
           id="name"
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"));
-          }}
-          className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+          placeholder="Enter organization name"
+          value={formData.name}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+            setFormData({ ...formData, name: e.target.value })
+          }
           required
         />
       </div>
-      <div>
-        <label htmlFor="slug" className="block text-sm font-medium text-foreground mb-1">
-          Organization Slug
-        </label>
-        <input
-          type="text"
+      <div className="space-y-2">
+        <Label htmlFor="slug">Organization Slug</Label>
+        <Input
           id="slug"
-          value={slug}
-          onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
-          className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+          placeholder="Enter organization slug"
+          value={formData.slug}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+            setFormData({ ...formData, slug: e.target.value })
+          }
           required
         />
       </div>
@@ -80,13 +84,9 @@ export function CreateOrganizationForm() {
           {error}
         </div>
       )}
-      <button
-        type="submit"
-        disabled={isLoading}
-        className="w-full px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
-      >
+      <Button type="submit" disabled={isLoading}>
         {isLoading ? "Creating..." : "Create Organization"}
-      </button>
+      </Button>
     </form>
   );
 } 
