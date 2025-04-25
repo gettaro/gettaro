@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import { OrganizationConflictError } from '../api/errors/organizatinos'
-import { useNavigate } from 'react-router-dom'
 
 interface CreateOrganizationModalProps {
   isOpen: boolean
@@ -13,7 +12,6 @@ export default function CreateOrganizationModal({
   onClose,
   onCreate,
 }: CreateOrganizationModalProps) {
-  const navigate = useNavigate();
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [isLoading, setIsLoading] = useState(false)

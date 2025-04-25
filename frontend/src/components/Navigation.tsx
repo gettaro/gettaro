@@ -9,10 +9,7 @@ export default function Navigation() {
   const { isAuthenticated, user, login, logout } = useAuth()
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false)
   const [isOrgDropdownOpen, setIsOrgDropdownOpen] = useState(false)
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
+  
   useEffect(() => {
     console.log(user)
   }, [user])
@@ -24,14 +21,7 @@ export default function Navigation() {
       <div className="flex items-center space-x-4">
         {isAuthenticated && (
           <>
-            <OrganizationDropdown
-              isOpen={isOrgDropdownOpen}
-              onToggle={() => setIsOrgDropdownOpen(!isOrgDropdownOpen)}
-            />
-            {/* <CreateOrganizationModal
-              isOpen={isCreateModalOpen}
-              onClose={() => setIsCreateModalOpen(false)}
-            /> */}
+            <OrganizationDropdown />
             <div className="relative">
               <button
                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
