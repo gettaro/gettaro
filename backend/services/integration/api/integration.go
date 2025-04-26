@@ -12,20 +12,28 @@ import (
 	"ems.dev/backend/services/integration/types"
 )
 
-type API struct {
+type IntegrationAPI interface {
+	CreateIntegrationConfig(ctx context.Context, orgID string, userID string, req *types.CreateIntegrationConfigRequest) (*types.IntegrationConfig, error)
+	GetIntegrationConfig(ctx context.Context, id string, userID string) (*types.IntegrationConfig, error)
+	GetOrganizationIntegrationConfigs(ctx context.Context, orgID string, userID string) ([]types.IntegrationConfig, error)
+	UpdateIntegrationConfig(ctx context.Context, id string, userID string, req *types.UpdateIntegrationConfigRequest) (*types.IntegrationConfig, error)
+	DeleteIntegrationConfig(ctx context.Context, id string, userID string) error
+}
+
+type Api struct {
 	db            database.DB
 	encryptionKey []byte
 }
 
-func NewAPI(db database.DB, encryptionKey []byte) *API {
-	return &API{
+func NewApi(db database.DB, encryptionKey []byte) *Api {
+	return &Api{
 		db:            db,
 		encryptionKey: encryptionKey,
 	}
 }
 
 // encryptToken encrypts the token using AES-GCM
-func (a *API) encryptToken(token string) (string, error) {
+func (a *Api) encryptToken(token string) (string, error) {
 	block, err := aes.NewCipher(a.encryptionKey)
 	if err != nil {
 		return "", err
@@ -46,7 +54,7 @@ func (a *API) encryptToken(token string) (string, error) {
 }
 
 // CreateIntegrationConfig creates a new integration config
-func (a *API) CreateIntegrationConfig(ctx context.Context, orgID string, userID string, req *types.CreateIntegrationConfigRequest) (*types.IntegrationConfig, error) {
+func (a *Api) CreateIntegrationConfig(ctx context.Context, orgID string, userID string, req *types.CreateIntegrationConfigRequest) (*types.IntegrationConfig, error) {
 	// Encrypt the token
 	encryptedToken, err := a.encryptToken(req.Token)
 	if err != nil {
@@ -69,17 +77,17 @@ func (a *API) CreateIntegrationConfig(ctx context.Context, orgID string, userID 
 }
 
 // GetIntegrationConfig retrieves an integration config by ID
-func (a *API) GetIntegrationConfig(ctx context.Context, id string, userID string) (*types.IntegrationConfig, error) {
+func (a *Api) GetIntegrationConfig(ctx context.Context, id string, userID string) (*types.IntegrationConfig, error) {
 	return a.db.GetIntegrationConfig(id)
 }
 
 // GetOrganizationIntegrationConfigs retrieves all integration configs for an organization
-func (a *API) GetOrganizationIntegrationConfigs(ctx context.Context, orgID string, userID string) ([]types.IntegrationConfig, error) {
+func (a *Api) GetOrganizationIntegrationConfigs(ctx context.Context, orgID string, userID string) ([]types.IntegrationConfig, error) {
 	return a.db.GetOrganizationIntegrationConfigs(orgID)
 }
 
 // UpdateIntegrationConfig updates an existing integration config
-func (a *API) UpdateIntegrationConfig(ctx context.Context, id string, userID string, req *types.UpdateIntegrationConfigRequest) (*types.IntegrationConfig, error) {
+func (a *Api) UpdateIntegrationConfig(ctx context.Context, id string, userID string, req *types.UpdateIntegrationConfigRequest) (*types.IntegrationConfig, error) {
 	config, err := a.db.GetIntegrationConfig(id)
 	if err != nil {
 		return nil, err
@@ -105,6 +113,6 @@ func (a *API) UpdateIntegrationConfig(ctx context.Context, id string, userID str
 }
 
 // DeleteIntegrationConfig deletes an integration config
-func (a *API) DeleteIntegrationConfig(ctx context.Context, id string, userID string) error {
+func (a *Api) DeleteIntegrationConfig(ctx context.Context, id string, userID string) error {
 	return a.db.DeleteIntegrationConfig(id)
 }

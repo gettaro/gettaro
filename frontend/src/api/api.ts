@@ -1,5 +1,6 @@
 import { Organization } from '../types/organization'
 import { OrganizationConflictError } from './errors/organizatinos'
+import { CreateIntegrationRequest, IntegrationConfig, UpdateIntegrationRequest } from '../types/integration'
 
 export default class Api {
   private static API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
@@ -70,6 +71,86 @@ export default class Api {
 
     const data = await response.json()
     return data.organization
+  }
+
+  static async getOrganizationIntegrations(organizationId: string): Promise<IntegrationConfig[]> {
+    if (!this.accessToken) {
+      throw new Error('No access token available')
+    }
+
+    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/integrations`, {
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch integrations')
+    }
+
+    const data = await response.json()
+    return data.integrations
+  }
+
+  static async createIntegrationConfig(organizationId: string, config: CreateIntegrationRequest): Promise<IntegrationConfig> {
+    if (!this.accessToken) {
+      throw new Error('No access token available')
+    }
+
+    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/integrations`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(config),
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to create integration')
+    }
+
+    const data = await response.json()
+    return data.integration
+  }
+
+  static async updateIntegrationConfig(organizationId: string, integrationId: string, config: UpdateIntegrationRequest): Promise<IntegrationConfig> {
+    if (!this.accessToken) {
+      throw new Error('No access token available')
+    }
+
+    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/integrations/${integrationId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(config),
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to update integration')
+    }
+
+    const data = await response.json()
+    return data.integration
+  }
+
+  static async deleteIntegrationConfig(organizationId: string, integrationId: string): Promise<void> {
+    if (!this.accessToken) {
+      throw new Error('No access token available')
+    }
+
+    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/integrations/${integrationId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to delete integration')
+    }
   }
 }
 

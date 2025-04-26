@@ -29,6 +29,10 @@ func (s *Server) setupRoutes() {
 		teamHandler := handlers.NewTeamHandler(s.teamApi, s.orgApi)
 		teamHandler.RegisterRoutes(protected)
 
+		// Integration routes
+		integrationHandler := handlers.NewIntegrationHandler(s.integrationApi, s.orgApi)
+		integrationHandler.RegisterRoutes(protected)
+
 		// Direct reports routes
 		directs := protected.Group("/directs")
 		{

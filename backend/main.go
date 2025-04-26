@@ -9,6 +9,8 @@ import (
 	auth0client "ems.dev/backend/libraries/auth0"
 	authapi "ems.dev/backend/services/auth/api"
 	authdb "ems.dev/backend/services/auth/database"
+	integrationapi "ems.dev/backend/services/integration/api"
+	integrationdb "ems.dev/backend/services/integration/database"
 	orgapi "ems.dev/backend/services/organization/api"
 	orgdb "ems.dev/backend/services/organization/database"
 	teamapi "ems.dev/backend/services/team/api"
@@ -42,9 +44,11 @@ func main() {
 	teamApi := teamapi.NewApi(teamDb, orgApi)
 	authDb := authdb.New(database.DB)
 	authApi := authapi.NewApi(auth0Client, authDb)
+	integrationDb := integrationdb.NewIntegrationDB(database.DB)
+	integrationApi := integrationapi.NewApi(integrationDb, []byte("helloworld"))
 
 	// Initialize and run server
-	srv := server.New(database.DB, userApi, orgApi, teamApi, authApi)
+	srv := server.New(database.DB, userApi, orgApi, teamApi, authApi, integrationApi)
 	if err := srv.Run(":8080"); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}

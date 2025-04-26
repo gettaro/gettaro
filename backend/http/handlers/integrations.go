@@ -8,29 +8,19 @@ import (
 	intapi "ems.dev/backend/services/integration/api"
 	inttypes "ems.dev/backend/services/integration/types"
 	orgapi "ems.dev/backend/services/organization/api"
-	usertypes "ems.dev/backend/services/user/types"
 	"github.com/gin-gonic/gin"
 )
 
 type IntegrationHandler struct {
-	integrationAPI intapi.API
+	integrationAPI intapi.IntegrationAPI
 	orgAPI         orgapi.OrganizationAPI
 }
 
-func NewIntegrationHandler(integrationAPI intapi.API, orgAPI orgapi.OrganizationAPI) *IntegrationHandler {
+func NewIntegrationHandler(integrationAPI intapi.IntegrationAPI, orgAPI orgapi.OrganizationAPI) *IntegrationHandler {
 	return &IntegrationHandler{
 		integrationAPI: integrationAPI,
 		orgAPI:         orgAPI,
 	}
-}
-
-// getUserFromContext extracts the user from the request context and returns it
-func (h *IntegrationHandler) getUserFromContext(c *gin.Context) (*usertypes.User, error) {
-	user, err := utils.GetUserFromContext(c)
-	if err != nil {
-		return nil, fmt.Errorf("user not found in context: %w", err)
-	}
-	return user, nil
 }
 
 // getOrganizationIDFromContext extracts the organization ID from the request context and returns it
@@ -50,11 +40,12 @@ func (h *IntegrationHandler) CreateIntegrationConfig(c *gin.Context) {
 		return
 	}
 
+	// Check if user is an owner of the organization
 	if !utils.CheckOrganizationOwnership(c, h.orgAPI, orgID) {
 		return
 	}
 
-	user, err := h.getUserFromContext(c)
+	user, err := utils.GetUserFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
@@ -78,7 +69,7 @@ func (h *IntegrationHandler) CreateIntegrationConfig(c *gin.Context) {
 // GetIntegrationConfig handles retrieving a specific integration config
 func (h *IntegrationHandler) GetIntegrationConfig(c *gin.Context) {
 	id := c.Param("id")
-	user, err := h.getUserFromContext(c)
+	user, err := utils.GetUserFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
@@ -90,6 +81,7 @@ func (h *IntegrationHandler) GetIntegrationConfig(c *gin.Context) {
 		return
 	}
 
+	// Check if user is a member of the organization
 	if !utils.CheckOrganizationMembership(c, h.orgAPI, &config.OrganizationID) {
 		return
 	}
@@ -105,11 +97,12 @@ func (h *IntegrationHandler) GetOrganizationIntegrationConfigs(c *gin.Context) {
 		return
 	}
 
+	// Check if user is a member of the organization
 	if !utils.CheckOrganizationMembership(c, h.orgAPI, &orgID) {
 		return
 	}
 
-	user, err := h.getUserFromContext(c)
+	user, err := utils.GetUserFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
@@ -127,7 +120,7 @@ func (h *IntegrationHandler) GetOrganizationIntegrationConfigs(c *gin.Context) {
 // UpdateIntegrationConfig handles updating an existing integration config
 func (h *IntegrationHandler) UpdateIntegrationConfig(c *gin.Context) {
 	id := c.Param("id")
-	user, err := h.getUserFromContext(c)
+	user, err := utils.GetUserFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
@@ -139,6 +132,7 @@ func (h *IntegrationHandler) UpdateIntegrationConfig(c *gin.Context) {
 		return
 	}
 
+	// Check if user is an owner of the organization
 	if !utils.CheckOrganizationOwnership(c, h.orgAPI, config.OrganizationID) {
 		return
 	}
@@ -161,7 +155,7 @@ func (h *IntegrationHandler) UpdateIntegrationConfig(c *gin.Context) {
 // DeleteIntegrationConfig handles deleting an integration config
 func (h *IntegrationHandler) DeleteIntegrationConfig(c *gin.Context) {
 	id := c.Param("id")
-	user, err := h.getUserFromContext(c)
+	user, err := utils.GetUserFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
@@ -173,6 +167,7 @@ func (h *IntegrationHandler) DeleteIntegrationConfig(c *gin.Context) {
 		return
 	}
 
+	// Check if user is an owner of the organization
 	if !utils.CheckOrganizationOwnership(c, h.orgAPI, config.OrganizationID) {
 		return
 	}

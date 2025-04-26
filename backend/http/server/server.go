@@ -4,31 +4,33 @@ import (
 	"os"
 
 	authapi "ems.dev/backend/services/auth/api"
+	integrationapi "ems.dev/backend/services/integration/api"
 	orgapi "ems.dev/backend/services/organization/api"
 	teamapi "ems.dev/backend/services/team/api"
 	userapi "ems.dev/backend/services/user/api"
-
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 type Server struct {
-	router  *gin.Engine
-	db      *gorm.DB
-	userApi userapi.UserAPI
-	orgApi  orgapi.OrganizationAPI
-	teamApi teamapi.TeamAPI
-	authApi authapi.AuthAPI
+	router         *gin.Engine
+	db             *gorm.DB
+	userApi        userapi.UserAPI
+	orgApi         orgapi.OrganizationAPI
+	teamApi        teamapi.TeamAPI
+	authApi        authapi.AuthAPI
+	integrationApi integrationapi.IntegrationAPI
 }
 
-func New(db *gorm.DB, userApi userapi.UserAPI, orgApi orgapi.OrganizationAPI, teamApi teamapi.TeamAPI, authApi authapi.AuthAPI) *Server {
+func New(db *gorm.DB, userApi userapi.UserAPI, orgApi orgapi.OrganizationAPI, teamApi teamapi.TeamAPI, authApi authapi.AuthAPI, integrationApi integrationapi.IntegrationAPI) *Server {
 	s := &Server{
-		router:  gin.Default(),
-		db:      db,
-		userApi: userApi,
-		orgApi:  orgApi,
-		teamApi: teamApi,
-		authApi: authApi,
+		router:         gin.Default(),
+		db:             db,
+		userApi:        userApi,
+		orgApi:         orgApi,
+		teamApi:        teamApi,
+		authApi:        authApi,
+		integrationApi: integrationApi,
 	}
 
 	s.setupMiddleware()
@@ -40,7 +42,6 @@ func New(db *gorm.DB, userApi userapi.UserAPI, orgApi orgapi.OrganizationAPI, te
 func (s *Server) setupMiddleware() {
 	s.router.Use(gin.Logger())
 	s.router.Use(gin.Recovery())
-	//s.router.Use(middleware.AuthMiddleware(s.userApi))
 
 	// CORS middleware
 	s.router.Use(func(c *gin.Context) {
