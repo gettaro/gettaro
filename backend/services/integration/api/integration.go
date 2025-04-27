@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"io"
 
 	"ems.dev/backend/services/integration/database"
@@ -13,11 +14,11 @@ import (
 )
 
 type IntegrationAPI interface {
-	CreateIntegrationConfig(ctx context.Context, orgID string, userID string, req *types.CreateIntegrationConfigRequest) (*types.IntegrationConfig, error)
-	GetIntegrationConfig(ctx context.Context, id string, userID string) (*types.IntegrationConfig, error)
-	GetOrganizationIntegrationConfigs(ctx context.Context, orgID string, userID string) ([]types.IntegrationConfig, error)
-	UpdateIntegrationConfig(ctx context.Context, id string, userID string, req *types.UpdateIntegrationConfigRequest) (*types.IntegrationConfig, error)
-	DeleteIntegrationConfig(ctx context.Context, id string, userID string) error
+	CreateIntegrationConfig(ctx context.Context, orgID string, req *types.CreateIntegrationConfigRequest) (*types.IntegrationConfig, error)
+	GetIntegrationConfig(ctx context.Context, id string) (*types.IntegrationConfig, error)
+	GetOrganizationIntegrationConfigs(ctx context.Context, orgID string) ([]types.IntegrationConfig, error)
+	UpdateIntegrationConfig(ctx context.Context, id string, req *types.UpdateIntegrationConfigRequest) (*types.IntegrationConfig, error)
+	DeleteIntegrationConfig(ctx context.Context, id string) error
 }
 
 type Api struct {
@@ -54,17 +55,47 @@ func (a *Api) encryptToken(token string) (string, error) {
 }
 
 // CreateIntegrationConfig creates a new integration config
-func (a *Api) CreateIntegrationConfig(ctx context.Context, orgID string, userID string, req *types.CreateIntegrationConfigRequest) (*types.IntegrationConfig, error) {
+func (a *Api) CreateIntegrationConfig(ctx context.Context, orgID string, req *types.CreateIntegrationConfigRequest) (*types.IntegrationConfig, error) {
 	// Encrypt the token
 	encryptedToken, err := a.encryptToken(req.Token)
 	if err != nil {
 		return nil, err
 	}
 
+	providerType := types.IntegrationProviderTypeSourceControl
+	switch req.ProviderName {
+	case "github":
+		providerType = types.IntegrationProviderTypeSourceControl
+	case "jira":
+		providerType = types.IntegrationProviderTypeSourceControl
+	}
+
+	// Validate repositories metadata for source control providers
+	if providerType == types.IntegrationProviderTypeSourceControl {
+		if req.Metadata == nil {
+			return nil, &types.IntegrationError{
+				Message: "metadata is required for source control providers",
+				Type:    "validation",
+			}
+		}
+		var metadata map[string]interface{}
+		if err := json.Unmarshal(req.Metadata, &metadata); err != nil {
+			return nil, err
+		}
+
+		repos, ok := metadata["repositories"].(string)
+		if !ok || repos == "" {
+			return nil, &types.IntegrationError{
+				Message: "metadata must contain 'repositories' key with at least one repository",
+				Type:    "validation",
+			}
+		}
+	}
+
 	config := &types.IntegrationConfig{
 		OrganizationID: orgID,
 		ProviderName:   req.ProviderName,
-		ProviderType:   string(req.ProviderName), // For now, type is same as name
+		ProviderType:   providerType,
 		EncryptedToken: encryptedToken,
 		Metadata:       req.Metadata,
 	}
@@ -77,17 +108,17 @@ func (a *Api) CreateIntegrationConfig(ctx context.Context, orgID string, userID 
 }
 
 // GetIntegrationConfig retrieves an integration config by ID
-func (a *Api) GetIntegrationConfig(ctx context.Context, id string, userID string) (*types.IntegrationConfig, error) {
+func (a *Api) GetIntegrationConfig(ctx context.Context, id string) (*types.IntegrationConfig, error) {
 	return a.db.GetIntegrationConfig(id)
 }
 
 // GetOrganizationIntegrationConfigs retrieves all integration configs for an organization
-func (a *Api) GetOrganizationIntegrationConfigs(ctx context.Context, orgID string, userID string) ([]types.IntegrationConfig, error) {
+func (a *Api) GetOrganizationIntegrationConfigs(ctx context.Context, orgID string) ([]types.IntegrationConfig, error) {
 	return a.db.GetOrganizationIntegrationConfigs(orgID)
 }
 
 // UpdateIntegrationConfig updates an existing integration config
-func (a *Api) UpdateIntegrationConfig(ctx context.Context, id string, userID string, req *types.UpdateIntegrationConfigRequest) (*types.IntegrationConfig, error) {
+func (a *Api) UpdateIntegrationConfig(ctx context.Context, id string, req *types.UpdateIntegrationConfigRequest) (*types.IntegrationConfig, error) {
 	config, err := a.db.GetIntegrationConfig(id)
 	if err != nil {
 		return nil, err
@@ -113,6 +144,6 @@ func (a *Api) UpdateIntegrationConfig(ctx context.Context, id string, userID str
 }
 
 // DeleteIntegrationConfig deletes an integration config
-func (a *Api) DeleteIntegrationConfig(ctx context.Context, id string, userID string) error {
+func (a *Api) DeleteIntegrationConfig(ctx context.Context, id string) error {
 	return a.db.DeleteIntegrationConfig(id)
 }

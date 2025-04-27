@@ -45,7 +45,7 @@ func main() {
 	authDb := authdb.New(database.DB)
 	authApi := authapi.NewApi(auth0Client, authDb)
 	integrationDb := integrationdb.NewIntegrationDB(database.DB)
-	integrationApi := integrationapi.NewApi(integrationDb, []byte("helloworld"))
+	integrationApi := integrationapi.NewApi(integrationDb, []byte("QI$Pi!<Jc@L<%bwI"))
 
 	// Initialize and run server
 	srv := server.New(database.DB, userApi, orgApi, teamApi, authApi, integrationApi)

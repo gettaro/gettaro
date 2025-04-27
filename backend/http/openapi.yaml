@@ -69,7 +69,7 @@ components:
         id: { type: string }
         organizationId: { type: string }
         providerName: { type: string, enum: [github] }
-        providerType: { type: string }
+        providerType: { type: string, enum: [SourceControl, ProjectManagement] }
         encryptedToken: { type: string }
         metadata: { type: object }
         lastSyncedAt: { type: string, format: date-time }

@@ -1,6 +1,6 @@
 import { Organization } from '../types/organization'
 import { OrganizationConflictError } from './errors/organizatinos'
-import { CreateIntegrationRequest, IntegrationConfig, UpdateIntegrationRequest } from '../types/integration'
+import { CreateIntegrationConfigRequest, IntegrationConfig, UpdateIntegrationConfigRequest } from '../types/integration'
 
 export default class Api {
   private static API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
@@ -92,7 +92,7 @@ export default class Api {
     return data.integrations
   }
 
-  static async createIntegrationConfig(organizationId: string, config: CreateIntegrationRequest): Promise<IntegrationConfig> {
+  static async createIntegrationConfig(organizationId: string, config: CreateIntegrationConfigRequest): Promise<IntegrationConfig> {
     if (!this.accessToken) {
       throw new Error('No access token available')
     }
@@ -114,7 +114,7 @@ export default class Api {
     return data.integration
   }
 
-  static async updateIntegrationConfig(organizationId: string, integrationId: string, config: UpdateIntegrationRequest): Promise<IntegrationConfig> {
+  static async updateIntegrationConfig(organizationId: string, integrationId: string, config: UpdateIntegrationConfigRequest): Promise<IntegrationConfig> {
     if (!this.accessToken) {
       throw new Error('No access token available')
     }

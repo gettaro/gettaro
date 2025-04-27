@@ -12,16 +12,32 @@ const (
 	IntegrationProviderGithub IntegrationProvider = "github"
 )
 
+type IntegrationProviderType string
+
+const (
+	IntegrationProviderTypeSourceControl     IntegrationProviderType = "SourceControl"
+	IntegrationProviderTypeProjectManagement IntegrationProviderType = "ProjectManagement"
+)
+
+type IntegrationError struct {
+	Message string
+	Type    string // "validation" or "internal"
+}
+
+func (e *IntegrationError) Error() string {
+	return e.Message
+}
+
 type IntegrationConfig struct {
-	ID             string              `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	OrganizationID string              `json:"organizationId"`
-	ProviderName   IntegrationProvider `json:"providerName"`
-	ProviderType   string              `json:"providerType"`
-	EncryptedToken string              `json:"encryptedToken"`
-	Metadata       datatypes.JSON      `json:"metadata"`
-	LastSyncedAt   *time.Time          `json:"lastSyncedAt"`
-	CreatedAt      time.Time           `json:"createdAt" gorm:"default:now()"`
-	UpdatedAt      time.Time           `json:"updatedAt"`
+	ID             string                  `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	OrganizationID string                  `json:"organizationId"`
+	ProviderName   IntegrationProvider     `json:"providerName"`
+	ProviderType   IntegrationProviderType `json:"providerType"`
+	EncryptedToken string                  `json:"encryptedToken"`
+	Metadata       datatypes.JSON          `json:"metadata"`
+	LastSyncedAt   *time.Time              `json:"lastSyncedAt"`
+	CreatedAt      time.Time               `json:"createdAt" gorm:"default:now()"`
+	UpdatedAt      time.Time               `json:"updatedAt"`
 }
 
 type CreateIntegrationConfigRequest struct {

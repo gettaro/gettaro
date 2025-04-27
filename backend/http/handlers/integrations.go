@@ -45,20 +45,22 @@ func (h *IntegrationHandler) CreateIntegrationConfig(c *gin.Context) {
 		return
 	}
 
-	user, err := utils.GetUserFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		return
-	}
-
 	var req inttypes.CreateIntegrationConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	config, err := h.integrationAPI.CreateIntegrationConfig(c.Request.Context(), orgID, user.ID, &req)
+	config, err := h.integrationAPI.CreateIntegrationConfig(c.Request.Context(), orgID, &req)
 	if err != nil {
+		if intErr, ok := err.(*inttypes.IntegrationError); ok {
+			statusCode := http.StatusInternalServerError
+			if intErr.Type == "validation" {
+				statusCode = http.StatusBadRequest
+			}
+			c.JSON(statusCode, gin.H{"error": intErr.Message})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -69,13 +71,8 @@ func (h *IntegrationHandler) CreateIntegrationConfig(c *gin.Context) {
 // GetIntegrationConfig handles retrieving a specific integration config
 func (h *IntegrationHandler) GetIntegrationConfig(c *gin.Context) {
 	id := c.Param("id")
-	user, err := utils.GetUserFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		return
-	}
 
-	config, err := h.integrationAPI.GetIntegrationConfig(c.Request.Context(), id, user.ID)
+	config, err := h.integrationAPI.GetIntegrationConfig(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -102,13 +99,7 @@ func (h *IntegrationHandler) GetOrganizationIntegrationConfigs(c *gin.Context) {
 		return
 	}
 
-	user, err := utils.GetUserFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		return
-	}
-
-	configs, err := h.integrationAPI.GetOrganizationIntegrationConfigs(c.Request.Context(), orgID, user.ID)
+	configs, err := h.integrationAPI.GetOrganizationIntegrationConfigs(c.Request.Context(), orgID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -120,13 +111,8 @@ func (h *IntegrationHandler) GetOrganizationIntegrationConfigs(c *gin.Context) {
 // UpdateIntegrationConfig handles updating an existing integration config
 func (h *IntegrationHandler) UpdateIntegrationConfig(c *gin.Context) {
 	id := c.Param("id")
-	user, err := utils.GetUserFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		return
-	}
 
-	config, err := h.integrationAPI.GetIntegrationConfig(c.Request.Context(), id, user.ID)
+	config, err := h.integrationAPI.GetIntegrationConfig(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -143,7 +129,7 @@ func (h *IntegrationHandler) UpdateIntegrationConfig(c *gin.Context) {
 		return
 	}
 
-	updatedConfig, err := h.integrationAPI.UpdateIntegrationConfig(c.Request.Context(), id, user.ID, &req)
+	updatedConfig, err := h.integrationAPI.UpdateIntegrationConfig(c.Request.Context(), id, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -154,14 +140,14 @@ func (h *IntegrationHandler) UpdateIntegrationConfig(c *gin.Context) {
 
 // DeleteIntegrationConfig handles deleting an integration config
 func (h *IntegrationHandler) DeleteIntegrationConfig(c *gin.Context) {
-	id := c.Param("id")
-	user, err := utils.GetUserFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+	if len(c.Params) != 2 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid number of parameters"})
 		return
 	}
 
-	config, err := h.integrationAPI.GetIntegrationConfig(c.Request.Context(), id, user.ID)
+	id := c.Params[1].Value
+
+	config, err := h.integrationAPI.GetIntegrationConfig(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -172,7 +158,7 @@ func (h *IntegrationHandler) DeleteIntegrationConfig(c *gin.Context) {
 		return
 	}
 
-	if err := h.integrationAPI.DeleteIntegrationConfig(c.Request.Context(), id, user.ID); err != nil {
+	if err := h.integrationAPI.DeleteIntegrationConfig(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

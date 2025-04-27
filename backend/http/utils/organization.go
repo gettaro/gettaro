@@ -20,32 +20,24 @@ func CheckOrganizationOwnership(c *gin.Context, orgApi orgapi.OrganizationAPI, o
 		return false
 	}
 
-	// Get user from database
-	user, err := orgApi.(interface {
-		FindUser(params usertypes.UserSearchParams) (*usertypes.User, error)
-	}).FindUser(usertypes.UserSearchParams{ID: &ctxUser.(*usertypes.User).ID})
+	user := ctxUser.(*usertypes.User)
+
+	// Get get user organizations
+	userOrganizations, err := orgApi.GetUserOrganizations(c.Request.Context(), user.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return false
-	}
-	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
 		return false
 	}
 
 	// Check if user is the owner of the organization
-	isOwner, err := orgApi.IsOrganizationOwner(c.Request.Context(), orgID, user.ID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return false
+	for _, org := range userOrganizations {
+		if org.ID == orgID && org.IsOwner {
+			return true
+		}
 	}
 
-	if !isOwner {
-		c.JSON(http.StatusForbidden, gin.H{"error": "only organization owners can perform this action"})
-		return false
-	}
-
-	return true
+	c.JSON(http.StatusForbidden, gin.H{"error": "only organization owners can perform this action"})
+	return false
 }
 
 // CheckOrganizationMembership checks if the authenticated user is a member of the specified organization.
