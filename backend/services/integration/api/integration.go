@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 
 	"ems.dev/backend/services/integration/database"
@@ -19,6 +20,7 @@ type IntegrationAPI interface {
 	GetOrganizationIntegrationConfigs(ctx context.Context, orgID string) ([]types.IntegrationConfig, error)
 	UpdateIntegrationConfig(ctx context.Context, id string, req *types.UpdateIntegrationConfigRequest) (*types.IntegrationConfig, error)
 	DeleteIntegrationConfig(ctx context.Context, id string) error
+	DecryptToken(encryptedToken string) (string, error)
 }
 
 type Api struct {
@@ -52,6 +54,36 @@ func (a *Api) encryptToken(token string) (string, error) {
 
 	ciphertext := gcm.Seal(nonce, nonce, []byte(token), nil)
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
+}
+
+// DecryptToken decrypts the token using AES-GCM
+func (a *Api) DecryptToken(encryptedToken string) (string, error) {
+	ciphertext, err := base64.StdEncoding.DecodeString(encryptedToken)
+	if err != nil {
+		return "", err
+	}
+
+	block, err := aes.NewCipher(a.encryptionKey)
+	if err != nil {
+		return "", err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	if len(ciphertext) < gcm.NonceSize() {
+		return "", fmt.Errorf("ciphertext too short")
+	}
+
+	nonce, ciphertext := ciphertext[:gcm.NonceSize()], ciphertext[gcm.NonceSize():]
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return string(plaintext), nil
 }
 
 // CreateIntegrationConfig creates a new integration config

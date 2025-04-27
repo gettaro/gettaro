@@ -11,23 +11,27 @@ export default class Api {
     this.accessToken = token
   }
 
-  static async getOrganizations(): Promise<Organization[]> {
+  private static async get(path: string): Promise<any> {
     if (!this.accessToken) {
       throw new Error('No access token available')
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations`, {
+    const response = await fetch(`${this.API_BASE_URL}${path}`, {
       headers: {
         'Authorization': `Bearer ${this.accessToken}`,
       },
     })
 
     if (!response.ok) {
-      throw new Error('Failed to fetch organizations')
+      throw new Error('Failed to fetch data')
     }
 
-    const data = await response.json()
-    return data.organizations
+    return response.json()
+  }
+
+  static async getOrganizations(): Promise<Organization[]> {
+    const response = await this.get('/organizations')
+    return response.organizations
   }
 
   static async getOrganization(id: string): Promise<Organization> {

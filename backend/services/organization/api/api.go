@@ -14,6 +14,7 @@ import (
 type OrganizationAPI interface {
 	CreateOrganization(ctx context.Context, org *types.Organization, ownerID string) error
 	GetUserOrganizations(ctx context.Context, userID string) ([]types.Organization, error)
+	GetOrganizations(ctx context.Context) ([]types.Organization, error)
 	GetOrganizationByID(ctx context.Context, id string) (*types.Organization, error)
 	UpdateOrganization(ctx context.Context, org *types.Organization) error
 	DeleteOrganization(ctx context.Context, id string) error
@@ -64,4 +65,9 @@ func (a *Api) GetOrganizationMembers(ctx context.Context, orgID string) ([]types
 // IsOrganizationOwner checks if a user is the owner of an organization
 func (a *Api) IsOrganizationOwner(ctx context.Context, orgID string, userID string) (bool, error) {
 	return a.db.IsOrganizationOwner(orgID, userID)
+}
+
+// GetOrganizations returns all organizations in the system
+func (a *Api) GetOrganizations(ctx context.Context) ([]types.Organization, error) {
+	return a.db.GetOrganizations()
 }

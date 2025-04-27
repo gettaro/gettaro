@@ -17,6 +17,7 @@ type SourceControlAccount struct {
 	LastSyncedAt   *time.Time
 }
 
+// PullRequest represents a pull request in our system
 type PullRequest struct {
 	ID                     string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	SourceControlAccountID string
@@ -27,10 +28,9 @@ type PullRequest struct {
 	CreatedAt              time.Time
 	MergedAt               *time.Time
 	LastUpdatedAt          time.Time
-	TimeToFirstReview      *int
-	TimeToMerge            *int
 }
 
+// PRComment represents a comment on a pull request
 type PRComment struct {
 	ID        string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	PRID      string

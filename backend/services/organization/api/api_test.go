@@ -47,6 +47,11 @@ func (m *MockOrganizationDB) GetUserOrganizations(userID string) ([]types.Organi
 	return args.Get(0).([]types.Organization), args.Error(1)
 }
 
+func (m *MockOrganizationDB) GetOrganizations() ([]types.Organization, error) {
+	args := m.Called()
+	return args.Get(0).([]types.Organization), args.Error(1)
+}
+
 func (m *MockOrganizationDB) GetOrganizationByID(id string) (*types.Organization, error) {
 	args := m.Called(id)
 	if args.Get(0) == nil {

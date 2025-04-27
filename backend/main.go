@@ -1,12 +1,20 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
+	"strconv"
+	"time"
 
 	"ems.dev/backend/database"
 	"ems.dev/backend/http/server"
+	"ems.dev/backend/jobs/scheduler"
+	"ems.dev/backend/jobs/sourcecontrol"
+	scprovider "ems.dev/backend/jobs/sourcecontrol/providers"
+	githubprovider "ems.dev/backend/jobs/sourcecontrol/providers/github"
 	auth0client "ems.dev/backend/libraries/auth0"
+	"ems.dev/backend/libraries/github"
 	authapi "ems.dev/backend/services/auth/api"
 	authdb "ems.dev/backend/services/auth/database"
 	integrationapi "ems.dev/backend/services/integration/api"
@@ -47,9 +55,36 @@ func main() {
 	integrationDb := integrationdb.NewIntegrationDB(database.DB)
 	integrationApi := integrationapi.NewApi(integrationDb, []byte("QI$Pi!<Jc@L<%bwI"))
 
+	// Initialize and start sync job scheduler
+	// Check if jobs are enabled
+	if os.Getenv("JOBS_ENABLED") == "true" {
+		log.Println("Jobs are enabled")
+		syncInterval := getSyncInterval()
+		githubProvider := githubprovider.NewProvider(github.NewClient(), integrationApi)
+		scProviderFactory := scprovider.NewFactory([]scprovider.SourceControlProvider{githubProvider})
+		syncJob := sourcecontrol.NewSyncJob(integrationApi, orgApi, scProviderFactory)
+		scheduler := scheduler.NewScheduler(syncJob, syncInterval)
+		go scheduler.Start(context.Background())
+	}
+
 	// Initialize and run server
 	srv := server.New(database.DB, userApi, orgApi, teamApi, authApi, integrationApi)
 	if err := srv.Run(":8080"); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
+}
+
+func getSyncInterval() time.Duration {
+	intervalStr := os.Getenv("SYNC_INTERVAL_HOURS")
+	if intervalStr == "" {
+		intervalStr = "4" // Default to 4 hours
+	}
+
+	interval, err := strconv.Atoi(intervalStr)
+	if err != nil {
+		log.Printf("Invalid SYNC_INTERVAL_HOURS value, using default 4 hours")
+		interval = 4
+	}
+
+	return time.Duration(interval) * time.Hour
 }

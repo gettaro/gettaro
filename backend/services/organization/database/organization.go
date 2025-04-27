@@ -12,6 +12,7 @@ import (
 type DB interface {
 	CreateOrganization(org *types.Organization, ownerID string) error
 	GetUserOrganizations(userID string) ([]types.Organization, error)
+	GetOrganizations() ([]types.Organization, error)
 	GetOrganizationByID(id string) (*types.Organization, error)
 	UpdateOrganization(org *types.Organization) error
 	DeleteOrganization(id string) error
@@ -88,6 +89,13 @@ func (d *OrganizationDB) GetUserOrganizations(userID string) ([]types.Organizati
 	}
 
 	return orgs, nil
+}
+
+// GetOrganizations returns all organizations in the system
+func (d *OrganizationDB) GetOrganizations() ([]types.Organization, error) {
+	var orgs []types.Organization
+	err := d.db.Find(&orgs).Error
+	return orgs, err
 }
 
 // GetOrganizationByID returns an organization by its ID
