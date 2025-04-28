@@ -3,7 +3,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { useNavigate } from "react-router-dom";
-import { OrganizationConflictError } from "../../api/errors/organizatinos";
+import { OrganizationConflictError } from "../../api/errors/organizations";
 import { useOrganizationStore } from "../../stores/organization";
 export function CreateOrganizationForm() {
   const navigate = useNavigate();

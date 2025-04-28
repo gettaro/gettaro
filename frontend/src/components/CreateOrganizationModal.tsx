@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { OrganizationConflictError } from '../api/errors/organizatinos'
+import { OrganizationConflictError } from '../api/errors/organizations'
 
 interface CreateOrganizationModalProps {
   isOpen: boolean

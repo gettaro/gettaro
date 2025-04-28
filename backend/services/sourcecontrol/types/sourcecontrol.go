@@ -22,12 +22,20 @@ type PullRequest struct {
 	ID                     string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	SourceControlAccountID string
 	ProviderID             string
-	URL                    string
 	Title                  string
+	Description            string
+	URL                    string
 	Status                 string
 	CreatedAt              time.Time
+	UpdatedAt              time.Time
 	MergedAt               *time.Time
 	LastUpdatedAt          time.Time
+	Comments               int
+	ReviewComments         int
+	Additions              int
+	Deletions              int
+	ChangedFiles           int
+	Metadata               datatypes.JSON
 }
 
 // PRComment represents a comment on a pull request

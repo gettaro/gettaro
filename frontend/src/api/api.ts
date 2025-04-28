@@ -1,5 +1,5 @@
 import { Organization } from '../types/organization'
-import { OrganizationConflictError } from './errors/organizatinos'
+import { OrganizationConflictError } from './errors/organizations'
 import { CreateIntegrationConfigRequest, IntegrationConfig, UpdateIntegrationConfigRequest } from '../types/integration'
 
 export default class Api {

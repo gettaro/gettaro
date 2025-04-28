@@ -163,7 +163,7 @@ model IntegrationConfig {
 
 model SourceControlAccount {
   id             String   @id @default(uuid())
-  userId         String
+  userId         String?
   organizationId String?
   providerName   String
   providerId     String
@@ -173,10 +173,9 @@ model SourceControlAccount {
   createdAt      DateTime @default(now())
   updatedAt      DateTime
 
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   pullRequests   PullRequest[]
-  reviews        PRReviewer[]
 }
 
 model PullRequest {
@@ -185,6 +184,7 @@ model PullRequest {
   providerId             String
   url                    String
   title                  String
+  description            String?
   status                 String
   createdAt              DateTime
   mergedAt               DateTime?
@@ -192,34 +192,27 @@ model PullRequest {
   timeToFirstReview      Int?
   timeToMerge            Int?
   updatedAt              DateTime @default(now())
+  comments               Int      @default(0)
+  reviewComments         Int      @default(0)
+  additions              Int      @default(0)
+  deletions              Int      @default(0)
+  changedFiles           Int      @default(0)
+  metadata               Json?
 
   account    SourceControlAccount @relation(fields: [sourceControlAccountId], references: [id], onDelete: Cascade)
   comments   PRComment[]
-  reviewers  PRReviewer[]
 }
 
 model PRComment {
-  id        String   @id @default(uuid())
-  prId      String
-  authorId  String?
-  body      String
-  createdAt DateTime
-  updatedAt DateTime @default(now())
+  id                     String   @id @default(uuid())
+  prId                   String
+  sourceControlAccountId String?
+  body                   String
+  createdAt              DateTime
+  updatedAt              DateTime @default(now())
 
-  pullRequest PullRequest @relation(fields: [prId], references: [id], onDelete: Cascade)
-}
-
-model PRReviewer {
-  id          String   @id @default(uuid())
-  prId        String
-  reviewerId  String
-  reviewedAt  DateTime
-  reviewState String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime
-
-  pullRequest PullRequest           @relation(fields: [prId], references: [id], onDelete: Cascade)
-  reviewer    SourceControlAccount  @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+  pullRequest        PullRequest        @relation(fields: [prId], references: [id], onDelete: Cascade)
+  sourceControlAccount SourceControlAccount? @relation(fields: [sourceControlAccountId], references: [id], onDelete: SetNull)
 }
 
 model ProjectManagementAccount {
