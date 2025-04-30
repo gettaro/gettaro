@@ -52,6 +52,24 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 		}
 		owner, repoName := parts[0], parts[1]
 
+		// Fetch imported pull requests
+		importedPRs, err := p.sourceControlAPI.GetPullRequests(ctx, &internaltypes.PullRequestParams{
+			ProviderID:     fmt.Sprintf("%s/%s", owner, repoName),
+			OrganizationID: &config.OrganizationID,
+			ProviderName:   "github",
+			RepositoryName: repoName,
+		})
+
+		if err != nil {
+			return fmt.Errorf("failed to fetch imported pull requests for %s: %w", repo, err)
+		}
+
+		// Create a map of imported pull requests
+		importedPRsMap := make(map[string]internaltypes.PullRequest)
+		for _, pr := range importedPRs {
+			importedPRsMap[pr.ProviderID] = *pr
+		}
+
 		// Fetch pull requests
 		prs, err := p.githubClient.GetPullRequests(ctx, owner, repoName, token)
 		if err != nil {
@@ -65,6 +83,13 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 
 		// Map pull requests
 		for _, pr := range prs {
+			// If the pull request has already been imported and is not open, skip it
+			if importedPR, ok := importedPRsMap[fmt.Sprintf("%d", pr.ID)]; ok {
+				if importedPR.Status != "open" {
+					continue
+				}
+			}
+
 			// Get the pull request details
 			prDetails, err := p.githubClient.GetPullRequest(ctx, owner, repoName, token, pr.Number)
 			if err != nil {
@@ -76,21 +101,22 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 			// Map GitHub PR to our PullRequest type
 			prDetailsBytes, _ := json.Marshal(prDetails)
 			sourceControlPR := &internaltypes.PullRequest{
-				SourceControlAccountID: config.ID,
-				ProviderID:             fmt.Sprintf("%d", prDetails.ID),
-				URL:                    prDetails.URL,
-				Title:                  prDetails.Title,
-				Description:            prDetails.Body,
-				Status:                 prDetails.State,
-				CreatedAt:              prDetails.CreatedAt,
-				MergedAt:               prDetails.MergedAt,
-				LastUpdatedAt:          prDetails.UpdatedAt,
-				Comments:               prDetails.Comments,
-				ReviewComments:         prDetails.ReviewComments,
-				Additions:              prDetails.Additions,
-				Deletions:              prDetails.Deletions,
-				ChangedFiles:           prDetails.ChangedFiles,
-				Metadata:               datatypes.JSON(prDetailsBytes),
+				ProviderID:     fmt.Sprintf("%d", prDetails.ID),
+				URL:            prDetails.URL,
+				RepositoryName: repoName,
+				OrganizationID: config.OrganizationID,
+				Title:          prDetails.Title,
+				Description:    prDetails.Body,
+				Status:         prDetails.State,
+				CreatedAt:      prDetails.CreatedAt,
+				MergedAt:       prDetails.MergedAt,
+				LastUpdatedAt:  prDetails.UpdatedAt,
+				Comments:       prDetails.Comments,
+				ReviewComments: prDetails.ReviewComments,
+				Additions:      prDetails.Additions,
+				Deletions:      prDetails.Deletions,
+				ChangedFiles:   prDetails.ChangedFiles,
+				Metadata:       datatypes.JSON(prDetailsBytes),
 			}
 
 			prsToSave = append(prsToSave, sourceControlPR)
@@ -108,13 +134,15 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 			}
 
 			reviewComments = append(reviewComments, comments...)
+
 			// Map review comments
 			for _, comment := range reviewComments {
 				sourceControlComment := &internaltypes.PRComment{
-					PRID:      sourceControlPR.ID,
-					Body:      comment.Body,
-					CreatedAt: comment.CreatedAt,
-					UpdatedAt: &comment.UpdatedAt,
+					PRID:       sourceControlPR.ID,
+					ProviderID: fmt.Sprintf("%d", comment.ID),
+					Body:       comment.Body,
+					CreatedAt:  comment.CreatedAt,
+					UpdatedAt:  &comment.UpdatedAt,
 				}
 
 				githubUsers[comment.User.Login] = comment.User

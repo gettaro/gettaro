@@ -14,6 +14,7 @@ type DB interface {
 	CreateSourceControlAccounts(ctx context.Context, accounts []*types.SourceControlAccount) error
 
 	// Pull Requests
+	GetPullRequests(ctx context.Context, params *types.PullRequestParams) ([]*types.PullRequest, error)
 	CreatePullRequests(ctx context.Context, prs []*types.PullRequest) error
 
 	// Comments
@@ -52,6 +53,35 @@ func (d *SourceControlDB) GetSourceControlAccountsByUsernames(ctx context.Contex
 // CreateSourceControlAccounts creates multiple source control accounts
 func (d *SourceControlDB) CreateSourceControlAccounts(ctx context.Context, accounts []*types.SourceControlAccount) error {
 	return d.db.WithContext(ctx).Create(accounts).Error
+}
+
+// GetPullRequests retrieves pull requests based on the given parameters
+func (d *SourceControlDB) GetPullRequests(ctx context.Context, params *types.PullRequestParams) ([]*types.PullRequest, error) {
+	var prs []types.PullRequest
+	query := d.db.WithContext(ctx).Model(&types.PullRequest{})
+
+	if params.ProviderID != "" {
+		query = query.Where("provider_id = ?", params.ProviderID)
+	}
+	if params.OrganizationID != nil {
+		query = query.Where("organization_id = ?", *params.OrganizationID)
+	}
+	if params.ProviderName != "" {
+		query = query.Where("provider_name = ?", params.ProviderName)
+	}
+	if params.RepositoryName != "" {
+		query = query.Where("repository_name = ?", params.RepositoryName)
+	}
+
+	if err := query.Find(&prs).Error; err != nil {
+		return nil, err
+	}
+
+	result := make([]*types.PullRequest, len(prs))
+	for i := range prs {
+		result[i] = &prs[i]
+	}
+	return result, nil
 }
 
 // CreatePullRequests creates multiple pull requests

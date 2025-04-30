@@ -13,6 +13,7 @@ type SourceControlAPI interface {
 	CreateSourceControlAccounts(ctx context.Context, accounts []*types.SourceControlAccount) error
 
 	// Pull Requests
+	GetPullRequests(ctx context.Context, params *types.PullRequestParams) ([]*types.PullRequest, error)
 	CreatePullRequests(ctx context.Context, prs []*types.PullRequest) error
 
 	// Comments
@@ -35,6 +36,10 @@ func (a *Api) GetSourceControlAccountsByUsernames(ctx context.Context, usernames
 
 func (a *Api) CreateSourceControlAccounts(ctx context.Context, accounts []*types.SourceControlAccount) error {
 	return a.db.CreateSourceControlAccounts(ctx, accounts)
+}
+
+func (a *Api) GetPullRequests(ctx context.Context, params *types.PullRequestParams) ([]*types.PullRequest, error) {
+	return a.db.GetPullRequests(ctx, params)
 }
 
 func (a *Api) CreatePullRequests(ctx context.Context, prs []*types.PullRequest) error {
