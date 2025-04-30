@@ -21,6 +21,8 @@ import (
 	integrationdb "ems.dev/backend/services/integration/database"
 	orgapi "ems.dev/backend/services/organization/api"
 	orgdb "ems.dev/backend/services/organization/database"
+	sourcecontrolapi "ems.dev/backend/services/sourcecontrol/api"
+	sourcecontroldb "ems.dev/backend/services/sourcecontrol/database"
 	teamapi "ems.dev/backend/services/team/api"
 	teamdb "ems.dev/backend/services/team/database"
 	userapi "ems.dev/backend/services/user/api"
@@ -54,13 +56,15 @@ func main() {
 	authApi := authapi.NewApi(auth0Client, authDb)
 	integrationDb := integrationdb.NewIntegrationDB(database.DB)
 	integrationApi := integrationapi.NewApi(integrationDb, []byte("QI$Pi!<Jc@L<%bwI"))
+	sourcecontrolDb := sourcecontroldb.NewSourceControlDB(database.DB)
+	sourcecontrolApi := sourcecontrolapi.NewAPI(sourcecontrolDb)
 
 	// Initialize and start sync job scheduler
 	// Check if jobs are enabled
 	if os.Getenv("JOBS_ENABLED") == "true" {
 		log.Println("Jobs are enabled")
 		syncInterval := getSyncInterval()
-		githubProvider := githubprovider.NewProvider(github.NewClient(), integrationApi)
+		githubProvider := githubprovider.NewProvider(github.NewClient(), integrationApi, sourcecontrolApi)
 		scProviderFactory := scprovider.NewFactory([]scprovider.SourceControlProvider{githubProvider})
 		syncJob := sourcecontrol.NewSyncJob(integrationApi, orgApi, scProviderFactory)
 		scheduler := scheduler.NewScheduler(syncJob, syncInterval)

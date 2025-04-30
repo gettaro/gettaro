@@ -128,7 +128,7 @@ CREATE TABLE integration_configs (
 -- Create source_control_accounts table
 CREATE TABLE source_control_accounts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL,
+    user_id UUID,
     organization_id UUID,
     provider_name VARCHAR(255) NOT NULL,
     provider_id VARCHAR(255) NOT NULL,
@@ -137,7 +137,7 @@ CREATE TABLE source_control_accounts (
     last_synced_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL
 );
 

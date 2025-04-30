@@ -8,7 +8,7 @@ import (
 
 type SourceControlAccount struct {
 	ID             string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	UserID         string
+	UserID         *string
 	OrganizationID *string
 	ProviderName   string
 	ProviderID     string
@@ -42,16 +42,8 @@ type PullRequest struct {
 type PRComment struct {
 	ID        string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	PRID      string
-	AuthorID  *string
+	AuthorID  string
 	Body      string
 	CreatedAt time.Time
 	UpdatedAt *time.Time
-}
-
-type PRReviewer struct {
-	ID          string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	PRID        string
-	ReviewerID  string
-	ReviewedAt  time.Time
-	ReviewState string
 }
