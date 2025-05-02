@@ -55,6 +55,5 @@ type PRComment struct {
 type PullRequestParams struct {
 	ProviderID     string
 	OrganizationID *string
-	ProviderName   string
 	RepositoryName string
 }

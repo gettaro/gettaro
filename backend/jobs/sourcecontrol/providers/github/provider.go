@@ -44,7 +44,7 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 		return fmt.Errorf("failed to decrypt token: %w", err)
 	}
 
-	// 1. For each repository:
+	// Process each repository
 	for _, repo := range repositories {
 		parts := strings.Split(repo, "/")
 		if len(parts) != 2 {
@@ -52,173 +52,141 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 		}
 		owner, repoName := parts[0], parts[1]
 
-		// Fetch imported pull requests
+		// 1. Get all PRs from the database
 		importedPRs, err := p.sourceControlAPI.GetPullRequests(ctx, &internaltypes.PullRequestParams{
 			ProviderID:     fmt.Sprintf("%s/%s", owner, repoName),
 			OrganizationID: &config.OrganizationID,
-			ProviderName:   "github",
 			RepositoryName: repoName,
 		})
-
 		if err != nil {
 			return fmt.Errorf("failed to fetch imported pull requests for %s: %w", repo, err)
 		}
 
-		// Create a map of imported pull requests
+		// Create a map of imported PRs for quick lookup
 		importedPRsMap := make(map[string]internaltypes.PullRequest)
 		for _, pr := range importedPRs {
 			importedPRsMap[pr.ProviderID] = *pr
 		}
 
-		// Fetch pull requests
+		// 2. Fetch all PRs from GitHub
 		prs, err := p.githubClient.GetPullRequests(ctx, owner, repoName, token)
 		if err != nil {
 			return fmt.Errorf("failed to fetch pull requests for %s: %w", repo, err)
 		}
 
-		githubUsers := make(map[string]githubtypes.User)
-		prsToSave := make([]*internaltypes.PullRequest, 0)
-		commentsToSave := make([]*internaltypes.PRComment, 0)
-		commentAuthors := make(map[string]string)
-
-		// Map pull requests
+		// Process each PR
 		for _, pr := range prs {
-			// If the pull request has already been imported and is not open, skip it
-			if importedPR, ok := importedPRsMap[fmt.Sprintf("%d", pr.ID)]; ok {
-				if importedPR.Status != "open" {
+			// 3. Check if PR exists in DB and skip if not open
+			if existingPR, exists := importedPRsMap[fmt.Sprintf("%d", pr.ID)]; exists {
+				if existingPR.Status != "open" {
 					continue
 				}
 			}
 
-			// Get the pull request details
+			// Get detailed PR information
 			prDetails, err := p.githubClient.GetPullRequest(ctx, owner, repoName, token, pr.Number)
 			if err != nil {
-				return fmt.Errorf("failed to fetch pull request details for %s: %w", repo, err)
+				return fmt.Errorf("failed to fetch pull request details for PR %d: %w", pr.Number, err)
 			}
 
-			githubUsers[prDetails.User.Login] = prDetails.User
+			// 4. Insert/Update author
+			authorAccount, err := p.upsertAuthor(ctx, config.OrganizationID, prDetails.User)
+			if err != nil {
+				return fmt.Errorf("failed to upsert author for PR %d: %w", pr.Number, err)
+			}
 
-			// Map GitHub PR to our PullRequest type
+			// 5. Insert/Update PR
 			prDetailsBytes, _ := json.Marshal(prDetails)
 			sourceControlPR := &internaltypes.PullRequest{
-				ProviderID:     fmt.Sprintf("%d", prDetails.ID),
-				URL:            prDetails.URL,
-				RepositoryName: repoName,
-				OrganizationID: config.OrganizationID,
-				Title:          prDetails.Title,
-				Description:    prDetails.Body,
-				Status:         prDetails.State,
-				CreatedAt:      prDetails.CreatedAt,
-				MergedAt:       prDetails.MergedAt,
-				LastUpdatedAt:  prDetails.UpdatedAt,
-				Comments:       prDetails.Comments,
-				ReviewComments: prDetails.ReviewComments,
-				Additions:      prDetails.Additions,
-				Deletions:      prDetails.Deletions,
-				ChangedFiles:   prDetails.ChangedFiles,
-				Metadata:       datatypes.JSON(prDetailsBytes),
+				SourceControlAccountID: authorAccount.ID,
+				ProviderID:             fmt.Sprintf("%d", prDetails.ID),
+				RepositoryName:         repoName,
+				OrganizationID:         config.OrganizationID,
+				Title:                  prDetails.Title,
+				Description:            prDetails.Body,
+				Status:                 prDetails.State,
+				CreatedAt:              prDetails.CreatedAt,
+				MergedAt:               prDetails.MergedAt,
+				LastUpdatedAt:          prDetails.UpdatedAt,
+				Comments:               prDetails.Comments,
+				ReviewComments:         prDetails.ReviewComments,
+				Additions:              prDetails.Additions,
+				Deletions:              prDetails.Deletions,
+				ChangedFiles:           prDetails.ChangedFiles,
+				URL:                    prDetails.URL,
+				Metadata:               datatypes.JSON(prDetailsBytes),
 			}
 
-			prsToSave = append(prsToSave, sourceControlPR)
+			if err := p.sourceControlAPI.CreatePullRequests(ctx, []*internaltypes.PullRequest{sourceControlPR}); err != nil {
+				return fmt.Errorf("failed to save pull request %d: %w", pr.Number, err)
+			}
 
-			// Fetch review reviewComments for this PR
+			// 6. Get all comments and review comments
 			reviewComments, err := p.githubClient.GetPullRequestReviewComments(ctx, owner, repoName, token, pr.Number)
 			if err != nil {
 				return fmt.Errorf("failed to fetch review comments for PR %d: %w", pr.Number, err)
 			}
 
-			// Fetch regular comments for this PR
 			comments, err := p.githubClient.GetPullRequestComments(ctx, owner, repoName, token, pr.Number)
 			if err != nil {
 				return fmt.Errorf("failed to fetch regular comments for PR %d: %w", pr.Number, err)
 			}
 
-			reviewComments = append(reviewComments, comments...)
+			allComments := append(reviewComments, comments...)
 
-			// Map review comments
-			for _, comment := range reviewComments {
+			// Process each comment
+			for _, comment := range allComments {
+				// 7. Insert/Update comment author
+				commentAuthor, err := p.upsertAuthor(ctx, config.OrganizationID, comment.User)
+				if err != nil {
+					return fmt.Errorf("failed to upsert comment author for PR %d: %w", pr.Number, err)
+				}
+
+				// 8. Insert/Update comment
 				sourceControlComment := &internaltypes.PRComment{
 					PRID:       sourceControlPR.ID,
+					AuthorID:   commentAuthor.ID,
 					ProviderID: fmt.Sprintf("%d", comment.ID),
 					Body:       comment.Body,
 					CreatedAt:  comment.CreatedAt,
 					UpdatedAt:  &comment.UpdatedAt,
 				}
 
-				githubUsers[comment.User.Login] = comment.User
-				commentAuthors[sourceControlComment.ID] = comment.User.Login
-				commentsToSave = append(commentsToSave, sourceControlComment)
+				if err := p.sourceControlAPI.CreatePRComments(ctx, []*internaltypes.PRComment{sourceControlComment}); err != nil {
+					return fmt.Errorf("failed to save comment for PR %d: %w", pr.Number, err)
+				}
 			}
-		}
-
-		// Get unique usernames
-		usernames := make([]string, 0, len(githubUsers))
-		for username := range githubUsers {
-			usernames = append(usernames, username)
-		}
-
-		// Fetch existing source control accounts
-		existingAccounts, err := p.sourceControlAPI.GetSourceControlAccountsByUsernames(ctx, usernames)
-		if err != nil {
-			return fmt.Errorf("failed to fetch source control accounts: %w", err)
-		}
-
-		// Create new source control accounts for missing users
-		newAccounts := make([]*internaltypes.SourceControlAccount, 0)
-		for username := range githubUsers {
-			if _, exists := existingAccounts[username]; !exists {
-				metadata, _ := json.Marshal(githubUsers[username])
-				newAccounts = append(newAccounts, &internaltypes.SourceControlAccount{
-					ProviderName:   "github",
-					OrganizationID: &config.OrganizationID,
-					Username:       username,
-					Metadata:       datatypes.JSON(metadata),
-				})
-			}
-		}
-
-		if len(newAccounts) > 0 {
-			if err := p.sourceControlAPI.CreateSourceControlAccounts(ctx, newAccounts); err != nil {
-				return fmt.Errorf("failed to create source control accounts: %w", err)
-			}
-		}
-
-		// Update all accounts map with newly created accounts
-		for _, account := range newAccounts {
-			existingAccounts[account.Username] = account
-		}
-
-		// Update pull requests with source control account IDs
-		for _, pr := range prsToSave {
-			var metadata map[string]interface{}
-			if err := json.Unmarshal(pr.Metadata, &metadata); err != nil {
-				return fmt.Errorf("failed to unmarshal PR metadata: %w", err)
-			}
-			user := metadata["user"].(map[string]interface{})
-			author := user["login"].(string)
-			if account, exists := existingAccounts[author]; exists {
-				pr.SourceControlAccountID = account.ID
-			}
-		}
-
-		// Update comments with source control account IDs
-		for _, comment := range commentsToSave {
-			authorLogin := commentAuthors[comment.ID]
-			if account, exists := existingAccounts[authorLogin]; exists {
-				comment.AuthorID = account.ID
-			}
-		}
-
-		// Save pull requests
-		if err := p.sourceControlAPI.CreatePullRequests(ctx, prsToSave); err != nil {
-			return fmt.Errorf("failed to save pull requests: %w", err)
-		}
-
-		// Save comments
-		if err := p.sourceControlAPI.CreatePRComments(ctx, commentsToSave); err != nil {
-			return fmt.Errorf("failed to save comments: %w", err)
 		}
 	}
 
 	return nil
+}
+
+// upsertAuthor handles the creation or update of a source control account
+func (p *GitHubProvider) upsertAuthor(ctx context.Context, organizationID string, user githubtypes.User) (*internaltypes.SourceControlAccount, error) {
+	// Check if account exists
+	accounts, err := p.sourceControlAPI.GetSourceControlAccountsByUsernames(ctx, []string{user.Login})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch source control account: %w", err)
+	}
+
+	if account, exists := accounts[user.Login]; exists {
+		return account, nil
+	}
+
+	// Create new account
+	metadata, _ := json.Marshal(user)
+	newAccount := &internaltypes.SourceControlAccount{
+		ProviderName:   "github",
+		OrganizationID: &organizationID,
+		Username:       user.Login,
+		ProviderID:     fmt.Sprintf("%d", user.ID),
+		Metadata:       datatypes.JSON(metadata),
+	}
+
+	if err := p.sourceControlAPI.CreateSourceControlAccounts(ctx, []*internaltypes.SourceControlAccount{newAccount}); err != nil {
+		return nil, fmt.Errorf("failed to create source control account: %w", err)
+	}
+
+	return newAccount, nil
 }

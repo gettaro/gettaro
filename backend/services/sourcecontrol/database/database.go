@@ -66,9 +66,6 @@ func (d *SourceControlDB) GetPullRequests(ctx context.Context, params *types.Pul
 	if params.OrganizationID != nil {
 		query = query.Where("organization_id = ?", *params.OrganizationID)
 	}
-	if params.ProviderName != "" {
-		query = query.Where("provider_name = ?", params.ProviderName)
-	}
 	if params.RepositoryName != "" {
 		query = query.Where("repository_name = ?", params.RepositoryName)
 	}
