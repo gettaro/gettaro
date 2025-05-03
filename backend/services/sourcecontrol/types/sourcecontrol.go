@@ -37,6 +37,7 @@ type PullRequest struct {
 	Additions              int
 	Deletions              int
 	ChangedFiles           int
+	Metrics                datatypes.JSON
 	Metadata               datatypes.JSON
 }
 

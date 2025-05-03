@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"ems.dev/backend/libraries/github"
@@ -12,6 +13,7 @@ import (
 	"ems.dev/backend/services/integration/types"
 	sourcecontrolapi "ems.dev/backend/services/sourcecontrol/api"
 	internaltypes "ems.dev/backend/services/sourcecontrol/types"
+	"github.com/samber/lo"
 	"gorm.io/datatypes"
 )
 
@@ -50,11 +52,11 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 		if len(parts) != 2 {
 			return fmt.Errorf("invalid repository format: %s. Expected format: owner/repo", repo)
 		}
+
 		owner, repoName := parts[0], parts[1]
 
 		// 1. Get all PRs from the database
 		importedPRs, err := p.sourceControlAPI.GetPullRequests(ctx, &internaltypes.PullRequestParams{
-			ProviderID:     fmt.Sprintf("%s/%s", owner, repoName),
 			OrganizationID: &config.OrganizationID,
 			RepositoryName: repoName,
 		})
@@ -69,14 +71,19 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 		}
 
 		// 2. Fetch all PRs from GitHub
-		prs, err := p.githubClient.GetPullRequests(ctx, owner, repoName, token)
+		prs, err := p.githubClient.GetPullRequests(ctx, owner, repoName, token, 20)
 		if err != nil {
 			return fmt.Errorf("failed to fetch pull requests for %s: %w", repo, err)
 		}
 
-		// Process each PR
+		// 3. Process each PR
 		for _, pr := range prs {
-			// 3. Check if PR exists in DB and skip if not open
+			// Ignore PRs who's base ref is prod
+			if pr.Base.Ref == "prod" {
+				continue
+			}
+
+			// Check if PR exists in DB and skip if not open
 			if existingPR, exists := importedPRsMap[fmt.Sprintf("%d", pr.ID)]; exists {
 				if existingPR.Status != "open" {
 					continue
@@ -134,15 +141,15 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 
 			allComments := append(reviewComments, comments...)
 
-			// Process each comment
+			// 7. Process each comment
 			for _, comment := range allComments {
-				// 7. Insert/Update comment author
+				// Insert/Update comment author
 				commentAuthor, err := p.upsertAuthor(ctx, config.OrganizationID, comment.User)
 				if err != nil {
 					return fmt.Errorf("failed to upsert comment author for PR %d: %w", pr.Number, err)
 				}
 
-				// 8. Insert/Update comment
+				// Insert/Update comment
 				sourceControlComment := &internaltypes.PRComment{
 					PRID:       sourceControlPR.ID,
 					AuthorID:   commentAuthor.ID,
@@ -155,6 +162,42 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 				if err := p.sourceControlAPI.CreatePRComments(ctx, []*internaltypes.PRComment{sourceControlComment}); err != nil {
 					return fmt.Errorf("failed to save comment for PR %d: %w", pr.Number, err)
 				}
+			}
+
+			// 9. Calculate PR metrics
+			metrics := make(map[string]interface{})
+
+			// Filter out comments that are from bots
+			nonBotComments := lo.Filter(allComments, func(comment *githubtypes.ReviewComment, _ int) bool {
+				return comment.User.Type != "Bot"
+			})
+
+			metrics["number_of_non_bot_comments"] = len(nonBotComments)
+
+			// Calculate time to merge if the PR is merged
+			if prDetails.MergedAt != nil {
+				timeToMerge := prDetails.MergedAt.Sub(prDetails.CreatedAt)
+				metrics["time_to_merge_seconds"] = int64(timeToMerge.Seconds())
+			}
+
+			// Calculate time to first review
+			if len(nonBotComments) > 0 {
+				// Sort comments by creation time to find the first one
+				sort.Slice(nonBotComments, func(i, j int) bool {
+					return nonBotComments[i].CreatedAt.Before(nonBotComments[j].CreatedAt)
+				})
+				firstComment := nonBotComments[0]
+				timeToFirstReview := firstComment.CreatedAt.Sub(prDetails.CreatedAt)
+				metrics["time_to_first_non_bot_review_seconds"] = int64(timeToFirstReview.Seconds())
+			}
+
+			// Update PR with metrics
+			metricsBytes, _ := json.Marshal(metrics)
+			sourceControlPR.Metrics = datatypes.JSON(metricsBytes)
+
+			// Save updated PR with metrics
+			if err := p.sourceControlAPI.UpdatePullRequest(ctx, sourceControlPR); err != nil {
+				return fmt.Errorf("failed to save pull request metrics for PR %d: %w", pr.Number, err)
 			}
 		}
 	}

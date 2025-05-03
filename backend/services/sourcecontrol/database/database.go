@@ -16,6 +16,7 @@ type DB interface {
 	// Pull Requests
 	GetPullRequests(ctx context.Context, params *types.PullRequestParams) ([]*types.PullRequest, error)
 	CreatePullRequests(ctx context.Context, prs []*types.PullRequest) error
+	UpdatePullRequest(ctx context.Context, pr *types.PullRequest) error
 
 	// Comments
 	CreatePRComments(ctx context.Context, comments []*types.PRComment) error
@@ -89,4 +90,9 @@ func (d *SourceControlDB) CreatePullRequests(ctx context.Context, prs []*types.P
 // CreatePRComments creates multiple PR comments
 func (d *SourceControlDB) CreatePRComments(ctx context.Context, comments []*types.PRComment) error {
 	return d.db.WithContext(ctx).Create(comments).Error
+}
+
+// UpdatePullRequest updates an existing pull request
+func (d *SourceControlDB) UpdatePullRequest(ctx context.Context, pr *types.PullRequest) error {
+	return d.db.WithContext(ctx).Model(pr).Updates(pr).Error
 }

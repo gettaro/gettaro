@@ -23,33 +23,47 @@ func NewClient() *Client {
 	}
 }
 
-// GetPullRequests fetches pull requests for a repository
-func (c *Client) GetPullRequests(ctx context.Context, owner, repo, token string) ([]*types.PullRequest, error) {
-	url := fmt.Sprintf("%s/repos/%s/%s/pulls?state=all&per_page=1000", c.baseURL, owner, repo)
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+// GetPullRequests fetches pull requests for a repository with pagination support
+func (c *Client) GetPullRequests(ctx context.Context, owner, repo, token string, maxPages int) ([]*types.PullRequest, error) {
+	var allPRs []*types.PullRequest
+	page := 1
+	url := fmt.Sprintf("%s/repos/%s/%s/pulls?state=all&per_page=100", c.baseURL, owner, repo)
+
+	for page <= maxPages {
+		pageURL := fmt.Sprintf("%s&page=%d", url, page)
+		req, err := http.NewRequestWithContext(ctx, "GET", pageURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
+
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+		req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to make request: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		}
+
+		var prs []*types.PullRequest
+		if err := json.NewDecoder(resp.Body).Decode(&prs); err != nil {
+			return nil, fmt.Errorf("failed to decode response: %w", err)
+		}
+
+		// If no PRs were returned, we've reached the end
+		if len(prs) == 0 {
+			break
+		}
+
+		allPRs = append(allPRs, prs...)
+		page++
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	var prs []*types.PullRequest
-	if err := json.NewDecoder(resp.Body).Decode(&prs); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	return prs, nil
+	return allPRs, nil
 }
 
 // GetPullRequestReviewComments fetches review comments for a specific pull request
