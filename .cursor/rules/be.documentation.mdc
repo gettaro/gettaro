@@ -3,37 +3,36 @@ description:
 globs: 
 alwaysApply: true
 ---
-description: Rules for maintaining API documentation and code comments.
-globs:
-  - "backend/http/**/*.go"
-  - "backend/openapi.yml"
-alwaysApply: true
+# Documentation Rules
 
----
+## Pre-Change Checklist
+- [ ] Review all relevant rules before making any changes
+- [ ] Check if changes affect:
+  - Routes
+  - Types
+  - Middleware
+  - Auth requirements
+- [ ] Update OpenAPI spec if any of the above are modified
+- [ ] Update Postman collection if API changes
+- [ ] Document all changes in code
 
-## OpenAPI Syncing
-- Any time a route, middleware, or payload (request or response) is added or modified, the `openapi.yml` file must be updated accordingly.
-- Keep the OpenAPI spec in sync with:
+## OpenAPI Documentation
+- [ ] Update `openapi.yml` when adding/modifying routes
+- [ ] Keep OpenAPI spec in sync with:
   - Endpoint definitions
   - Input/output types
   - Auth requirements
+- [ ] Update Postman collection when API changes
 
-## Postman Collection Syncing
-- Any time a route, middleware, or payload (request or response) is added or modified, the `openapi.yml` file must be updated accordingly.
-- Keep the OpenAPI spec in sync with:
-  - Endpoint definitions
-  - Input/output types
-  - Auth requirements
-
-## Function Documentation
-- Every function must include a descriptive comment
-- Comments should explain:
+## Code Documentation
+- [ ] Add descriptive comments to all functions
+- [ ] Document:
   - Purpose
   - Parameters
   - Return values
-  - Any important side effects or assumptions
+  - Side effects/assumptions
 
-## Example Function Doc
+## Example Function Documentation
 ```go
 // GetUser handles the retrieval of a user by ID.
 // Params:
@@ -42,6 +41,11 @@ alwaysApply: true
 func (h *UserHandler) GetUser(c *gin.Context) { ... }
 ```
 
-## Good Practices
-- Use consistent and clear language
-- Make it easy for other developers (and Cursor) to understand and extend the code
+## Best Practices
+- [ ] Use clear, consistent language
+- [ ] Make code easy to understand and extend
+- [ ] Keep documentation up to date
+
+## Files
+- `backend/http/**/*.go`
+- `backend/openapi.yml`

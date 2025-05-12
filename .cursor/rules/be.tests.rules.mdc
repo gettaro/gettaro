@@ -3,14 +3,24 @@ description:
 globs: 
 alwaysApply: true
 ---
-description: Write tests
-globs:
-  - "backend/http/handlers/**/*.go"
-  - "backend/services/**/api/*.go"
-alwaysApply: true
+# Testing Rules
 
----
+## Test Coverage
+- [ ] Write tests for all new features
+- [ ] Test both success and error cases
+- [ ] Document test cases with comments
 
-## Tests
-- Write comprehensive tests for any logic
-- Document the tests by adding comments
+## Test Organization
+- [ ] Group tests by feature/function
+- [ ] Use descriptive test names
+- [ ] Keep tests focused and atomic
+
+## Test Files
+- [ ] Test handlers in `backend/http/handlers/**/*.go`
+- [ ] Test service logic in `backend/services/**/api/*.go`
+- [ ] Use consistent test file naming
+
+## Best Practices
+- [ ] Mock external dependencies
+- [ ] Use test fixtures where appropriate
+- [ ] Clean up test data after tests

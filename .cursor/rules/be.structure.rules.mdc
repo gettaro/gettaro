@@ -3,10 +3,41 @@ description:
 globs: 
 alwaysApply: true
 ---
-description: Project folder layout and service organization.
-globs:
-  - "backend/**/*"
-alwaysApply: true
+# Project Structure Rules
+
+## Directory Layout
+```
+/frontend     # Frontend app
+/backend      # Backend app (REST API)
+```
+
+## Database Layer
+- [ ] Store migrations in `/backend/database/migrations/`
+- [ ] Keep database initialization in `database.go`
+- [ ] Use consistent migration naming
+
+## HTTP Layer
+- [ ] Organize handlers by resource (one file per resource)
+- [ ] Keep middleware separate (one file per middleware)
+- [ ] Maintain server configuration in `server/`:
+  - `routes.go`: Route registration
+  - `server.go`: Server initialization
+
+## Service Layer
+- [ ] Organize services by resource under `/backend/services/{resourceName}`
+- [ ] Structure each service as:
+  - `api/`: Service interface and methods
+  - `database/`: Database operations
+  - `types/`: Business logic types
+
+## Main Application
+- [ ] Keep `main.go` focused on:
+  - Service initialization
+  - Dependency injection
+  - Server startup
+
+## Files
+- `backend/**/*`
 
 ---
 

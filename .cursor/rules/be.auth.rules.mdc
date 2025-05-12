@@ -3,38 +3,53 @@ description:
 globs: 
 alwaysApply: true
 ---
-description: Authentication logic and how to access user context from JWT claims.
-globs:
-  - "backend/http/middleware/auth.go"
-  - "backend/http/handlers/**/*.go"
-alwaysApply: true
-
----
+# Authentication Rules
 
 ## JWT Middleware
-- JWTs are validated using a custom middleware
-- Middleware extracts a `user_claims` object and injects it into the request context
+- [ ] Use custom JWT middleware for authentication
+- [ ] Extract `user_claims` from JWT tokens
+- [ ] Inject `user_claims` into request context
 
-## Using `user_claims`
-- Handlers should extract `user_claims` from the context
-- Look up the corresponding user from the database using the `email` field
+## User Context Access
+- [ ] Extract `user_claims` from context in handlers
+- [ ] Look up full user record using email from claims
+- [ ] Handle missing or invalid claims appropriately
 
-## Example
+## Implementation Pattern
 ```go
+// 1. Extract claims from context
 userClaims, exists := c.Get("user_claims")
 if !exists {
   c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found in context"})
   return
 }
 
+// 2. Look up user by email
 user, err := h.userApi.FindUser(usertypes.UserSearchParams{Email: &userClaims.(*authTypes.UserClaims).Email})
 if err != nil {
   c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
   return
 }
 
+// 3. Validate user exists
 if user == nil {
   c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
   return
 }
 ```
+
+## Error Handling
+- [ ] Return 401 for missing/invalid claims
+- [ ] Return 401 for non-existent users
+- [ ] Return 500 for database errors
+- [ ] Include descriptive error messages
+
+## Security
+- [ ] Validate JWT signatures
+- [ ] Check token expiration
+- [ ] Verify token issuer
+- [ ] Use secure token storage
+
+## Files
+- `backend/http/middleware/auth.go`
+- `backend/http/handlers/**/*.go`
