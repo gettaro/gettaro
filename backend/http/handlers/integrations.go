@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	httptypes "ems.dev/backend/http/types/integration"
 	"ems.dev/backend/http/utils"
 	intapi "ems.dev/backend/services/integration/api"
 	inttypes "ems.dev/backend/services/integration/types"
@@ -105,7 +106,12 @@ func (h *IntegrationHandler) GetOrganizationIntegrationConfigs(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"integrations": configs})
+	marshalledConfigs := make([]*httptypes.GetOrganizationIntegrationConfigsRequest, len(configs))
+	for i, config := range configs {
+		marshalledConfigs[i] = httptypes.MarshalIntegrationConfig(&config)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"integrations": marshalledConfigs})
 }
 
 // UpdateIntegrationConfig handles updating an existing integration config
