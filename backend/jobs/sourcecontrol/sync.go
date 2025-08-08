@@ -73,6 +73,7 @@ func (j *SyncJob) Run(ctx context.Context) error {
 			}
 
 			// Sync repositories
+			// TODO: Move this to run in a go routine
 			if err := provider.SyncRepositories(ctx, &integration, repositories); err != nil {
 				fmt.Printf("Failed to sync repositories for integration %s: %v\n", integration.ID, err)
 				continue

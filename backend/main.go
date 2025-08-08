@@ -9,7 +9,6 @@ import (
 
 	"ems.dev/backend/database"
 	"ems.dev/backend/http/server"
-	"ems.dev/backend/jobs/scheduler"
 	"ems.dev/backend/jobs/sourcecontrol"
 	scprovider "ems.dev/backend/jobs/sourcecontrol/providers"
 	githubprovider "ems.dev/backend/jobs/sourcecontrol/providers/github"
@@ -63,16 +62,17 @@ func main() {
 	// Check if jobs are enabled
 	if os.Getenv("JOBS_ENABLED") == "true" {
 		log.Println("Jobs are enabled")
-		syncInterval := getSyncInterval()
+		//syncInterval := getSyncInterval()
 		githubProvider := githubprovider.NewProvider(github.NewClient(), integrationApi, sourcecontrolApi)
 		scProviderFactory := scprovider.NewFactory([]scprovider.SourceControlProvider{githubProvider})
 		syncJob := sourcecontrol.NewSyncJob(integrationApi, orgApi, scProviderFactory)
-		scheduler := scheduler.NewScheduler(syncJob, syncInterval)
-		go scheduler.Start(context.Background())
+		go syncJob.Run(context.Background())
+		//scheduler := scheduler.NewScheduler(syncJob, syncInterval)
+		//go scheduler.Start(context.Background())
 	}
 
 	// Initialize and run server
-	srv := server.New(database.DB, userApi, orgApi, teamApi, authApi, integrationApi)
+	srv := server.New(database.DB, userApi, orgApi, teamApi, authApi, integrationApi, sourcecontrolApi)
 	if err := srv.Run(":8080"); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}

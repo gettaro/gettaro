@@ -92,6 +92,58 @@ components:
         token: { type: string }
         metadata: { type: object }
 
+    ListOrganizationPullRequestsResponse:
+      type: object
+      properties:
+        pull_requests:
+          type: array
+          items:
+            $ref: '#/components/schemas/PullRequest'
+    PullRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        url:
+          type: string
+        status:
+          type: string
+          enum: [open, closed, merged]
+        created_at:
+          type: string
+          format: date-time
+        merged_at:
+          type: string
+          format: date-time
+        comments:
+          type: integer
+        review_comments:
+          type: integer
+        additions:
+          type: integer
+        deletions:
+          type: integer
+        changed_files:
+          type: integer
+    PullRequestMetrics:
+      type: object
+      properties:
+        merged_prs_count:
+          type: integer
+        open_prs_count:
+          type: integer
+        mean_publish_to_merge_time:
+          type: number
+          format: float
+        mean_time_to_first_review:
+          type: number
+          format: float
+
 paths:
   /users:
     get:
@@ -789,7 +841,7 @@ paths:
             schema:
               type: object
               properties:
-                authorId: { type: string }
+                source_countrol_account_id: { type: string }
                 body: { type: string }
       responses:
         "201":
@@ -874,5 +926,951 @@ paths:
       responses:
         "201":
           description: Ticket created
+      security:
+        - bearerAuth: []
+
+openapi: 3.0.3
+info:
+  title: Engineering Insights API
+  version: 1.0.0
+  description: API for managing users, orgs, integrations, and engineering metrics.
+
+servers:
+  - url: http://localhost:8080/api
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        is_active: { type: boolean }
+        status: { type: string }
+        titleId: { type: string }
+        organizationId: { type: string }
+
+    AuthProvider:
+      type: object
+      properties:
+        id: { type: string }
+        provider: { type: string }
+        providerId: { type: string }
+
+    Team:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+
+    Organization:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        slug: { type: string }
+        isOwner: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    OrganizationMember:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        organizationId: { type: string }
+        isOwner: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    IntegrationProvider:
+      type: string
+      enum: [github]
+
+    IntegrationConfig:
+      type: object
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        providerName: { type: string, enum: [github] }
+        providerType: { type: string, enum: [SourceControl, ProjectManagement] }
+        encryptedToken: { type: string }
+        metadata: { type: object }
+        lastSyncedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CreateIntegrationConfigRequest:
+      type: object
+      properties:
+        providerName: { type: string, enum: [github] }
+        token: { type: string }
+        metadata: { type: object }
+      required:
+        - providerName
+        - token
+
+    UpdateIntegrationConfigRequest:
+      type: object
+      properties:
+        token: { type: string }
+        metadata: { type: object }
+
+paths:
+  /users:
+    get:
+      summary: Get all users
+      description: Returns a list of all users. Only accessible by admins or org managers.
+      responses:
+        "200":
+          description: List of users
+      security:
+        - bearerAuth: []
+
+    post:
+      summary: Create a new user
+      description: Only system admins can create users manually. Typically users register via auth.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/User"
+      responses:
+        "201":
+          description: Created user
+      security:
+        - bearerAuth: []
+
+  /users/me:
+    get:
+      summary: Get current user
+      description: Returns the current user's information based on their JWT token. This endpoint is used to get the authenticated user's profile information.
+      responses:
+        "200":
+          description: Current user details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized - Invalid or missing JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "unauthorized"
+        "404":
+          description: User not found - The user associated with the JWT token was not found in the database
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "user not found"
+      security:
+        - bearerAuth: []
+
+  /users/{id}:
+    get:
+      summary: Get user by ID
+      description: Get details about a specific user.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+      responses:
+        "200":
+          description: User detail
+      security:
+        - bearerAuth: []
+
+    put:
+      summary: Update user
+      description: Update a user profile (e.g., title, status). Admin-only.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/User"
+      responses:
+        "200":
+          description: Updated user
+      security:
+        - bearerAuth: []
+
+    delete:
+      summary: Delete user
+      description: Soft delete or archive a user account. Admin-only.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+      responses:
+        "204":
+          description: Deleted
+      security:
+        - bearerAuth: []
+
+  /organizations:
+    post:
+      summary: Create an organization
+      description: Creates a new organization and sets the current user as its owner.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                slug: { type: string }
+              required:
+                - name
+                - slug
+      responses:
+        "201":
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+      security:
+        - bearerAuth: []
+
+    get:
+      summary: List user's organizations
+      description: Returns a list of organizations the current user is part of, including ownership information.
+      responses:
+        "200":
+          description: List of organizations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  organizations:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Organization"
+      security:
+        - bearerAuth: []
+
+  /organizations/{id}:
+    get:
+      summary: Get organization by ID
+      description: Returns details about a specific organization.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      responses:
+        "200":
+          description: Organization details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  organization:
+                    $ref: "#/components/schemas/Organization"
+      security:
+        - bearerAuth: []
+
+    put:
+      summary: Update organization
+      description: Updates an existing organization. Only organization owners can update.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                slug: { type: string }
+      responses:
+        "200":
+          description: Updated organization
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  organization:
+                    $ref: "#/components/schemas/Organization"
+      security:
+        - bearerAuth: []
+
+    delete:
+      summary: Delete organization
+      description: Deletes an organization. Only organization owners can delete.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      responses:
+        "204":
+          description: Organization deleted
+      security:
+        - bearerAuth: []
+
+  /organizations/{id}/members:
+    get:
+      summary: List organization members
+      description: Returns a list of all members in an organization.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      responses:
+        "200":
+          description: List of organization members
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  members:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OrganizationMember"
+      security:
+        - bearerAuth: []
+
+    post:
+      summary: Add organization member
+      description: Adds a user as a member to an organization. Only organization owners can add members.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string }
+              required:
+                - email
+      responses:
+        "201":
+          description: Member added
+      security:
+        - bearerAuth: []
+
+  /organizations/{id}/members/{userId}:
+    delete:
+      summary: Remove organization member
+      description: Removes a user from an organization. Only organization owners can remove members.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+        - in: path
+          name: userId
+          schema: { type: string }
+          required: true
+      responses:
+        "204":
+          description: Member removed
+      security:
+        - bearerAuth: []
+
+  /organizations/{id}/integrations:
+    post:
+      summary: Create integration config
+      description: Creates a new integration configuration for an organization. Only organization owners can create integrations.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateIntegrationConfigRequest"
+      responses:
+        "201":
+          description: Integration config created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  integration:
+                    $ref: "#/components/schemas/IntegrationConfig"
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization owner
+        "500":
+          description: Internal server error
+      security:
+        - bearerAuth: []
+
+    get:
+      summary: List integration configs
+      description: Returns all integration configurations for an organization. Organization members can view integrations.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      responses:
+        "200":
+          description: List of integration configs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  integrations:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/IntegrationConfig"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization member
+        "500":
+          description: Internal server error
+      security:
+        - bearerAuth: []
+
+  /organizations/{id}/integrations/{integrationId}:
+    get:
+      summary: Get integration config
+      description: Returns details about a specific integration configuration. Organization members can view integrations.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+        - in: path
+          name: integrationId
+          schema: { type: string }
+          required: true
+      responses:
+        "200":
+          description: Integration config details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  integration:
+                    $ref: "#/components/schemas/IntegrationConfig"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization member
+        "404":
+          description: Integration config not found
+        "500":
+          description: Internal server error
+      security:
+        - bearerAuth: []
+
+    put:
+      summary: Update integration config
+      description: Updates an existing integration configuration. Only organization owners can update integrations.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+        - in: path
+          name: integrationId
+          schema: { type: string }
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateIntegrationConfigRequest"
+      responses:
+        "200":
+          description: Integration config updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  integration:
+                    $ref: "#/components/schemas/IntegrationConfig"
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization owner
+        "404":
+          description: Integration config not found
+        "500":
+          description: Internal server error
+      security:
+        - bearerAuth: []
+
+    delete:
+      summary: Delete integration config
+      description: Deletes an integration configuration. Only organization owners can delete integrations.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+        - in: path
+          name: integrationId
+          schema: { type: string }
+          required: true
+      responses:
+        "204":
+          description: Integration config deleted
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization owner
+        "404":
+          description: Integration config not found
+        "500":
+          description: Internal server error
+      security:
+        - bearerAuth: []
+
+  /teams:
+    get:
+      summary: Get all teams
+      description: Returns a list of teams with optional filters
+      parameters:
+        - in: query
+          name: organizationId
+          schema: { type: string }
+          description: Filter teams by organization ID
+        - in: query
+          name: name
+          schema: { type: string }
+          description: Filter teams by name
+      responses:
+        "200":
+          description: List of teams
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Team"
+      security:
+        - bearerAuth: []
+
+    post:
+      summary: Create team
+      description: Creates a new team in an organization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+                organizationId: { type: string }
+              required:
+                - name
+                - organizationId
+      responses:
+        "201":
+          description: Team created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+      security:
+        - bearerAuth: []
+
+  /teams/{id}:
+    get:
+      summary: Get team by ID
+      description: Returns details about a specific team
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      responses:
+        "200":
+          description: Team details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+      security:
+        - bearerAuth: []
+
+    put:
+      summary: Update team
+      description: Updates an existing team's details
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+      responses:
+        "200":
+          description: Team updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+      security:
+        - bearerAuth: []
+
+    delete:
+      summary: Delete team
+      description: Deletes a team
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      responses:
+        "204":
+          description: Team deleted
+      security:
+        - bearerAuth: []
+
+  /teams/{id}/members:
+    post:
+      summary: Add team member
+      description: Adds a user to a team
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: { type: string }
+                role: { type: string }
+              required:
+                - userId
+      responses:
+        "201":
+          description: Member added
+      security:
+        - bearerAuth: []
+
+  /teams/{id}/members/{userId}:
+    delete:
+      summary: Remove team member
+      description: Removes a user from a team
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+        - in: path
+          name: userId
+          schema: { type: string }
+          required: true
+      responses:
+        "204":
+          description: Member removed
+      security:
+        - bearerAuth: []
+
+  /directs:
+    post:
+      summary: Create reporting relationship
+      description: Create a manager-report link with depth.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                managerId: { type: string }
+                reportId: { type: string }
+                depth: { type: integer }
+      responses:
+        "201":
+          description: Created
+      security:
+        - bearerAuth: []
+
+  /source-control-accounts:
+    get:
+      summary: List source control accounts
+      responses:
+        "200":
+          description: List of accounts
+      security:
+        - bearerAuth: []
+
+    post:
+      summary: Create a source control account
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: { type: string }
+                providerName: { type: string }
+                providerId: { type: string }
+                username: { type: string }
+                metadata: { type: object }
+      responses:
+        "201":
+          description: Created
+      security:
+        - bearerAuth: []
+
+  /pull-requests:
+    get:
+      summary: List PRs
+      responses:
+        "200":
+          description: List of PRs
+      security:
+        - bearerAuth: []
+
+    post:
+      summary: Create PR record
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sourceControlAccountId: { type: string }
+                providerId: { type: string }
+                url: { type: string }
+                title: { type: string }
+                status: { type: string }
+                createdAt: { type: string, format: date-time }
+                mergedAt: { type: string, format: date-time }
+                lastUpdatedAt: { type: string, format: date-time }
+                timeToFirstReview: { type: integer }
+                timeToMerge: { type: integer }
+      responses:
+        "201":
+          description: PR Created
+      security:
+        - bearerAuth: []
+
+  /pull-requests/{id}/comments:
+    post:
+      summary: Add a PR comment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                source_control_account_id: { type: string }
+                body: { type: string }
+      responses:
+        "201":
+          description: Comment created
+      security:
+        - bearerAuth: []
+
+  /pull-requests/{id}/reviewers:
+    post:
+      summary: Add a PR reviewer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reviewerId: { type: string }
+                reviewedAt: { type: string, format: date-time }
+                reviewState: { type: string }
+      responses:
+        "201":
+          description: Reviewer added
+      security:
+        - bearerAuth: []
+
+  /project-management-accounts:
+    get:
+      summary: List PM accounts
+      responses:
+        "200":
+          description: List of PM accounts
+      security:
+        - bearerAuth: []
+
+    post:
+      summary: Create PM account
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: { type: string }
+                providerName: { type: string }
+                providerId: { type: string }
+                metadata: { type: object }
+      responses:
+        "201":
+          description: Created
+      security:
+        - bearerAuth: []
+
+  /pm-tickets:
+    get:
+      summary: List project tickets
+      responses:
+        "200":
+          description: Ticket list
+      security:
+        - bearerAuth: []
+
+    post:
+      summary: Create PM ticket
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                projectManagementAccountId: { type: string }
+                providerId: { type: string }
+                title: { type: string }
+                epic: { type: string }
+                labels:
+                  type: array
+                  items: { type: string }
+                status: { type: string }
+                storyPoints: { type: integer }
+                createdAt: { type: string, format: date-time }
+                updatedAt: { type: string, format: date-time }
+                completedAt: { type: string, format: date-time }
+      responses:
+        "201":
+          description: Ticket created
+      security:
+        - bearerAuth: []
+
+  /organizations/{id}/pull-requests/metrics:
+    get:
+      summary: Get pull request metrics
+      description: Returns metrics for pull requests in an organization, optionally filtered by users and date range.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+          description: Organization ID
+        - in: query
+          name: userIds
+          schema:
+            type: array
+            items: { type: string }
+          description: Optional list of user IDs to filter by
+        - in: query
+          name: startDate
+          schema: { type: string, format: date }
+          description: Optional start date for the time range (YYYY-MM-DD)
+        - in: query
+          name: endDate
+          schema: { type: string, format: date }
+          description: Optional end date for the time range (YYYY-MM-DD)
+      responses:
+        "200":
+          description: Pull request metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  metrics:
+                    type: object
+                    properties:
+                      merged_prs_count:
+                        type: integer
+                        description: Number of merged pull requests
+                      open_prs_count:
+                        type: integer
+                        description: Number of open pull requests
+                      mean_publish_to_merge_time:
+                        type: number
+                        format: float
+                        description: Mean time from publish to merge in hours
+                      mean_time_to_first_review:
+                        type: number
+                        format: float
+                        description: Mean time to first review in hours
+        "400":
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization member
+        "500":
+          description: Internal server error
       security:
         - bearerAuth: []

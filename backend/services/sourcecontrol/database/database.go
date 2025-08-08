@@ -70,6 +70,17 @@ func (d *SourceControlDB) GetPullRequests(ctx context.Context, params *types.Pul
 	if params.RepositoryName != "" {
 		query = query.Where("repository_name = ?", params.RepositoryName)
 	}
+	// Add user IDs filter if provided
+	if len(params.UserIDs) > 0 {
+		query = query.Where("user_id IN ?", params.UserIDs)
+	}
+	// Add date range filters if provided
+	if params.StartDate != nil {
+		query = query.Where("created_at >= ?", params.StartDate)
+	}
+	if params.EndDate != nil {
+		query = query.Where("created_at <= ?", params.EndDate)
+	}
 
 	if err := query.Find(&prs).Error; err != nil {
 		return nil, err

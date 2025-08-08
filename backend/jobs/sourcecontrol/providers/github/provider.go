@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"ems.dev/backend/libraries/github"
 	githubtypes "ems.dev/backend/libraries/github/types"
@@ -18,13 +19,13 @@ import (
 )
 
 type GitHubProvider struct {
-	githubClient     *github.Client
+	githubClient     github.GithubClient
 	integrationAPI   api.IntegrationAPI
 	sourceControlAPI sourcecontrolapi.SourceControlAPI
 }
 
 func NewProvider(
-	githubClient *github.Client,
+	githubClient github.GithubClient,
 	integrationAPI api.IntegrationAPI,
 	sourceControlAPI sourcecontrolapi.SourceControlAPI,
 ) *GitHubProvider {
@@ -39,6 +40,7 @@ func (p *GitHubProvider) Name() string {
 	return "github"
 }
 
+// TOOD: Need to extract this logic to sync.go. This should be provide agnostic and instead is using the github client directly.
 func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.IntegrationConfig, repositories []string) error {
 	// Decrypt the token
 	token, err := p.integrationAPI.DecryptToken(config.EncryptedToken)
@@ -56,6 +58,7 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 		owner, repoName := parts[0], parts[1]
 
 		// 1. Get all PRs from the database
+		// TODO: Add a filter by created at
 		importedPRs, err := p.sourceControlAPI.GetPullRequests(ctx, &internaltypes.PullRequestParams{
 			OrganizationID: &config.OrganizationID,
 			RepositoryName: repoName,
@@ -78,12 +81,14 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 
 		// 3. Process each PR
 		for _, pr := range prs {
+			// TODO: This should come from the integrations config. It should give the user the possibility to add settings to each repo he wants to import. (ex. Exclude PRs to prod branch)
 			// Ignore PRs who's base ref is prod
 			if pr.Base.Ref == "prod" {
 				continue
 			}
 
 			// Check if PR exists in DB and skip if not open
+			// TODO: If PR is closed, we should flag it as such in our db.
 			if existingPR, exists := importedPRsMap[fmt.Sprintf("%d", pr.ID)]; exists {
 				if existingPR.Status != "open" {
 					continue
@@ -128,10 +133,31 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 				return fmt.Errorf("failed to save pull request %d: %w", pr.Number, err)
 			}
 
-			// 6. Get all comments and review comments
+			// 6. Get all reviews, comments and review comments
+			reviews, err := p.githubClient.GetPullRequestReviews(ctx, owner, repoName, token, pr.Number)
+			if err != nil {
+				return fmt.Errorf("failed to fetch reviews for PR %d: %w", pr.Number, err)
+			}
+
+			allComments := []*githubtypes.ReviewComment{}
+			for _, review := range reviews {
+				allComments = append(allComments, &githubtypes.ReviewComment{
+					ID:        review.ID,
+					User:      review.User,
+					Body:      review.Body,
+					CreatedAt: review.SubmittedAt,
+					Type:      string(githubtypes.CommentTypeReview),
+				})
+			}
+
 			reviewComments, err := p.githubClient.GetPullRequestReviewComments(ctx, owner, repoName, token, pr.Number)
 			if err != nil {
 				return fmt.Errorf("failed to fetch review comments for PR %d: %w", pr.Number, err)
+			}
+
+			for _, reviewComment := range reviewComments {
+				reviewComment.Type = string(githubtypes.CommentTypeReviewComment)
+				allComments = append(allComments, reviewComment)
 			}
 
 			comments, err := p.githubClient.GetPullRequestComments(ctx, owner, repoName, token, pr.Number)
@@ -139,7 +165,10 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 				return fmt.Errorf("failed to fetch regular comments for PR %d: %w", pr.Number, err)
 			}
 
-			allComments := append(reviewComments, comments...)
+			for _, comment := range comments {
+				comment.Type = string(githubtypes.CommentTypeComment)
+				allComments = append(allComments, comment)
+			}
 
 			// 7. Process each comment
 			for _, comment := range allComments {
@@ -151,12 +180,13 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 
 				// Insert/Update comment
 				sourceControlComment := &internaltypes.PRComment{
-					PRID:       sourceControlPR.ID,
-					AuthorID:   commentAuthor.ID,
-					ProviderID: fmt.Sprintf("%d", comment.ID),
-					Body:       comment.Body,
-					CreatedAt:  comment.CreatedAt,
-					UpdatedAt:  &comment.UpdatedAt,
+					PRID:                   sourceControlPR.ID,
+					SourceControlAccountID: commentAuthor.ID,
+					ProviderID:             fmt.Sprintf("%d", comment.ID),
+					Body:                   comment.Body,
+					Type:                   comment.Type,
+					CreatedAt:              comment.CreatedAt,
+					UpdatedAt:              &comment.UpdatedAt,
 				}
 
 				if err := p.sourceControlAPI.CreatePRComments(ctx, []*internaltypes.PRComment{sourceControlComment}); err != nil {
@@ -181,13 +211,24 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 			}
 
 			// Calculate time to first review
+			var firstReviewedAt time.Time
+			if len(reviews) > 0 {
+				firstReviewedAt = reviews[0].SubmittedAt
+				metrics["time_to_first_non_bot_review_seconds"] = int64(firstReviewedAt.Sub(prDetails.CreatedAt).Seconds())
+			}
+
 			if len(nonBotComments) > 0 {
 				// Sort comments by creation time to find the first one
 				sort.Slice(nonBotComments, func(i, j int) bool {
 					return nonBotComments[i].CreatedAt.Before(nonBotComments[j].CreatedAt)
 				})
+
 				firstComment := nonBotComments[0]
-				timeToFirstReview := firstComment.CreatedAt.Sub(prDetails.CreatedAt)
+				if firstComment.CreatedAt.Before(firstReviewedAt) {
+					firstReviewedAt = firstComment.CreatedAt
+				}
+
+				timeToFirstReview := firstReviewedAt.Sub(prDetails.CreatedAt)
 				metrics["time_to_first_non_bot_review_seconds"] = int64(timeToFirstReview.Seconds())
 			}
 

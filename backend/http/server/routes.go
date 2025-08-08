@@ -25,34 +25,22 @@ func (s *Server) setupRoutes() {
 		orgHandler := handlers.NewOrganizationHandler(s.orgApi, s.userApi)
 		orgHandler.RegisterRoutes(protected)
 
-		// Team routes
-		teamHandler := handlers.NewTeamHandler(s.teamApi, s.orgApi)
-		teamHandler.RegisterRoutes(protected)
-
 		// Integration routes
 		integrationHandler := handlers.NewIntegrationHandler(s.integrationApi, s.orgApi)
 		integrationHandler.RegisterRoutes(protected)
+
+		// Source control routes
+		sourceControlHandler := handlers.NewSourceControlHandler(s.sourcecontrolApi, s.orgApi)
+		sourceControlHandler.RegisterRoutes(protected)
+
+		// Team routes
+		teamHandler := handlers.NewTeamHandler(s.teamApi, s.orgApi)
+		teamHandler.RegisterRoutes(protected)
 
 		// Direct reports routes
 		directs := protected.Group("/directs")
 		{
 			directs.POST("", handlers.CreateDirectReport)
-		}
-
-		// Source control routes
-		sourceControl := protected.Group("/source-control-accounts")
-		{
-			sourceControl.GET("", handlers.ListSourceControlAccounts)
-			sourceControl.POST("", handlers.CreateSourceControlAccount)
-		}
-
-		// Pull request routes
-		pullRequests := protected.Group("/pull-requests")
-		{
-			pullRequests.GET("", handlers.ListPullRequests)
-			pullRequests.POST("", handlers.CreatePullRequest)
-			pullRequests.POST("/:id/comments", handlers.CreatePRComment)
-			pullRequests.POST("/:id/reviewers", handlers.AddPRReviewer)
 		}
 
 		// Project management routes

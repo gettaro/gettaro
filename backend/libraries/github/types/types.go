@@ -30,6 +30,15 @@ type PullRequest struct {
 	Links          Links      `json:"_links"`           // Hypermedia links
 }
 
+// Commnent types
+type CommentType string
+
+const (
+	CommentTypeComment       CommentType = "COMMENT"
+	CommentTypeReview        CommentType = "REVIEW"
+	CommentTypeReviewComment CommentType = "REVIEW_COMMENT"
+)
+
 // ReviewComment represents a GitHub pull request review comment
 type ReviewComment struct {
 	ID        int       `json:"id"`
@@ -38,6 +47,15 @@ type ReviewComment struct {
 	Type      string    `json:"type"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// Review represents a GitHub pull request review
+type Review struct {
+	ID          int       `json:"id"`
+	User        User      `json:"user"`
+	Body        string    `json:"body"`
+	State       string    `json:"state"`
+	SubmittedAt time.Time `json:"submitted_at"`
 }
 
 // User represents a GitHub user

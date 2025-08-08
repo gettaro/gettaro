@@ -9,6 +9,14 @@ import (
 	"ems.dev/backend/libraries/github/types"
 )
 
+type GithubClient interface {
+	GetPullRequests(ctx context.Context, owner, repo, token string, maxPages int) ([]*types.PullRequest, error)
+	GetPullRequestReviewComments(ctx context.Context, owner, repo, token string, prNumber int) ([]*types.ReviewComment, error)
+	GetPullRequest(ctx context.Context, owner, repo, token string, prNumber int) (*types.PullRequest, error)
+	GetPullRequestComments(ctx context.Context, owner, repo, token string, prNumber int) ([]*types.ReviewComment, error)
+	GetPullRequestReviews(ctx context.Context, owner, repo, token string, prNumber int) ([]*types.Review, error)
+}
+
 // Client represents a GitHub API client
 type Client struct {
 	baseURL    string
@@ -151,4 +159,33 @@ func (c *Client) GetPullRequestComments(ctx context.Context, owner, repo, token 
 	}
 
 	return comments, nil
+}
+
+// GetPullRequestReviewComments fetches review comments for a specific pull request
+func (c *Client) GetPullRequestReviews(ctx context.Context, owner, repo, token string, prNumber int) ([]*types.Review, error) {
+	url := fmt.Sprintf("%s/repos/%s/%s/pulls/%d/reviews", c.baseURL, owner, repo, prNumber)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var reviews []*types.Review
+	if err := json.NewDecoder(resp.Body).Decode(&reviews); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return reviews, nil
 }

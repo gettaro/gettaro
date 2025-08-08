@@ -208,7 +208,8 @@ model PullRequest {
 model PRComment {
   id                     String   @id @default(uuid())
   prId                   String
-  sourceControlAccountId String?
+  sourceControlAccountId String
+  type                   String
   body                   String
   createdAt              DateTime
   updatedAt              DateTime @default(now())

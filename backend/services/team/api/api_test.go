@@ -64,6 +64,11 @@ func (m *MockOrganizationAPI) CreateOrganization(ctx context.Context, org *orgty
 	return args.Error(0)
 }
 
+func (m *MockOrganizationAPI) GetOrganizations(ctx context.Context) ([]orgtypes.Organization, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]orgtypes.Organization), args.Error(1)
+}
+
 func (m *MockOrganizationAPI) GetUserOrganizations(ctx context.Context, userID string) ([]orgtypes.Organization, error) {
 	args := m.Called(ctx, userID)
 	return args.Get(0).([]orgtypes.Organization), args.Error(1)

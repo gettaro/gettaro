@@ -43,13 +43,14 @@ type PullRequest struct {
 
 // PRComment represents a comment on a pull request
 type PRComment struct {
-	ID         string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	PRID       string
-	AuthorID   string
-	ProviderID string
-	Body       string
-	CreatedAt  time.Time
-	UpdatedAt  *time.Time
+	ID                     string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	PRID                   string
+	SourceControlAccountID string
+	ProviderID             string
+	Body                   string
+	Type                   string
+	CreatedAt              time.Time
+	UpdatedAt              *time.Time
 }
 
 // PullRequestParams represents the parameters for querying pull requests
@@ -57,4 +58,14 @@ type PullRequestParams struct {
 	ProviderID     string
 	OrganizationID *string
 	RepositoryName string
+	UserIDs        []string
+	StartDate      *time.Time
+	EndDate        *time.Time
+}
+
+type PullRequestMetrics struct {
+	MergedPRsCount         int
+	OpenPRsCount           int
+	MeanPublishToMergeTime float64
+	MeanTimeToFirstReview  float64
 }
