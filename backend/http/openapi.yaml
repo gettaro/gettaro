@@ -61,6 +61,48 @@ components:
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
+    Title:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        organizationId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    UserTitle:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        titleId: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CreateTitleRequest:
+      type: object
+      properties:
+        name: { type: string }
+      required:
+        - name
+
+    UpdateTitleRequest:
+      type: object
+      properties:
+        name: { type: string }
+      required:
+        - name
+
+    AssignUserTitleRequest:
+      type: object
+      properties:
+        userId: { type: string, format: uuid }
+        titleId: { type: string, format: uuid }
+      required:
+        - userId
+        - titleId
+
     IntegrationProvider:
       type: string
       enum: [github]
@@ -101,6 +143,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PullRequest"
+
     PullRequest:
       type: object
       properties:
@@ -132,6 +175,7 @@ components:
           type: integer
         changed_files:
           type: integer
+
     PullRequestMetrics:
       type: object
       properties:
@@ -429,6 +473,197 @@ paths:
       responses:
         "204":
           description: Member removed
+      security:
+        - bearerAuth: []
+
+  /organizations/{id}/titles:
+    post:
+      summary: Create title
+      description: Creates a new title for an organization. Only organization owners can create titles.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTitleRequest"
+      responses:
+        "201":
+          description: Title created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  title:
+                    $ref: "#/components/schemas/Title"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization owner
+        "500":
+          description: Internal server error
+      security:
+        - bearerAuth: []
+
+    get:
+      summary: List titles
+      description: Returns all titles for an organization. Organization members can view titles.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+      responses:
+        "200":
+          description: List of titles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  titles:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Title"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization member
+        "500":
+          description: Internal server error
+      security:
+        - bearerAuth: []
+
+  /organizations/{id}/titles/{titleId}:
+    put:
+      summary: Update title
+      description: Updates an existing title. Only organization owners can update titles.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+        - in: path
+          name: titleId
+          schema: { type: string, format: uuid }
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTitleRequest"
+      responses:
+        "200":
+          description: Title updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  title:
+                    $ref: "#/components/schemas/Title"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization owner
+        "404":
+          description: Title not found
+        "500":
+          description: Internal server error
+      security:
+        - bearerAuth: []
+
+    delete:
+      summary: Delete title
+      description: Deletes a title. Only organization owners can delete titles.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+        - in: path
+          name: titleId
+          schema: { type: string, format: uuid }
+          required: true
+      responses:
+        "204":
+          description: Title deleted
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization owner
+        "500":
+          description: Internal server error
+      security:
+        - bearerAuth: []
+
+  /organizations/{id}/titles/assign:
+    post:
+      summary: Assign title to user
+      description: Assigns a title to a user within an organization. Only organization owners can assign titles.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignUserTitleRequest"
+      responses:
+        "201":
+          description: Title assigned to user
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization owner
+        "500":
+          description: Internal server error
+      security:
+        - bearerAuth: []
+
+  /organizations/{id}/users/{userId}/title:
+    delete:
+      summary: Remove user title
+      description: Removes a user's title assignment. Only organization owners can remove title assignments.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+        - in: path
+          name: userId
+          schema: { type: string, format: uuid }
+          required: true
+      responses:
+        "204":
+          description: User title removed
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization owner
+        "500":
+          description: Internal server error
       security:
         - bearerAuth: []
 

@@ -1,6 +1,7 @@
 import { Organization } from '../types/organization'
 import { OrganizationConflictError } from './errors/organizations'
 import { CreateIntegrationConfigRequest, IntegrationConfig, UpdateIntegrationConfigRequest } from '../types/integration'
+import { Title, CreateTitleRequest, UpdateTitleRequest } from '../types/title'
 
 export default class Api {
   private static API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
@@ -27,6 +28,65 @@ export default class Api {
     }
 
     return response.json()
+  }
+
+  private static async post(path: string, data: any): Promise<any> {
+    if (!this.accessToken) {
+      throw new Error('No access token available')
+    }
+
+    const response = await fetch(`${this.API_BASE_URL}${path}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to create data')
+    }
+
+    return response.json()
+  }
+
+  private static async put(path: string, data: any): Promise<any> {
+    if (!this.accessToken) {
+      throw new Error('No access token available')
+    }
+
+    const response = await fetch(`${this.API_BASE_URL}${path}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to update data')
+    }
+
+    return response.json()
+  }
+
+  private static async delete(path: string): Promise<void> {
+    if (!this.accessToken) {
+      throw new Error('No access token available')
+    }
+
+    const response = await fetch(`${this.API_BASE_URL}${path}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to delete data')
+    }
   }
 
   static async getOrganizations(): Promise<Organization[]> {
@@ -155,6 +215,26 @@ export default class Api {
     if (!response.ok) {
       throw new Error('Failed to delete integration')
     }
+  }
+
+  // Title API functions
+  static async getOrganizationTitles(organizationId: string): Promise<Title[]> {
+    const response = await this.get(`/organizations/${organizationId}/titles`)
+    return response.titles
+  }
+
+  static async createTitle(organizationId: string, request: CreateTitleRequest): Promise<Title> {
+    const response = await this.post(`/organizations/${organizationId}/titles`, request)
+    return response.title
+  }
+
+  static async updateTitle(organizationId: string, titleId: string, request: UpdateTitleRequest): Promise<Title> {
+    const response = await this.put(`/organizations/${organizationId}/titles/${titleId}`, request)
+    return response.title
+  }
+
+  static async deleteTitle(organizationId: string, titleId: string): Promise<void> {
+    await this.delete(`/organizations/${organizationId}/titles/${titleId}`)
   }
 }
 

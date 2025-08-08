@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import Integrations from './pages/Integrations'
 import Settings from './pages/Settings'
 import Members from './pages/Members'
+import Titles from './pages/Titles'
 
 export const router = createBrowserRouter([
   {
@@ -30,6 +31,10 @@ export const router = createBrowserRouter([
       {
         path: "settings/members",
         element: <Members />,
+      },
+      {
+        path: "settings/titles",
+        element: <Titles />,
       }
     ],
   },

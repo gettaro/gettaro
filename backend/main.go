@@ -24,6 +24,8 @@ import (
 	sourcecontroldb "ems.dev/backend/services/sourcecontrol/database"
 	teamapi "ems.dev/backend/services/team/api"
 	teamdb "ems.dev/backend/services/team/database"
+	titleapi "ems.dev/backend/services/title/api"
+	titleDb "ems.dev/backend/services/title/database"
 	userapi "ems.dev/backend/services/user/api"
 	userdb "ems.dev/backend/services/user/database"
 	"github.com/joho/godotenv"
@@ -57,6 +59,8 @@ func main() {
 	integrationApi := integrationapi.NewApi(integrationDb, []byte("QI$Pi!<Jc@L<%bwI"))
 	sourcecontrolDb := sourcecontroldb.NewSourceControlDB(database.DB)
 	sourcecontrolApi := sourcecontrolapi.NewAPI(sourcecontrolDb)
+	titleDb := titleDb.NewTitleDB(database.DB)
+	titleApi := titleapi.NewApi(titleDb)
 
 	// Initialize and start sync job scheduler
 	// Check if jobs are enabled
@@ -72,7 +76,7 @@ func main() {
 	}
 
 	// Initialize and run server
-	srv := server.New(database.DB, userApi, orgApi, teamApi, authApi, integrationApi, sourcecontrolApi)
+	srv := server.New(database.DB, userApi, orgApi, teamApi, titleApi, authApi, integrationApi, sourcecontrolApi)
 	if err := srv.Run(":8080"); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}

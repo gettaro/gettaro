@@ -8,6 +8,7 @@ import (
 	orgapi "ems.dev/backend/services/organization/api"
 	sourcecontrolapi "ems.dev/backend/services/sourcecontrol/api"
 	teamapi "ems.dev/backend/services/team/api"
+	titleapi "ems.dev/backend/services/title/api"
 	userapi "ems.dev/backend/services/user/api"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -19,18 +20,20 @@ type Server struct {
 	userApi          userapi.UserAPI
 	orgApi           orgapi.OrganizationAPI
 	teamApi          teamapi.TeamAPI
+	titleApi         titleapi.TitleAPI
 	authApi          authapi.AuthAPI
 	integrationApi   integrationapi.IntegrationAPI
 	sourcecontrolApi sourcecontrolapi.SourceControlAPI
 }
 
-func New(db *gorm.DB, userApi userapi.UserAPI, orgApi orgapi.OrganizationAPI, teamApi teamapi.TeamAPI, authApi authapi.AuthAPI, integrationApi integrationapi.IntegrationAPI, sourcecontrolApi sourcecontrolapi.SourceControlAPI) *Server {
+func New(db *gorm.DB, userApi userapi.UserAPI, orgApi orgapi.OrganizationAPI, teamApi teamapi.TeamAPI, titleApi titleapi.TitleAPI, authApi authapi.AuthAPI, integrationApi integrationapi.IntegrationAPI, sourcecontrolApi sourcecontrolapi.SourceControlAPI) *Server {
 	s := &Server{
 		router:           gin.Default(),
 		db:               db,
 		userApi:          userApi,
 		orgApi:           orgApi,
 		teamApi:          teamApi,
+		titleApi:         titleApi,
 		authApi:          authApi,
 		integrationApi:   integrationApi,
 		sourcecontrolApi: sourcecontrolApi,
