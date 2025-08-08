@@ -64,7 +64,7 @@ func (d *TitleDBImpl) DeleteTitle(id string) error {
 
 // AssignUserTitle assigns a title to a user
 func (d *TitleDBImpl) AssignUserTitle(userTitle types.UserTitle) error {
-	return d.db.Create(userTitle).Error
+	return d.db.Create(&userTitle).Error
 }
 
 // GetUserTitle retrieves a user's title assignment

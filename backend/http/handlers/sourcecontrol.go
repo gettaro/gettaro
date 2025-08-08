@@ -206,10 +206,58 @@ func (h *SourceControlHandler) ListOrganizationPullRequestsMetrics(c *gin.Contex
 	c.JSON(http.StatusOK, metrics)
 }
 
+// ListOrganizationSourceControlAccounts handles retrieving source control accounts for an organization
+// Params:
+// - c: The Gin context containing request and response
+// Returns:
+// - 200: Success response with list of source control accounts
+// - 400: Bad request if organization ID is missing
+// - 401: Unauthorized if user is not authenticated
+// - 403: Forbidden if user does not have access to the organization
+// - 500: Internal server error if service layer fails
+// Side Effects:
+// - Makes a database query to fetch source control accounts
+// - Performs organization membership check
+// Errors:
+// - ErrMissingOrganizationID: When organization ID is missing from the request
+// - ErrDatabaseQuery: When database query fails
+// - ErrUnauthorized: When user is not authenticated
+// - ErrForbidden: When user does not have access to the organization
+func (h *SourceControlHandler) ListOrganizationSourceControlAccounts(c *gin.Context) {
+	orgID, err := h.getOrganizationIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if user has access to the organization
+	if !utils.CheckOrganizationMembership(c, h.orgApi, &orgID) {
+		return
+	}
+
+	// Get source control accounts from service
+	accounts, err := h.scApi.GetSourceControlAccountsByOrganization(c.Request.Context(), orgID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	response := types.ListOrganizationSourceControlAccountsResponse{
+		SourceControlAccounts: make([]servicetypes.SourceControlAccount, len(accounts)),
+	}
+
+	for i, account := range accounts {
+		response.SourceControlAccounts[i] = *account
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 // RegisterRoutes registers all source control-related routes
 func (h *SourceControlHandler) RegisterRoutes(api *gin.RouterGroup) {
 	sourceControl := api.Group("/organizations/:id")
 	{
+		sourceControl.GET("/source-control-accounts", h.ListOrganizationSourceControlAccounts)
 		sourceControl.GET("/pull-requests", h.ListOrganizationPullRequests)
 		sourceControl.GET("/pull-requests/metrics", h.ListOrganizationPullRequestsMetrics)
 	}

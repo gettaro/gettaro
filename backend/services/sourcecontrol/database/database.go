@@ -12,6 +12,9 @@ type DB interface {
 	// Source Control Accounts
 	GetSourceControlAccountsByUsernames(ctx context.Context, usernames []string) (map[string]*types.SourceControlAccount, error)
 	CreateSourceControlAccounts(ctx context.Context, accounts []*types.SourceControlAccount) error
+	GetSourceControlAccount(ctx context.Context, id string) (*types.SourceControlAccount, error)
+	UpdateSourceControlAccount(ctx context.Context, account *types.SourceControlAccount) error
+	GetSourceControlAccountsByOrganization(ctx context.Context, orgID string) ([]*types.SourceControlAccount, error)
 
 	// Pull Requests
 	GetPullRequests(ctx context.Context, params *types.PullRequestParams) ([]*types.PullRequest, error)
@@ -106,4 +109,36 @@ func (d *SourceControlDB) CreatePRComments(ctx context.Context, comments []*type
 // UpdatePullRequest updates an existing pull request
 func (d *SourceControlDB) UpdatePullRequest(ctx context.Context, pr *types.PullRequest) error {
 	return d.db.WithContext(ctx).Model(pr).Updates(pr).Error
+}
+
+// UpdateSourceControlAccount updates an existing source control account
+func (d *SourceControlDB) UpdateSourceControlAccount(ctx context.Context, account *types.SourceControlAccount) error {
+	return d.db.WithContext(ctx).Model(account).Updates(account).Error
+}
+
+// GetSourceControlAccount retrieves a source control account by ID
+func (d *SourceControlDB) GetSourceControlAccount(ctx context.Context, id string) (*types.SourceControlAccount, error) {
+	var account types.SourceControlAccount
+	err := d.db.WithContext(ctx).First(&account, "id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &account, nil
+}
+
+// GetSourceControlAccountsByOrganization retrieves source control accounts for an organization
+func (d *SourceControlDB) GetSourceControlAccountsByOrganization(ctx context.Context, orgID string) ([]*types.SourceControlAccount, error) {
+	var accounts []types.SourceControlAccount
+	err := d.db.WithContext(ctx).
+		Where("organization_id = ?", orgID).
+		Find(&accounts).Error
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*types.SourceControlAccount, len(accounts))
+	for i := range accounts {
+		result[i] = &accounts[i]
+	}
+	return result, nil
 }

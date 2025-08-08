@@ -190,6 +190,39 @@ components:
           type: number
           format: float
 
+    SourceControlAccount:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+          nullable: true
+        organizationId:
+          type: string
+          format: uuid
+          nullable: true
+        providerName:
+          type: string
+        providerId:
+          type: string
+        username:
+          type: string
+        lastSyncedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ListOrganizationSourceControlAccountsResponse:
+      type: object
+      properties:
+        source_control_accounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceControlAccount"
+
 paths:
   /users:
     get:
@@ -828,6 +861,34 @@ paths:
           description: Forbidden - User is not an organization owner
         "404":
           description: Integration config not found
+        "500":
+          description: Internal server error
+      security:
+        - bearerAuth: []
+
+  /organizations/{id}/source-control-accounts:
+    get:
+      summary: List organization source control accounts
+      description: Returns a list of source control accounts for an organization. Organization members can view source control accounts.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+          description: Organization ID
+      responses:
+        "200":
+          description: List of source control accounts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListOrganizationSourceControlAccountsResponse"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization member
         "500":
           description: Internal server error
       security:

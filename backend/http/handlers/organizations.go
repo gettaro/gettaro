@@ -305,7 +305,7 @@ func (h *OrganizationHandler) AddOrganizationMember(c *gin.Context) {
 		return
 	}
 
-	if err := h.orgApi.AddOrganizationMember(c.Request.Context(), &orgtypes.UserOrganization{
+	if err := h.orgApi.AddOrganizationMember(c.Request.Context(), req.TitleID, req.SourceControlAccountID, &orgtypes.UserOrganization{
 		OrganizationID: orgID,
 		Email:          req.Email,
 		Username:       req.Username,

@@ -1,6 +1,10 @@
 package sourcecontrol
 
-import "time"
+import (
+	"time"
+
+	sourcecontroltypes "ems.dev/backend/services/sourcecontrol/types"
+)
 
 type ListOrganizationPullRequestsQuery struct {
 	UserIDs        []string `form:"userIds" binding:"omitempty"`
@@ -34,4 +38,8 @@ type ListOrganizationPullRequestsMetricsQuery struct {
 	RepositoryName string   `form:"repositoryName" binding:"omitempty"`
 	StartDate      string   `form:"startDate" binding:"omitempty,datetime=2006-01-02"`
 	EndDate        string   `form:"endDate" binding:"omitempty,datetime=2006-01-02"`
+}
+
+type ListOrganizationSourceControlAccountsResponse struct {
+	SourceControlAccounts []sourcecontroltypes.SourceControlAccount `json:"source_control_accounts"`
 }

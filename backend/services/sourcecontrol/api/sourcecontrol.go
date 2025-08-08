@@ -13,6 +13,9 @@ type SourceControlAPI interface {
 	// Source Control Accounts
 	GetSourceControlAccountsByUsernames(ctx context.Context, usernames []string) (map[string]*types.SourceControlAccount, error)
 	CreateSourceControlAccounts(ctx context.Context, accounts []*types.SourceControlAccount) error
+	GetSourceControlAccount(ctx context.Context, id string) (*types.SourceControlAccount, error)
+	UpdateSourceControlAccount(ctx context.Context, account *types.SourceControlAccount) error
+	GetSourceControlAccountsByOrganization(ctx context.Context, orgID string) ([]*types.SourceControlAccount, error)
 
 	// Pull Requests
 	GetPullRequests(ctx context.Context, params *types.PullRequestParams) ([]*types.PullRequest, error)
@@ -40,6 +43,18 @@ func (a *Api) GetSourceControlAccountsByUsernames(ctx context.Context, usernames
 
 func (a *Api) CreateSourceControlAccounts(ctx context.Context, accounts []*types.SourceControlAccount) error {
 	return a.db.CreateSourceControlAccounts(ctx, accounts)
+}
+
+func (a *Api) GetSourceControlAccount(ctx context.Context, id string) (*types.SourceControlAccount, error) {
+	return a.db.GetSourceControlAccount(ctx, id)
+}
+
+func (a *Api) UpdateSourceControlAccount(ctx context.Context, account *types.SourceControlAccount) error {
+	return a.db.UpdateSourceControlAccount(ctx, account)
+}
+
+func (a *Api) GetSourceControlAccountsByOrganization(ctx context.Context, orgID string) ([]*types.SourceControlAccount, error) {
+	return a.db.GetSourceControlAccountsByOrganization(ctx, orgID)
 }
 
 func (a *Api) GetPullRequests(ctx context.Context, params *types.PullRequestParams) ([]*types.PullRequest, error) {

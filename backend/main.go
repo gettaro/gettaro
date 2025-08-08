@@ -49,10 +49,6 @@ func main() {
 	// Initialize services
 	userDb := userdb.NewUserDB(database.DB)
 	userApi := userapi.NewApi(userDb)
-	orgDb := orgdb.NewOrganizationDB(database.DB)
-	orgApi := orgapi.NewApi(orgDb, userApi)
-	teamDb := teamdb.NewTeamDB(database.DB)
-	teamApi := teamapi.NewApi(teamDb, orgApi)
 	authDb := authdb.New(database.DB)
 	authApi := authapi.NewApi(auth0Client, authDb)
 	integrationDb := integrationdb.NewIntegrationDB(database.DB)
@@ -61,6 +57,10 @@ func main() {
 	sourcecontrolApi := sourcecontrolapi.NewAPI(sourcecontrolDb)
 	titleDb := titleDb.NewTitleDB(database.DB)
 	titleApi := titleapi.NewApi(titleDb)
+	orgDb := orgdb.NewOrganizationDB(database.DB)
+	orgApi := orgapi.NewApi(orgDb, userApi, titleApi, sourcecontrolApi)
+	teamDb := teamdb.NewTeamDB(database.DB)
+	teamApi := teamapi.NewApi(teamDb, orgApi)
 
 	// Initialize and start sync job scheduler
 	// Check if jobs are enabled
