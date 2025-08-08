@@ -61,6 +61,7 @@ type PostmanBody struct {
 }
 
 func main() {
+	fmt.Println("Syncing Postman collection")
 	// Get Postman API key from environment
 	apiKey := os.Getenv("POSTMAN_API_KEY")
 	if apiKey == "" {

@@ -70,8 +70,8 @@ func (m *MockOrganizationDB) DeleteOrganization(id string) error {
 	return args.Error(0)
 }
 
-func (m *MockOrganizationDB) AddOrganizationMember(orgID string, userID string) error {
-	args := m.Called(orgID, userID)
+func (m *MockOrganizationDB) AddOrganizationMember(member *types.UserOrganization) error {
+	args := m.Called(member)
 	return args.Error(0)
 }
 
@@ -80,9 +80,14 @@ func (m *MockOrganizationDB) RemoveOrganizationMember(orgID string, userID strin
 	return args.Error(0)
 }
 
-func (m *MockOrganizationDB) GetOrganizationMembers(orgID string) ([]types.OrganizationMember, error) {
+func (m *MockOrganizationDB) GetOrganizationMembers(orgID string) ([]types.UserOrganization, error) {
 	args := m.Called(orgID)
-	return args.Get(0).([]types.OrganizationMember), args.Error(1)
+	return args.Get(0).([]types.UserOrganization), args.Error(1)
+}
+
+func (m *MockOrganizationDB) GetOrganizationMember(orgID string, userID string) (*types.UserOrganization, error) {
+	args := m.Called(orgID, userID)
+	return args.Get(0).(*types.UserOrganization), args.Error(1)
 }
 
 func (m *MockOrganizationDB) IsOrganizationOwner(orgID string, userID string) (bool, error) {
@@ -359,43 +364,54 @@ func TestDeleteOrganization(t *testing.T) {
 	}
 }
 
-func TestAddOrganizationMemberByEmail(t *testing.T) {
+func TestAddOrganizationMember(t *testing.T) {
 	tests := []struct {
 		name          string
-		orgID         string
-		email         string
+		member        *types.UserOrganization
 		user          *usertypes.User
 		userError     error
 		mockError     error
 		expectedError error
 	}{
 		{
-			name:  "successful addition",
-			orgID: "org-1",
-			email: "user@example.com",
+			name: "successful addition",
+			member: &types.UserOrganization{
+				OrganizationID: "org-1",
+				Email:          "user@example.com",
+				Username:       "user",
+			},
 			user: &usertypes.User{
 				ID: "user-1",
 			},
 		},
 		{
-			name:          "user not found",
-			orgID:         "org-1",
-			email:         "nonexistent@example.com",
+			name: "user not found",
+			member: &types.UserOrganization{
+				OrganizationID: "org-1",
+				Email:          "nonexistent@example.com",
+				Username:       "user",
+			},
 			user:          nil,
 			expectedError: errors.New("user not found"),
 		},
 		{
-			name:          "database error",
-			orgID:         "org-1",
-			email:         "user@example.com",
+			name: "database error",
+			member: &types.UserOrganization{
+				OrganizationID: "org-1",
+				Email:          "user@example.com",
+				Username:       "user",
+			},
 			user:          &usertypes.User{ID: "user-1"},
 			mockError:     errors.New("database error"),
 			expectedError: errors.New("database error"),
 		},
 		{
-			name:          "user lookup error",
-			orgID:         "org-1",
-			email:         "user@example.com",
+			name: "user lookup error",
+			member: &types.UserOrganization{
+				OrganizationID: "org-1",
+				Email:          "user@example.com",
+				Username:       "user",
+			},
 			userError:     errors.New("user lookup error"),
 			expectedError: errors.New("user lookup error"),
 		},
@@ -407,12 +423,12 @@ func TestAddOrganizationMemberByEmail(t *testing.T) {
 			mockUserAPI := new(MockUserAPI)
 			api := NewApi(mockDB, mockUserAPI)
 
-			mockUserAPI.On("FindUser", usertypes.UserSearchParams{Email: &tt.email}).Return(tt.user, tt.userError)
+			mockUserAPI.On("FindUser", usertypes.UserSearchParams{Email: &tt.member.Email}).Return(tt.user, tt.userError)
 			if tt.user != nil {
-				mockDB.On("AddOrganizationMember", tt.orgID, tt.user.ID).Return(tt.mockError)
+				mockDB.On("AddOrganizationMember", tt.member).Return(tt.mockError)
 			}
 
-			err := api.AddOrganizationMemberByEmail(context.Background(), tt.orgID, tt.email)
+			err := api.AddOrganizationMember(context.Background(), tt.member)
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)
@@ -475,22 +491,22 @@ func TestGetOrganizationMembers(t *testing.T) {
 	tests := []struct {
 		name            string
 		orgID           string
-		mockMembers     []types.OrganizationMember
+		mockMembers     []types.UserOrganization
 		mockError       error
-		expectedMembers []types.OrganizationMember
+		expectedMembers []types.UserOrganization
 		expectedError   error
 	}{
 		{
 			name:  "successful retrieval",
 			orgID: "org-1",
-			mockMembers: []types.OrganizationMember{
+			mockMembers: []types.UserOrganization{
 				{
 					ID:             "member-1",
 					UserID:         "user-1",
 					OrganizationID: "org-1",
 				},
 			},
-			expectedMembers: []types.OrganizationMember{
+			expectedMembers: []types.UserOrganization{
 				{
 					ID:             "member-1",
 					UserID:         "user-1",
@@ -501,8 +517,8 @@ func TestGetOrganizationMembers(t *testing.T) {
 		{
 			name:            "no members",
 			orgID:           "org-1",
-			mockMembers:     []types.OrganizationMember{},
-			expectedMembers: []types.OrganizationMember{},
+			mockMembers:     []types.UserOrganization{},
+			expectedMembers: []types.UserOrganization{},
 		},
 		{
 			name:          "database error",

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 
+	liberrors "ems.dev/backend/libraries/errors"
 	"ems.dev/backend/services/integration/database"
 	"ems.dev/backend/services/integration/types"
 )
@@ -105,10 +106,7 @@ func (a *Api) CreateIntegrationConfig(ctx context.Context, orgID string, req *ty
 	// Validate repositories metadata for source control providers
 	if providerType == types.IntegrationProviderTypeSourceControl {
 		if req.Metadata == nil {
-			return nil, &types.IntegrationError{
-				Message: "metadata is required for source control providers",
-				Type:    "validation",
-			}
+			return nil, liberrors.NewBadRequestError("metadata is required for source control providers")
 		}
 		var metadata map[string]interface{}
 		if err := json.Unmarshal(req.Metadata, &metadata); err != nil {
@@ -117,10 +115,7 @@ func (a *Api) CreateIntegrationConfig(ctx context.Context, orgID string, req *ty
 
 		repos, ok := metadata["repositories"].(string)
 		if !ok || repos == "" {
-			return nil, &types.IntegrationError{
-				Message: "metadata must contain 'repositories' key with at least one repository",
-				Type:    "validation",
-			}
+			return nil, liberrors.NewBadRequestError("repositories is required for source control providers")
 		}
 	}
 

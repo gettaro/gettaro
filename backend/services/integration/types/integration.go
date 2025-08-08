@@ -19,15 +19,6 @@ const (
 	IntegrationProviderTypeProjectManagement IntegrationProviderType = "ProjectManagement"
 )
 
-type IntegrationError struct {
-	Message string
-	Type    string // "validation" or "internal"
-}
-
-func (e *IntegrationError) Error() string {
-	return e.Message
-}
-
 type IntegrationConfig struct {
 	ID             string                  `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	OrganizationID string                  `json:"organizationId"`

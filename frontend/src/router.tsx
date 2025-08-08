@@ -3,7 +3,8 @@ import RootLayout from "./layouts/RootLayout";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Integrations from './pages/Integrations'
-import NewIntegration from './pages/NewIntegration'
+import Settings from './pages/Settings'
+import Members from './pages/Members'
 
 export const router = createBrowserRouter([
   {
@@ -19,8 +20,16 @@ export const router = createBrowserRouter([
         element: <Dashboard />,
       },
       {
+        path: "settings",
+        element: <Settings />,
+      },
+      {
         path: "settings/integrations",
         element: <Integrations />,
+      },
+      {
+        path: "settings/members",
+        element: <Members />,
       }
     ],
   },

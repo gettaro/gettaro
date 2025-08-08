@@ -92,8 +92,8 @@ func (m *MockOrganizationAPI) DeleteOrganization(ctx context.Context, id string)
 	return args.Error(0)
 }
 
-func (m *MockOrganizationAPI) AddOrganizationMemberByEmail(ctx context.Context, orgID string, email string) error {
-	args := m.Called(ctx, orgID, email)
+func (m *MockOrganizationAPI) AddOrganizationMember(ctx context.Context, member *orgtypes.UserOrganization) error {
+	args := m.Called(ctx, member)
 	return args.Error(0)
 }
 
@@ -102,9 +102,9 @@ func (m *MockOrganizationAPI) RemoveOrganizationMember(ctx context.Context, orgI
 	return args.Error(0)
 }
 
-func (m *MockOrganizationAPI) GetOrganizationMembers(ctx context.Context, orgID string) ([]orgtypes.OrganizationMember, error) {
+func (m *MockOrganizationAPI) GetOrganizationMembers(ctx context.Context, orgID string) ([]orgtypes.UserOrganization, error) {
 	args := m.Called(ctx, orgID)
-	return args.Get(0).([]orgtypes.OrganizationMember), args.Error(1)
+	return args.Get(0).([]orgtypes.UserOrganization), args.Error(1)
 }
 
 func (m *MockOrganizationAPI) IsOrganizationOwner(ctx context.Context, orgID string, userID string) (bool, error) {

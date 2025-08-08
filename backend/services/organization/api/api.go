@@ -2,8 +2,8 @@ package api
 
 import (
 	"context"
-	"fmt"
 
+	"ems.dev/backend/libraries/errors"
 	orgdb "ems.dev/backend/services/organization/database"
 	"ems.dev/backend/services/organization/types"
 	userapi "ems.dev/backend/services/user/api"
@@ -18,9 +18,9 @@ type OrganizationAPI interface {
 	GetOrganizationByID(ctx context.Context, id string) (*types.Organization, error)
 	UpdateOrganization(ctx context.Context, org *types.Organization) error
 	DeleteOrganization(ctx context.Context, id string) error
-	AddOrganizationMemberByEmail(ctx context.Context, orgID string, email string) error
+	AddOrganizationMember(ctx context.Context, member *types.UserOrganization) error
 	RemoveOrganizationMember(ctx context.Context, orgID string, userID string) error
-	GetOrganizationMembers(ctx context.Context, orgID string) ([]types.OrganizationMember, error)
+	GetOrganizationMembers(ctx context.Context, orgID string) ([]types.UserOrganization, error)
 	IsOrganizationOwner(ctx context.Context, orgID string, userID string) (bool, error)
 }
 
@@ -36,20 +36,38 @@ func NewApi(orgDb orgdb.DB, userApi userapi.UserAPI) *Api {
 	}
 }
 
-// AddOrganizationMemberByEmail adds a user as a member to an organization by their email
-func (a *Api) AddOrganizationMemberByEmail(ctx context.Context, orgID string, email string) error {
+// AddOrganizationMember adds a user as a member to an organization
+func (a *Api) AddOrganizationMember(ctx context.Context, member *types.UserOrganization) error {
 	// Look up user by email
-	user, err := a.userApi.FindUser(usertypes.UserSearchParams{Email: &email})
+	user, err := a.userApi.FindUser(usertypes.UserSearchParams{Email: &member.Email})
 	if err != nil {
 		return err
 	}
 
 	if user == nil {
-		return fmt.Errorf("user not found")
+		user, err = a.userApi.CreateUser(&usertypes.User{
+			Email: member.Email,
+		})
+
+		if err != nil {
+			return err
+		}
 	}
 
+	// Check for duplicate member
+	existingMember, err := a.db.GetOrganizationMember(member.OrganizationID, user.ID)
+	if err != nil {
+		return err
+	}
+
+	if existingMember != nil {
+		return errors.NewConflictError("user already a member of organization")
+	}
+
+	member.UserID = user.ID
+
 	// Add user as member
-	return a.db.AddOrganizationMember(orgID, user.ID)
+	return a.db.AddOrganizationMember(member)
 }
 
 // RemoveOrganizationMember removes a user from an organization
@@ -58,7 +76,7 @@ func (a *Api) RemoveOrganizationMember(ctx context.Context, orgID string, userID
 }
 
 // GetOrganizationMembers returns all members of an organization
-func (a *Api) GetOrganizationMembers(ctx context.Context, orgID string) ([]types.OrganizationMember, error) {
+func (a *Api) GetOrganizationMembers(ctx context.Context, orgID string) ([]types.UserOrganization, error) {
 	return a.db.GetOrganizationMembers(orgID)
 }
 

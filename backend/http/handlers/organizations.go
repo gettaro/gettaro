@@ -305,8 +305,12 @@ func (h *OrganizationHandler) AddOrganizationMember(c *gin.Context) {
 		return
 	}
 
-	if err := h.orgApi.AddOrganizationMemberByEmail(c.Request.Context(), orgID, req.Email); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.orgApi.AddOrganizationMember(c.Request.Context(), &orgtypes.UserOrganization{
+		OrganizationID: orgID,
+		Email:          req.Email,
+		Username:       req.Username,
+	}); err != nil {
+		utils.HandleError(c, err)
 		return
 	}
 

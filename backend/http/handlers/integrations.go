@@ -54,15 +54,7 @@ func (h *IntegrationHandler) CreateIntegrationConfig(c *gin.Context) {
 
 	config, err := h.integrationAPI.CreateIntegrationConfig(c.Request.Context(), orgID, &req)
 	if err != nil {
-		if intErr, ok := err.(*inttypes.IntegrationError); ok {
-			statusCode := http.StatusInternalServerError
-			if intErr.Type == "validation" {
-				statusCode = http.StatusBadRequest
-			}
-			c.JSON(statusCode, gin.H{"error": intErr.Message})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.HandleError(c, err)
 		return
 	}
 
