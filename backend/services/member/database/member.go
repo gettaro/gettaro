@@ -7,10 +7,10 @@ import (
 
 // DB defines the interface for member database operations
 type DB interface {
-	AddOrganizationMember(member *types.UserOrganization) error
+	AddOrganizationMember(member *types.OrganizationMember) error
 	RemoveOrganizationMember(orgID string, userID string) error
-	GetOrganizationMembers(orgID string) ([]types.UserOrganization, error)
-	GetOrganizationMember(orgID string, userID string) (*types.UserOrganization, error)
+	GetOrganizationMembers(orgID string) ([]types.OrganizationMember, error)
+	GetOrganizationMember(orgID string, userID string) (*types.OrganizationMember, error)
 	IsOrganizationOwner(orgID string, userID string) (bool, error)
 	UpdateOrganizationMember(orgID string, userID string, username string) error
 }
@@ -26,7 +26,7 @@ func NewMemberDB(db *gorm.DB) *MemberDB {
 }
 
 // AddOrganizationMember adds a user as a member to an organization
-func (d *MemberDB) AddOrganizationMember(member *types.UserOrganization) error {
+func (d *MemberDB) AddOrganizationMember(member *types.OrganizationMember) error {
 	return d.db.Exec(
 		"INSERT INTO organization_members (user_id, organization_id, email, username, is_owner) VALUES (?, ?, ?, ?, false)",
 		member.UserID,
@@ -46,8 +46,8 @@ func (d *MemberDB) RemoveOrganizationMember(orgID string, userID string) error {
 }
 
 // GetOrganizationMembers returns all members of an organization
-func (d *MemberDB) GetOrganizationMembers(orgID string) ([]types.UserOrganization, error) {
-	var members []types.UserOrganization
+func (d *MemberDB) GetOrganizationMembers(orgID string) ([]types.OrganizationMember, error) {
+	var members []types.OrganizationMember
 	err := d.db.Raw(`
 		SELECT om.*
 		FROM organization_members om
@@ -57,8 +57,8 @@ func (d *MemberDB) GetOrganizationMembers(orgID string) ([]types.UserOrganizatio
 }
 
 // GetOrganizationMember returns a specific member of an organization
-func (d *MemberDB) GetOrganizationMember(orgID string, userID string) (*types.UserOrganization, error) {
-	var member types.UserOrganization
+func (d *MemberDB) GetOrganizationMember(orgID string, userID string) (*types.OrganizationMember, error) {
+	var member types.OrganizationMember
 	err := d.db.First(&member, "organization_id = ? AND user_id = ?", orgID, userID).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

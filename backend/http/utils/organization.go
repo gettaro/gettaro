@@ -37,7 +37,7 @@ func CheckOrganizationOwnership(c *gin.Context, orgApi orgapi.OrganizationAPI, o
 	user := ctxUser.(*usertypes.User)
 
 	// Get get user organizations
-	userOrganizations, err := orgApi.GetUserOrganizations(c.Request.Context(), user.ID)
+	userOrganizations, err := orgApi.GetMemberOrganizations(c.Request.Context(), user.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return false
@@ -71,7 +71,7 @@ func CheckOrganizationMembership(c *gin.Context, orgApi orgapi.OrganizationAPI, 
 	}
 
 	// Get user from database
-	userOrganizations, err := orgApi.GetUserOrganizations(c.Request.Context(), ctxUser.(*usertypes.User).ID)
+	userOrganizations, err := orgApi.GetMemberOrganizations(c.Request.Context(), ctxUser.(*usertypes.User).ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return false

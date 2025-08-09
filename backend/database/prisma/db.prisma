@@ -23,7 +23,6 @@ model User {
   teams                 TeamMember[]
   directReports         DirectReport[] @relation("DirectReports")
   manager               DirectReport[] @relation("Manager")
-  sourceControlAccounts SourceControlAccount[]
   pmAccounts            ProjectManagementAccount[]
   prComments            PRComment[]
 }
@@ -58,6 +57,7 @@ model OrganizationMember {
   // Relations
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceControlAccounts SourceControlAccount[]
 
   @@unique([userId, organizationId])
 }
@@ -163,7 +163,7 @@ model IntegrationConfig {
 
 model SourceControlAccount {
   id             String   @id @default(uuid())
-  userId         String?
+  memberId       String?
   organizationId String?
   providerName   String
   providerId     String
@@ -173,7 +173,7 @@ model SourceControlAccount {
   createdAt      DateTime @default(now())
   updatedAt      DateTime
 
-  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  member         OrganizationMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   pullRequests   PullRequest[]
 }

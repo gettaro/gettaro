@@ -8,7 +8,7 @@ import (
 
 type SourceControlAccount struct {
 	ID             string         `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	UserID         *string        `json:"userId,omitempty"`
+	MemberID       *string        `json:"memberId,omitempty"`
 	OrganizationID *string        `json:"organizationId,omitempty"`
 	ProviderName   string         `json:"providerName"`
 	ProviderID     string         `json:"providerId"`

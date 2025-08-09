@@ -4,8 +4,8 @@ import (
 	"time"
 )
 
-// UserOrganization represents a user's membership in an organization (stored in organization_members table)
-type UserOrganization struct {
+// OrganizationMember represents a user's membership in an organization (stored in organization_members table)
+type OrganizationMember struct {
 	ID             string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	UserID         string    `json:"userId"`
 	OrganizationID string    `json:"organizationId"`

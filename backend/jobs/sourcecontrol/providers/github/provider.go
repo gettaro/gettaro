@@ -255,14 +255,12 @@ func (p *GitHubProvider) upsertAuthor(ctx context.Context, organizationID string
 	}
 
 	if account, exists := accounts[user.Login]; exists {
-		// TODO: Check if account is associated with the organization
-		// if yes, return account
-		return account, nil
-
-		// if no, create a new account with the new organizationID
+		if *account.OrganizationID == organizationID {
+			return account, nil
+		}
 	}
 
-	// Create new account
+	// For now, we'll create the account without member_id and let the application handle the association later
 	metadata, _ := json.Marshal(user)
 	newAccount := &internaltypes.SourceControlAccount{
 		ProviderName:   "github",

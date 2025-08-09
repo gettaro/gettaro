@@ -13,7 +13,7 @@ import (
 // OrganizationAPI defines the interface for organization operations
 type OrganizationAPI interface {
 	CreateOrganization(ctx context.Context, org *types.Organization, ownerID string) error
-	GetUserOrganizations(ctx context.Context, userID string) ([]types.Organization, error)
+	GetMemberOrganizations(ctx context.Context, userID string) ([]types.Organization, error)
 	GetOrganizations(ctx context.Context) ([]types.Organization, error)
 	GetOrganizationByID(ctx context.Context, id string) (*types.Organization, error)
 	UpdateOrganization(ctx context.Context, org *types.Organization) error

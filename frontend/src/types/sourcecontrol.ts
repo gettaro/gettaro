@@ -1,6 +1,6 @@
 export interface SourceControlAccount {
   id: string
-  userId?: string
+  memberId?: string
   organizationId?: string
   providerName: string
   providerId: string

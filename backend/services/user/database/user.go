@@ -12,7 +12,7 @@ import (
 type DB interface {
 	FindUser(params types.UserSearchParams) (*types.User, error)
 	CreateOrganizationWithOwner(org *orgtypes.Organization, userID string) error
-	GetUserOrganizations(userID string) ([]orgtypes.Organization, error)
+	GetMemberOrganizations(userID string) ([]orgtypes.Organization, error)
 	CreateUser(user *types.User) (*types.User, error)
 	UpdateUser(user *types.User) error
 	DeleteUser(userID string) error
@@ -74,8 +74,8 @@ func (d *UserDB) CreateOrganizationWithOwner(org *orgtypes.Organization, userID 
 	})
 }
 
-// GetUserOrganizations returns all organizations a user is part of, with ownership information
-func (d *UserDB) GetUserOrganizations(userID string) ([]orgtypes.Organization, error) {
+// GetMemberOrganizations returns all organizations a user is part of, with ownership information
+func (d *UserDB) GetMemberOrganizations(userID string) ([]orgtypes.Organization, error) {
 	var orgs []orgtypes.Organization
 	err := d.db.Raw(`
 		SELECT o.*, om.is_owner

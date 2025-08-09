@@ -106,7 +106,7 @@ func (h *OrganizationHandler) ListOrganizations(c *gin.Context) {
 	}
 
 	// Get user's organizations
-	orgs, err := h.orgApi.GetUserOrganizations(c.Request.Context(), user.ID)
+	orgs, err := h.orgApi.GetMemberOrganizations(c.Request.Context(), user.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -140,7 +140,7 @@ func (h *OrganizationHandler) GetOrganization(c *gin.Context) {
 	}
 
 	// Get organization and check if user has access
-	orgs, err := h.orgApi.GetUserOrganizations(c.Request.Context(), user.ID)
+	orgs, err := h.orgApi.GetMemberOrganizations(c.Request.Context(), user.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -195,7 +195,7 @@ func (h *OrganizationHandler) UpdateOrganization(c *gin.Context) {
 	}
 
 	// Get organization and check if user is owner
-	orgs, err := h.orgApi.GetUserOrganizations(c.Request.Context(), user.ID)
+	orgs, err := h.orgApi.GetMemberOrganizations(c.Request.Context(), user.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

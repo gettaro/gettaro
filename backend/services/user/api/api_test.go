@@ -28,7 +28,7 @@ func (m *MockUserDB) CreateOrganizationWithOwner(org *orgtypes.Organization, use
 	return args.Error(0)
 }
 
-func (m *MockUserDB) GetUserOrganizations(userID string) ([]orgtypes.Organization, error) {
+func (m *MockUserDB) GetMemberOrganizations(userID string) ([]orgtypes.Organization, error) {
 	args := m.Called(userID)
 	return args.Get(0).([]orgtypes.Organization), args.Error(1)
 }

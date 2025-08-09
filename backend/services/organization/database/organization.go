@@ -11,7 +11,7 @@ import (
 // DB defines the interface for organization database operations
 type DB interface {
 	CreateOrganization(org *types.Organization, ownerID string) error
-	GetUserOrganizations(userID string) ([]types.Organization, error)
+	GetMemberOrganizations(userID string) ([]types.Organization, error)
 	GetOrganizations() ([]types.Organization, error)
 	GetOrganizationByID(id string) (*types.Organization, error)
 	UpdateOrganization(org *types.Organization) error
@@ -58,8 +58,8 @@ func (d *OrganizationDB) CreateOrganization(org *types.Organization, userID stri
 	})
 }
 
-// GetUserOrganizations returns all organizations a user is part of, with ownership information
-func (d *OrganizationDB) GetUserOrganizations(userID string) ([]types.Organization, error) {
+// GetMemberOrganizations returns all organizations a user is part of, with ownership information
+func (d *OrganizationDB) GetMemberOrganizations(userID string) ([]types.Organization, error) {
 	type result struct {
 		types.Organization
 		IsOwner bool `gorm:"column:is_owner"`

@@ -73,9 +73,12 @@ func (d *SourceControlDB) GetPullRequests(ctx context.Context, params *types.Pul
 	if params.RepositoryName != "" {
 		query = query.Where("repository_name = ?", params.RepositoryName)
 	}
-	// Add user IDs filter if provided
+	// Add user IDs filter if provided - convert to member IDs
 	if len(params.UserIDs) > 0 {
-		query = query.Where("user_id IN ?", params.UserIDs)
+		query = query.Joins(`
+			JOIN source_control_accounts sca ON pull_requests.source_control_account_id = sca.id
+			JOIN organization_members om ON sca.member_id = om.id
+		`).Where("om.user_id IN ?", params.UserIDs)
 	}
 	// Add date range filters if provided
 	if params.StartDate != nil {
