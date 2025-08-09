@@ -28,7 +28,7 @@ func NewMemberDB(db *gorm.DB) *MemberDB {
 // AddOrganizationMember adds a user as a member to an organization
 func (d *MemberDB) AddOrganizationMember(member *types.UserOrganization) error {
 	return d.db.Exec(
-		"INSERT INTO user_organizations (user_id, organization_id, email, username, is_owner) VALUES (?, ?, ?, ?, false)",
+		"INSERT INTO organization_members (user_id, organization_id, email, username, is_owner) VALUES (?, ?, ?, ?, false)",
 		member.UserID,
 		member.OrganizationID,
 		member.Email,
@@ -39,7 +39,7 @@ func (d *MemberDB) AddOrganizationMember(member *types.UserOrganization) error {
 // RemoveOrganizationMember removes a user from an organization
 func (d *MemberDB) RemoveOrganizationMember(orgID string, userID string) error {
 	return d.db.Exec(
-		"DELETE FROM user_organizations WHERE organization_id = ? AND user_id = ? AND is_owner = false",
+		"DELETE FROM organization_members WHERE organization_id = ? AND user_id = ? AND is_owner = false",
 		orgID,
 		userID,
 	).Error
@@ -49,9 +49,9 @@ func (d *MemberDB) RemoveOrganizationMember(orgID string, userID string) error {
 func (d *MemberDB) GetOrganizationMembers(orgID string) ([]types.UserOrganization, error) {
 	var members []types.UserOrganization
 	err := d.db.Raw(`
-		SELECT uo.*
-		FROM user_organizations uo
-		WHERE uo.organization_id = ?
+		SELECT om.*
+		FROM organization_members om
+		WHERE om.organization_id = ?
 	`, orgID).Scan(&members).Error
 	return members, err
 }
@@ -74,7 +74,7 @@ func (d *MemberDB) IsOrganizationOwner(orgID string, userID string) (bool, error
 	var count int64
 	err := d.db.Raw(`
 		SELECT COUNT(*)
-		FROM user_organizations
+		FROM organization_members
 		WHERE organization_id = ? AND user_id = ? AND is_owner = true
 	`, orgID, userID).Scan(&count).Error
 	return count > 0, err
@@ -83,7 +83,7 @@ func (d *MemberDB) IsOrganizationOwner(orgID string, userID string) (bool, error
 // UpdateOrganizationMember updates a member's details in an organization
 func (d *MemberDB) UpdateOrganizationMember(orgID string, userID string, username string) error {
 	return d.db.Exec(
-		"UPDATE user_organizations SET username = ?, updated_at = NOW() WHERE organization_id = ? AND user_id = ? AND is_owner = false",
+		"UPDATE organization_members SET username = ?, updated_at = NOW() WHERE organization_id = ? AND user_id = ? AND is_owner = false",
 		username,
 		orgID,
 		userID,

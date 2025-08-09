@@ -63,7 +63,7 @@ func (d *UserDB) CreateOrganizationWithOwner(org *orgtypes.Organization, userID 
 
 		// Create user-organization relationship with owner flag
 		if err := tx.Exec(
-			"INSERT INTO user_organizations (user_id, organization_id, is_owner) VALUES (?, ?, true)",
+			"INSERT INTO organization_members (user_id, organization_id, is_owner) VALUES (?, ?, true)",
 			userID,
 			org.ID,
 		).Error; err != nil {
@@ -78,10 +78,10 @@ func (d *UserDB) CreateOrganizationWithOwner(org *orgtypes.Organization, userID 
 func (d *UserDB) GetUserOrganizations(userID string) ([]orgtypes.Organization, error) {
 	var orgs []orgtypes.Organization
 	err := d.db.Raw(`
-		SELECT o.*, uo.is_owner
+		SELECT o.*, om.is_owner
 		FROM organizations o
-		JOIN user_organizations uo ON o.id = uo.organization_id
-		WHERE uo.user_id = ?
+		JOIN organization_members om ON o.id = om.organization_id
+		WHERE om.user_id = ?
 	`, userID).Scan(&orgs).Error
 
 	if err != nil {
@@ -149,8 +149,5 @@ func (d *UserDB) GetUserByEmail(email string) (*types.User, error) {
 func (d *UserDB) ListUsers() ([]types.User, error) {
 	var users []types.User
 	err := d.db.Find(&users).Error
-	if err != nil {
-		return nil, err
-	}
-	return users, nil
+	return users, err
 }

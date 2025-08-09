@@ -47,7 +47,7 @@ func (d *OrganizationDB) CreateOrganization(org *types.Organization, userID stri
 
 		// Create user-organization relationship with owner flag
 		if err := tx.Exec(
-			"INSERT INTO user_organizations (user_id, organization_id, is_owner) VALUES (?, ?, true)",
+			"INSERT INTO organization_members (user_id, organization_id, is_owner) VALUES (?, ?, true)",
 			userID,
 			org.ID,
 		).Error; err != nil {
@@ -67,10 +67,10 @@ func (d *OrganizationDB) GetUserOrganizations(userID string) ([]types.Organizati
 
 	var results []result
 	err := d.db.Raw(`
-		SELECT o.*, uo.is_owner
+		SELECT o.*, om.is_owner
 		FROM organizations o
-		JOIN user_organizations uo ON o.id = uo.organization_id
-		WHERE uo.user_id = ?
+		JOIN organization_members om ON o.id = om.organization_id
+		WHERE om.user_id = ?
 	`, userID).Scan(&results).Error
 
 	if err != nil {
@@ -116,7 +116,7 @@ func (d *OrganizationDB) UpdateOrganization(org *types.Organization) error {
 func (d *OrganizationDB) DeleteOrganization(id string) error {
 	return d.db.Transaction(func(tx *gorm.DB) error {
 		// Delete user-organization relationships
-		if err := tx.Exec("DELETE FROM user_organizations WHERE organization_id = ?", id).Error; err != nil {
+		if err := tx.Exec("DELETE FROM organization_members WHERE organization_id = ?", id).Error; err != nil {
 			return err
 		}
 

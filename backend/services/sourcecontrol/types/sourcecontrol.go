@@ -23,7 +23,6 @@ type PullRequest struct {
 	SourceControlAccountID string         `json:"sourceControlAccountId"`
 	ProviderID             string         `json:"providerId"`
 	RepositoryName         string         `json:"repositoryName"`
-	OrganizationID         string         `json:"organizationId"`
 	Title                  string         `json:"title"`
 	Description            string         `json:"description"`
 	URL                    string         `json:"url"`

@@ -113,7 +113,6 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 				SourceControlAccountID: authorAccount.ID,
 				ProviderID:             fmt.Sprintf("%d", prDetails.ID),
 				RepositoryName:         repoName,
-				OrganizationID:         config.OrganizationID,
 				Title:                  prDetails.Title,
 				Description:            prDetails.Body,
 				Status:                 prDetails.State,
@@ -249,13 +248,18 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 // upsertAuthor handles the creation or update of a source control account
 func (p *GitHubProvider) upsertAuthor(ctx context.Context, organizationID string, user githubtypes.User) (*internaltypes.SourceControlAccount, error) {
 	// Check if account exists
+	// TODO: Get account by username
 	accounts, err := p.sourceControlAPI.GetSourceControlAccountsByUsernames(ctx, []string{user.Login})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch source control account: %w", err)
 	}
 
 	if account, exists := accounts[user.Login]; exists {
+		// TODO: Check if account is associated with the organization
+		// if yes, return account
 		return account, nil
+
+		// if no, create a new account with the new organizationID
 	}
 
 	// Create new account

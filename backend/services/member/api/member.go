@@ -137,7 +137,7 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, userID
 		return errors.NewNotFoundError("member not found")
 	}
 
-	// Update the username in the user_organizations table
+	// Update the username in the organization_members table
 	err = a.db.UpdateOrganizationMember(orgID, userID, username)
 	if err != nil {
 		return err

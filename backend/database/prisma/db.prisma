@@ -18,7 +18,7 @@ model User {
 
   // Relations
   authProviders         AuthProvider[]
-  userOrganizations     UserOrganization[]
+  organizationMembers   OrganizationMember[]
   userTitles            UserTitle[]
   teams                 TeamMember[]
   directReports         DirectReport[] @relation("DirectReports")
@@ -36,7 +36,7 @@ model Organization {
   updatedAt          DateTime
 
   // Relations
-  userOrganizations  UserOrganization[]
+  organizationMembers OrganizationMember[]
   titles             Title[]
   teams              Team[]
   teamMembers        TeamMember[]
@@ -47,7 +47,7 @@ model Organization {
   userTitles         UserTitle[]
 }
 
-model UserOrganization {
+model OrganizationMember {
   id             String   @id @default(uuid())
   userId         String
   organizationId String
