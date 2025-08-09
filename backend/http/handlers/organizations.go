@@ -45,19 +45,6 @@ func (h *OrganizationHandler) getUserFromContext(c *gin.Context) (*usertypes.Use
 	return castedUser, nil
 }
 
-// getOrganizationIDFromContext extracts the organization ID from the request context and returns it
-// It validates that the ID parameter is present in the URL
-// Returns:
-// - string: The organization ID if present
-// - error: If the ID parameter is missing
-func (h *OrganizationHandler) getOrganizationIDFromContext(c *gin.Context) (string, error) {
-	id := c.Param("id")
-	if id == "" {
-		return "", fmt.Errorf("organization ID is required")
-	}
-	return id, nil
-}
-
 // CreateOrganization handles the creation of a new organization
 // It:
 // 1. Validates the request body
@@ -146,7 +133,7 @@ func (h *OrganizationHandler) GetOrganization(c *gin.Context) {
 		return
 	}
 
-	id, err := h.getOrganizationIDFromContext(c)
+	id, err := utils.GetOrganizationIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -195,7 +182,7 @@ func (h *OrganizationHandler) UpdateOrganization(c *gin.Context) {
 		return
 	}
 
-	id, err := h.getOrganizationIDFromContext(c)
+	id, err := utils.GetOrganizationIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -254,9 +241,9 @@ func (h *OrganizationHandler) UpdateOrganization(c *gin.Context) {
 // - 400: If the organization ID is missing
 // - 500: If there's a database error
 func (h *OrganizationHandler) DeleteOrganization(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "organization ID is required"})
+	id, err := utils.GetOrganizationIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -265,7 +252,7 @@ func (h *OrganizationHandler) DeleteOrganization(c *gin.Context) {
 		return
 	}
 
-	err := h.orgApi.DeleteOrganization(c.Request.Context(), id)
+	err = h.orgApi.DeleteOrganization(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

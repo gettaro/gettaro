@@ -1,12 +1,26 @@
 package utils
 
 import (
+	"fmt"
 	"net/http"
 
 	orgapi "ems.dev/backend/services/organization/api"
 	usertypes "ems.dev/backend/services/user/types"
 	"github.com/gin-gonic/gin"
 )
+
+// GetOrganizationIDFromContext extracts the organization ID from the request context and returns it
+// It validates that the ID parameter is present in the URL
+// Returns:
+// - string: The organization ID if present
+// - error: If the ID parameter is missing
+func GetOrganizationIDFromContext(c *gin.Context) (string, error) {
+	id := c.Param("id")
+	if id == "" {
+		return "", fmt.Errorf("organization ID is required")
+	}
+	return id, nil
+}
 
 // CheckOrganizationOwnership checks if the authenticated user is an owner of the specified organization.
 // If the user is not an owner, it returns false and sets the appropriate error response.

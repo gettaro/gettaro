@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 
 	httptypes "ems.dev/backend/http/types/integration"
@@ -24,18 +23,9 @@ func NewIntegrationHandler(integrationAPI intapi.IntegrationAPI, orgAPI orgapi.O
 	}
 }
 
-// getOrganizationIDFromContext extracts the organization ID from the request context and returns it
-func (h *IntegrationHandler) getOrganizationIDFromContext(c *gin.Context) (string, error) {
-	id := c.Param("id")
-	if id == "" {
-		return "", fmt.Errorf("organization ID is required")
-	}
-	return id, nil
-}
-
 // CreateIntegrationConfig handles the creation of a new integration config
 func (h *IntegrationHandler) CreateIntegrationConfig(c *gin.Context) {
-	orgID, err := h.getOrganizationIDFromContext(c)
+	orgID, err := utils.GetOrganizationIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -81,7 +71,7 @@ func (h *IntegrationHandler) GetIntegrationConfig(c *gin.Context) {
 
 // GetOrganizationIntegrationConfigs handles retrieving all integration configs for an organization
 func (h *IntegrationHandler) GetOrganizationIntegrationConfigs(c *gin.Context) {
-	orgID, err := h.getOrganizationIDFromContext(c)
+	orgID, err := utils.GetOrganizationIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

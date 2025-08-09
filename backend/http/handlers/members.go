@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 
 	"ems.dev/backend/http/types/member"
@@ -24,15 +23,6 @@ func NewMemberHandler(memberApi memberapi.MemberAPI, orgApi organizationapi.Orga
 	}
 }
 
-// getOrganizationIDFromContext extracts the organization ID from the request context and returns it
-func (h *MemberHandler) getOrganizationIDFromContext(c *gin.Context) (string, error) {
-	id := c.Param("id")
-	if id == "" {
-		return "", fmt.Errorf("organization ID is required")
-	}
-	return id, nil
-}
-
 // ListOrganizationMembers handles listing all members of an organization
 // It:
 // 1. Validates the organization ID
@@ -45,7 +35,7 @@ func (h *MemberHandler) getOrganizationIDFromContext(c *gin.Context) (string, er
 // - 403: If the user does not have access to the organization
 // - 500: If there's a database error
 func (h *MemberHandler) ListOrganizationMembers(c *gin.Context) {
-	orgID, err := h.getOrganizationIDFromContext(c)
+	orgID, err := utils.GetOrganizationIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -79,7 +69,7 @@ func (h *MemberHandler) ListOrganizationMembers(c *gin.Context) {
 // - 403: If the user is not the owner
 // - 500: If there's a database error
 func (h *MemberHandler) AddOrganizationMember(c *gin.Context) {
-	orgID, err := h.getOrganizationIDFromContext(c)
+	orgID, err := utils.GetOrganizationIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -120,7 +110,7 @@ func (h *MemberHandler) AddOrganizationMember(c *gin.Context) {
 // - 403: If the user is not the owner
 // - 500: If there's a database error
 func (h *MemberHandler) RemoveOrganizationMember(c *gin.Context) {
-	orgID, err := h.getOrganizationIDFromContext(c)
+	orgID, err := utils.GetOrganizationIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

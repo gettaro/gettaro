@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 
 	httptypes "ems.dev/backend/http/types/title"
@@ -26,15 +25,6 @@ func NewTitleHandler(titleApi titleapi.TitleAPI, orgApi orgapi.OrganizationAPI) 
 	}
 }
 
-// getOrganizationIDFromContext extracts organization ID from URL parameters
-func (h *TitleHandler) getOrganizationIDFromContext(c *gin.Context) (string, error) {
-	orgID := c.Param("id")
-	if orgID == "" {
-		return "", fmt.Errorf("organization ID is required")
-	}
-	return orgID, nil
-}
-
 // CreateTitle handles the POST /api/organizations/{id}/titles endpoint
 // Params:
 // - c: The Gin context containing request and response
@@ -53,7 +43,7 @@ func (h *TitleHandler) getOrganizationIDFromContext(c *gin.Context) (string, err
 // - ErrForbidden: When user does not have access to the organization
 // - ErrDatabaseQuery: When database query fails
 func (h *TitleHandler) CreateTitle(c *gin.Context) {
-	orgID, err := h.getOrganizationIDFromContext(c)
+	orgID, err := utils.GetOrganizationIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -100,7 +90,7 @@ func (h *TitleHandler) CreateTitle(c *gin.Context) {
 // - ErrForbidden: When user does not have access to the organization
 // - ErrDatabaseQuery: When database query fails
 func (h *TitleHandler) ListTitles(c *gin.Context) {
-	orgID, err := h.getOrganizationIDFromContext(c)
+	orgID, err := utils.GetOrganizationIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -140,7 +130,7 @@ func (h *TitleHandler) ListTitles(c *gin.Context) {
 // - ErrNotFound: When title is not found
 // - ErrDatabaseQuery: When database query fails
 func (h *TitleHandler) UpdateTitle(c *gin.Context) {
-	orgID, err := h.getOrganizationIDFromContext(c)
+	orgID, err := utils.GetOrganizationIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -197,7 +187,7 @@ func (h *TitleHandler) UpdateTitle(c *gin.Context) {
 // - ErrForbidden: When user does not have access to the organization
 // - ErrDatabaseQuery: When database query fails
 func (h *TitleHandler) DeleteTitle(c *gin.Context) {
-	orgID, err := h.getOrganizationIDFromContext(c)
+	orgID, err := utils.GetOrganizationIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -240,7 +230,7 @@ func (h *TitleHandler) DeleteTitle(c *gin.Context) {
 // - ErrForbidden: When user does not have access to the organization
 // - ErrDatabaseQuery: When database query fails
 func (h *TitleHandler) AssignUserTitle(c *gin.Context) {
-	orgID, err := h.getOrganizationIDFromContext(c)
+	orgID, err := utils.GetOrganizationIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -287,7 +277,7 @@ func (h *TitleHandler) AssignUserTitle(c *gin.Context) {
 // - ErrForbidden: When user does not have access to the organization
 // - ErrDatabaseQuery: When database query fails
 func (h *TitleHandler) RemoveUserTitle(c *gin.Context) {
-	orgID, err := h.getOrganizationIDFromContext(c)
+	orgID, err := utils.GetOrganizationIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

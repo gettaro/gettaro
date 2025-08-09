@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -24,15 +23,6 @@ func NewSourceControlHandler(scApi sourcecontrolapi.SourceControlAPI, orgApi org
 		scApi:  scApi,
 		orgApi: orgApi,
 	}
-}
-
-// getOrganizationIDFromContext extracts the organization ID from the request context and returns it
-func (h *SourceControlHandler) getOrganizationIDFromContext(c *gin.Context) (string, error) {
-	id := c.Param("id")
-	if id == "" {
-		return "", fmt.Errorf("organization ID is required")
-	}
-	return id, nil
 }
 
 // ListOrganizationPullRequests handles retrieving pull requests for an organization
@@ -61,7 +51,7 @@ func (h *SourceControlHandler) getOrganizationIDFromContext(c *gin.Context) (str
 // - ErrUnauthorized: When user is not authenticated
 // - ErrForbidden: When user does not have access to the organization
 func (h *SourceControlHandler) ListOrganizationPullRequests(c *gin.Context) {
-	orgID, err := h.getOrganizationIDFromContext(c)
+	orgID, err := utils.GetOrganizationIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -160,7 +150,7 @@ func (h *SourceControlHandler) ListOrganizationPullRequests(c *gin.Context) {
 // - ErrForbidden: When user does not have access to the organization
 // - ErrMetricsCalculation: When metrics calculation fails
 func (h *SourceControlHandler) ListOrganizationPullRequestsMetrics(c *gin.Context) {
-	orgID, err := h.getOrganizationIDFromContext(c)
+	orgID, err := utils.GetOrganizationIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -224,7 +214,7 @@ func (h *SourceControlHandler) ListOrganizationPullRequestsMetrics(c *gin.Contex
 // - ErrUnauthorized: When user is not authenticated
 // - ErrForbidden: When user does not have access to the organization
 func (h *SourceControlHandler) ListOrganizationSourceControlAccounts(c *gin.Context) {
-	orgID, err := h.getOrganizationIDFromContext(c)
+	orgID, err := utils.GetOrganizationIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
