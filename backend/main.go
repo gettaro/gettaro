@@ -18,6 +18,8 @@ import (
 	authdb "ems.dev/backend/services/auth/database"
 	integrationapi "ems.dev/backend/services/integration/api"
 	integrationdb "ems.dev/backend/services/integration/database"
+	memberapi "ems.dev/backend/services/member/api"
+	memberdb "ems.dev/backend/services/member/database"
 	orgapi "ems.dev/backend/services/organization/api"
 	orgdb "ems.dev/backend/services/organization/database"
 	sourcecontrolapi "ems.dev/backend/services/sourcecontrol/api"
@@ -59,6 +61,8 @@ func main() {
 	titleApi := titleapi.NewApi(titleDb)
 	orgDb := orgdb.NewOrganizationDB(database.DB)
 	orgApi := orgapi.NewApi(orgDb, userApi, titleApi, sourcecontrolApi)
+	memberDb := memberdb.NewMemberDB(database.DB)
+	memberApi := memberapi.NewApi(memberDb, userApi, titleApi, sourcecontrolApi)
 	teamDb := teamdb.NewTeamDB(database.DB)
 	teamApi := teamapi.NewApi(teamDb, orgApi)
 
@@ -76,7 +80,7 @@ func main() {
 	}
 
 	// Initialize and run server
-	srv := server.New(database.DB, userApi, orgApi, teamApi, titleApi, authApi, integrationApi, sourcecontrolApi)
+	srv := server.New(database.DB, userApi, orgApi, teamApi, titleApi, authApi, integrationApi, sourcecontrolApi, memberApi)
 	if err := srv.Run(":8080"); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}

@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strings"
 
-	orghttptypes "ems.dev/backend/http/types/organization"
 	"ems.dev/backend/http/utils"
 	"ems.dev/backend/services/errors"
 	orgapi "ems.dev/backend/services/organization/api"
@@ -275,111 +274,6 @@ func (h *OrganizationHandler) DeleteOrganization(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// AddOrganizationMember handles adding a user as a member to an organization
-// It:
-// 1. Gets the current user from context
-// 2. Validates the organization ID
-// 3. Checks if the current user is the owner
-// 4. Adds the specified user as a member
-// Returns:
-// - 201: If the member was added successfully
-// - 400: If the request body is invalid
-// - 401: If the user is not authenticated
-// - 403: If the user is not the owner
-// - 500: If there's a database error
-func (h *OrganizationHandler) AddOrganizationMember(c *gin.Context) {
-	orgID := c.Param("id")
-	if orgID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "organization ID is required"})
-		return
-	}
-
-	// Check if user is an owner of the organization
-	if !utils.CheckOrganizationOwnership(c, h.orgApi, orgID) {
-		return
-	}
-
-	var req orghttptypes.AddOrganizationMemberRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := h.orgApi.AddOrganizationMember(c.Request.Context(), req.TitleID, req.SourceControlAccountID, &orgtypes.UserOrganization{
-		OrganizationID: orgID,
-		Email:          req.Email,
-		Username:       req.Username,
-	}); err != nil {
-		utils.HandleError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{})
-}
-
-// RemoveOrganizationMember handles removing a user from an organization
-// It:
-// 1. Gets the current user from context
-// 2. Validates the organization ID and user ID
-// 3. Checks if the current user is the owner
-// 4. Removes the specified user from the organization
-// Returns:
-// - 204: If the member was removed successfully
-// - 400: If the IDs are missing
-// - 401: If the user is not authenticated
-// - 403: If the user is not the owner
-// - 500: If there's a database error
-func (h *OrganizationHandler) RemoveOrganizationMember(c *gin.Context) {
-	orgID := c.Param("id")
-	userID := c.Param("userId")
-	if orgID == "" || userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "organization ID and user ID are required"})
-		return
-	}
-
-	// Check if user is an owner of the organization
-	if !utils.CheckOrganizationOwnership(c, h.orgApi, orgID) {
-		return
-	}
-
-	if err := h.orgApi.RemoveOrganizationMember(c.Request.Context(), orgID, userID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.Status(http.StatusNoContent)
-}
-
-// ListOrganizationMembers handles listing all members of an organization
-// It:
-// 1. Validates the organization ID
-// 2. Retrieves all members of the organization
-// Returns:
-// - 200: List of organization members
-// - 400: If the organization ID is missing
-// - 500: If there's a database error
-func (h *OrganizationHandler) ListOrganizationMembers(c *gin.Context) {
-	orgID, err := h.getOrganizationIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Check if user is an owner of the organization
-	if !utils.CheckOrganizationOwnership(c, h.orgApi, orgID) {
-		return
-	}
-
-	// Get organization members
-	members, err := h.orgApi.GetOrganizationMembers(c.Request.Context(), orgID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"members": members})
-}
-
 // RegisterRoutes registers all organization-related routes
 func (h *OrganizationHandler) RegisterRoutes(api *gin.RouterGroup) {
 	organizations := api.Group("/organizations")
@@ -390,10 +284,5 @@ func (h *OrganizationHandler) RegisterRoutes(api *gin.RouterGroup) {
 		organizations.GET("/:id", h.GetOrganization)
 		organizations.PUT("/:id", h.UpdateOrganization)
 		organizations.DELETE("/:id", h.DeleteOrganization)
-
-		// Organization member operations
-		organizations.GET("/:id/members", h.ListOrganizationMembers)
-		organizations.POST("/:id/members", h.AddOrganizationMember)
-		organizations.DELETE("/:id/members/:userId", h.RemoveOrganizationMember)
 	}
 }
