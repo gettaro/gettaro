@@ -12,6 +12,7 @@ type DB interface {
 	GetOrganizationMembers(orgID string) ([]types.UserOrganization, error)
 	GetOrganizationMember(orgID string, userID string) (*types.UserOrganization, error)
 	IsOrganizationOwner(orgID string, userID string) (bool, error)
+	UpdateOrganizationMember(orgID string, userID string, username string) error
 }
 
 type MemberDB struct {
@@ -77,4 +78,14 @@ func (d *MemberDB) IsOrganizationOwner(orgID string, userID string) (bool, error
 		WHERE organization_id = ? AND user_id = ? AND is_owner = true
 	`, orgID, userID).Scan(&count).Error
 	return count > 0, err
+}
+
+// UpdateOrganizationMember updates a member's details in an organization
+func (d *MemberDB) UpdateOrganizationMember(orgID string, userID string, username string) error {
+	return d.db.Exec(
+		"UPDATE user_organizations SET username = ?, updated_at = NOW() WHERE organization_id = ? AND user_id = ? AND is_owner = false",
+		username,
+		orgID,
+		userID,
+	).Error
 }

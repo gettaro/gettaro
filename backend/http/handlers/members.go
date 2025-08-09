@@ -135,12 +135,58 @@ func (h *MemberHandler) RemoveOrganizationMember(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// UpdateOrganizationMember handles updating a member's details in an organization
+// It:
+// 1. Validates the organization ID and user ID
+// 2. Checks if the current user is the owner
+// 3. Validates the request body
+// 4. Updates the member's details (username, title, source control account)
+// Returns:
+// - 200: If the member was updated successfully
+// - 400: If the request body is invalid or IDs are missing
+// - 401: If the user is not authenticated
+// - 403: If the user is not the owner
+// - 404: If the member, title, or source control account is not found
+// - 500: If there's a database error
+func (h *MemberHandler) UpdateOrganizationMember(c *gin.Context) {
+	orgID, err := utils.GetOrganizationIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID := c.Param("userId")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user ID is required"})
+		return
+	}
+
+	// Check if user is an owner of the organization
+	if !utils.CheckOrganizationOwnership(c, h.orgApi, orgID) {
+		return
+	}
+
+	var req member.UpdateOrganizationMemberRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.memberApi.UpdateOrganizationMember(c.Request.Context(), orgID, userID, req.TitleID, req.SourceControlAccountID, req.Username); err != nil {
+		utils.HandleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Member updated successfully"})
+}
+
 // RegisterRoutes registers all member-related routes
 func (h *MemberHandler) RegisterRoutes(api *gin.RouterGroup) {
 	members := api.Group("/organizations/:id/members")
 	{
 		members.GET("", h.ListOrganizationMembers)
 		members.POST("", h.AddOrganizationMember)
+		members.PUT("/:userId", h.UpdateOrganizationMember)
 		members.DELETE("/:userId", h.RemoveOrganizationMember)
 	}
 }

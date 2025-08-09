@@ -2,7 +2,7 @@ import { Organization } from '../types/organization'
 import { OrganizationConflictError } from './errors/organizations'
 import { CreateIntegrationConfigRequest, IntegrationConfig, UpdateIntegrationConfigRequest } from '../types/integration'
 import { Title, CreateTitleRequest, UpdateTitleRequest } from '../types/title'
-import { Member, AddMemberRequest } from '../types/member'
+import { Member, AddMemberRequest, UpdateMemberRequest } from '../types/member'
 import { SourceControlAccount } from '../types/sourcecontrol'
 
 export default class Api {
@@ -247,6 +247,10 @@ export default class Api {
 
   static async addOrganizationMember(organizationId: string, request: AddMemberRequest): Promise<void> {
     await this.post(`/organizations/${organizationId}/members`, request)
+  }
+
+  static async updateOrganizationMember(organizationId: string, memberId: string, request: UpdateMemberRequest): Promise<void> {
+    await this.put(`/organizations/${organizationId}/members/${memberId}`, request)
   }
 
   // Source Control Account API functions

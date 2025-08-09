@@ -103,6 +103,17 @@ components:
         - userId
         - titleId
 
+    UpdateOrganizationMemberRequest:
+      type: object
+      properties:
+        username: { type: string }
+        titleId: { type: string, format: uuid }
+        sourceControlAccountId: { type: string, format: uuid }
+      required:
+        - username
+        - titleId
+        - sourceControlAccountId
+
     IntegrationProvider:
       type: string
       enum: [github]
@@ -505,6 +516,50 @@ paths:
         - bearerAuth: []
 
   /organizations/{id}/members/{userId}:
+    put:
+      summary: Update organization member
+      description: Updates a member's details in an organization. Only organization owners can update members. Email cannot be updated.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+          description: Organization ID
+        - in: path
+          name: userId
+          schema: { type: string }
+          required: true
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrganizationMemberRequest"
+      responses:
+        "200":
+          description: Member updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Member updated successfully"
+        "400":
+          description: Bad request - Invalid request body or missing parameters
+        "401":
+          description: Unauthorized - User is not authenticated
+        "403":
+          description: Forbidden - User is not an organization owner
+        "404":
+          description: Not found - Member, title, or source control account not found
+        "500":
+          description: Internal server error
+      security:
+        - bearerAuth: []
+
     delete:
       summary: Remove organization member
       description: Removes a user from an organization. Only organization owners can remove members.

@@ -19,6 +19,7 @@ type MemberAPI interface {
 	RemoveOrganizationMember(ctx context.Context, orgID string, userID string) error
 	GetOrganizationMembers(ctx context.Context, orgID string) ([]types.UserOrganization, error)
 	IsOrganizationOwner(ctx context.Context, orgID string, userID string) (bool, error)
+	UpdateOrganizationMember(ctx context.Context, orgID string, userID string, titleID string, sourceControlAccountID string, username string) error
 }
 
 type Api struct {
@@ -111,4 +112,58 @@ func (a *Api) GetOrganizationMembers(ctx context.Context, orgID string) ([]types
 // IsOrganizationOwner checks if a user is the owner of an organization
 func (a *Api) IsOrganizationOwner(ctx context.Context, orgID string, userID string) (bool, error) {
 	return a.db.IsOrganizationOwner(orgID, userID)
+}
+
+// UpdateOrganizationMember updates a member's details in an organization
+func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, userID string, titleID string, sourceControlAccountID string, username string) error {
+	// Check if the title exists
+	title, err := a.titleApi.GetTitle(ctx, titleID)
+	if err != nil {
+		return errors.NewNotFoundError("title not found")
+	}
+
+	// Get the source control account
+	sourceControlAccount, err := a.sourceControlApi.GetSourceControlAccount(ctx, sourceControlAccountID)
+	if err != nil {
+		return errors.NewNotFoundError("source control account not found")
+	}
+
+	// Check if the member exists
+	existingMember, err := a.db.GetOrganizationMember(orgID, userID)
+	if err != nil {
+		return err
+	}
+	if existingMember == nil {
+		return errors.NewNotFoundError("member not found")
+	}
+
+	// Update the username in the user_organizations table
+	err = a.db.UpdateOrganizationMember(orgID, userID, username)
+	if err != nil {
+		return err
+	}
+
+	// Update the title assignment
+	err = a.titleApi.RemoveUserTitle(ctx, userID, orgID)
+	if err != nil {
+		return err
+	}
+
+	err = a.titleApi.AssignUserTitle(ctx, titletypes.UserTitle{
+		TitleID:        title.ID,
+		UserID:         userID,
+		OrganizationID: orgID,
+	})
+	if err != nil {
+		return err
+	}
+
+	// Update the source control account
+	sourceControlAccount.UserID = &userID
+	err = a.sourceControlApi.UpdateSourceControlAccount(ctx, sourceControlAccount)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

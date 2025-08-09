@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Api from '../api/api'
-import { Member, AddMemberRequest } from '../types/member'
+import { Member, AddMemberRequest, UpdateMemberRequest } from '../types/member'
 import { Title } from '../types/title'
 import { SourceControlAccount } from '../types/sourcecontrol'
 import { useOrganizationStore } from '../stores/organization'
@@ -14,8 +14,16 @@ export default function Members() {
   const [error, setError] = useState<string | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null)
   const [formData, setFormData] = useState<AddMemberRequest>({
     email: '',
+    username: '',
+    titleId: '',
+    sourceControlAccountId: ''
+  })
+  const [updateFormData, setUpdateFormData] = useState<UpdateMemberRequest>({
     username: '',
     titleId: '',
     sourceControlAccountId: ''
@@ -95,6 +103,40 @@ export default function Members() {
     } finally {
       setIsAdding(false)
     }
+  }
+
+  const handleUpdateMember = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!currentOrganization || !selectedMember) return
+
+    try {
+      setIsUpdating(true)
+      setError(null)
+      await Api.updateOrganizationMember(currentOrganization.id, selectedMember.userId, updateFormData)
+      setUpdateFormData({
+        username: '',
+        titleId: '',
+        sourceControlAccountId: ''
+      })
+      setSelectedMember(null)
+      setIsUpdateModalOpen(false)
+      await loadMembers() // Reload the list
+    } catch (err) {
+      setError('Failed to update member')
+      console.error('Error updating member:', err)
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  const handleEditMember = (member: Member) => {
+    setSelectedMember(member)
+    setUpdateFormData({
+      username: member.username,
+      titleId: '', // User will need to select the current title
+      sourceControlAccountId: '' // User will need to select the current source control account
+    })
+    setIsUpdateModalOpen(true)
   }
 
   const getProviderIcon = (providerName: string) => {
@@ -201,22 +243,28 @@ export default function Members() {
                   <span className={getRoleBadge(member.isOwner)}>
                     {member.isOwner ? 'Owner' : 'Member'}
                   </span>
-                  <button className="text-muted-foreground hover:text-foreground transition-colors">
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
+                  {!member.isOwner && (
+                    <button 
+                      onClick={() => handleEditMember(member)}
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                      title="Edit member"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 5v.01M12 12v.01M12 19v.01M12 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                      />
-                    </svg>
-                  </button>
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -332,6 +380,128 @@ export default function Members() {
                     className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
                   >
                     {isAdding ? 'Adding...' : 'Add Member'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Update Member Modal */}
+        {isUpdateModalOpen && selectedMember && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-foreground">Update Member</h2>
+                <button
+                  onClick={() => {
+                    setIsUpdateModalOpen(false)
+                    setSelectedMember(null)
+                    setUpdateFormData({ username: '', titleId: '', sourceControlAccountId: '' })
+                  }}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateMember} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    disabled
+                    value={selectedMember.email}
+                    className="w-full px-3 py-2 border border-border rounded-md bg-muted text-muted-foreground cursor-not-allowed"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Email cannot be updated
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Username *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={updateFormData.username}
+                    onChange={(e) => setUpdateFormData({ ...updateFormData, username: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="username"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Title *
+                  </label>
+                  <select
+                    required
+                    value={updateFormData.titleId}
+                    onChange={(e) => setUpdateFormData({ ...updateFormData, titleId: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="">Select a title</option>
+                    {titles.map((title) => (
+                      <option key={title.id} value={title.id}>
+                        {title.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Source Control Account *
+                  </label>
+                  <select
+                    required
+                    value={updateFormData.sourceControlAccountId}
+                    onChange={(e) => setUpdateFormData({ ...updateFormData, sourceControlAccountId: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="">Select a source control account</option>
+                    {sourceControlAccounts.length > 0 ? (
+                      sourceControlAccounts.map((account) => (
+                        <option key={account.id} value={account.id}>
+                          {account.username} {account.providerName ? `(${account.providerName})` : ''}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No source control accounts available</option>
+                    )}
+                  </select>
+                  {sourceControlAccounts.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      No source control accounts found for this organization
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUpdateModalOpen(false)
+                      setSelectedMember(null)
+                      setUpdateFormData({ username: '', titleId: '', sourceControlAccountId: '' })
+                    }}
+                    className="flex-1 px-4 py-2 border border-border rounded-md text-foreground hover:bg-muted transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isUpdating}
+                    className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                  >
+                    {isUpdating ? 'Updating...' : 'Update Member'}
                   </button>
                 </div>
               </form>

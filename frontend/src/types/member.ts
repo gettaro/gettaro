@@ -18,4 +18,10 @@ export interface AddMemberRequest {
   username: string
   titleId: string
   sourceControlAccountId: string
+}
+
+export interface UpdateMemberRequest {
+  username: string
+  titleId: string
+  sourceControlAccountId: string
 } 
