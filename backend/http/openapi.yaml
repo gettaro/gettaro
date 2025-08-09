@@ -482,11 +482,25 @@ paths:
               type: object
               properties:
                 email: { type: string }
+                username: { type: string }
+                titleId: { type: string, format: uuid }
+                sourceControlAccountId: { type: string, format: uuid }
               required:
                 - email
+                - username
+                - titleId
+                - sourceControlAccountId
       responses:
         "201":
           description: Member added
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization owner
+        "500":
+          description: Internal server error
       security:
         - bearerAuth: []
 

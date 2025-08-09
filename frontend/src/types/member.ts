@@ -1,0 +1,21 @@
+export interface Member {
+  id: string
+  userId: string
+  email: string
+  username: string
+  organizationId: string
+  isOwner: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ListOrganizationMembersResponse {
+  members: Member[]
+}
+
+export interface AddMemberRequest {
+  email: string
+  username: string
+  titleId: string
+  sourceControlAccountId: string
+} 

@@ -2,6 +2,8 @@ import { Organization } from '../types/organization'
 import { OrganizationConflictError } from './errors/organizations'
 import { CreateIntegrationConfigRequest, IntegrationConfig, UpdateIntegrationConfigRequest } from '../types/integration'
 import { Title, CreateTitleRequest, UpdateTitleRequest } from '../types/title'
+import { Member, AddMemberRequest } from '../types/member'
+import { SourceControlAccount } from '../types/sourcecontrol'
 
 export default class Api {
   private static API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
@@ -235,6 +237,22 @@ export default class Api {
 
   static async deleteTitle(organizationId: string, titleId: string): Promise<void> {
     await this.delete(`/organizations/${organizationId}/titles/${titleId}`)
+  }
+
+  // Member API functions
+  static async getOrganizationMembers(organizationId: string): Promise<Member[]> {
+    const response = await this.get(`/organizations/${organizationId}/members`)
+    return response.members
+  }
+
+  static async addOrganizationMember(organizationId: string, request: AddMemberRequest): Promise<void> {
+    await this.post(`/organizations/${organizationId}/members`, request)
+  }
+
+  // Source Control Account API functions
+  static async getOrganizationSourceControlAccounts(organizationId: string): Promise<SourceControlAccount[]> {
+    const response = await this.get(`/organizations/${organizationId}/source-control-accounts`)
+    return response.source_control_accounts
   }
 }
 

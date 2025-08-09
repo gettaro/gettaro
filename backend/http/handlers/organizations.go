@@ -314,7 +314,7 @@ func (h *OrganizationHandler) AddOrganizationMember(c *gin.Context) {
 		return
 	}
 
-	c.Status(http.StatusCreated)
+	c.JSON(http.StatusCreated, gin.H{})
 }
 
 // RemoveOrganizationMember handles removing a user from an organization
