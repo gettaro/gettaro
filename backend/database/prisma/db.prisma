@@ -19,7 +19,7 @@ model User {
   // Relations
   authProviders         AuthProvider[]
   organizationMembers   OrganizationMember[]
-  userTitles            UserTitle[]
+  memberTitles         MemberTitle[]
   teams                 TeamMember[]
   directReports         DirectReport[] @relation("DirectReports")
   manager               DirectReport[] @relation("Manager")
@@ -43,7 +43,7 @@ model Organization {
   integrationConfigs IntegrationConfig[]
   sourceControlAccounts SourceControlAccount[]
   projectManagementAccounts ProjectManagementAccount[]
-  userTitles         UserTitle[]
+  memberTitles       MemberTitle[]
 }
 
 model OrganizationMember {
@@ -58,6 +58,7 @@ model OrganizationMember {
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   sourceControlAccounts SourceControlAccount[]
+  memberTitles MemberTitle[]
 
   @@unique([userId, organizationId])
 }
@@ -71,21 +72,21 @@ model Title {
 
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  userTitles   UserTitle[]
+  memberTitles MemberTitle[]
 }
 
-model UserTitle {
+model MemberTitle {
   id             String   @id @default(uuid())
-  userId         String
+  memberId       String
   titleId        String
   organizationId String
 
   // Relations
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title        Title        @relation(fields: [titleId], references: [id], onDelete: Cascade)
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  member       OrganizationMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  title        Title             @relation(fields: [titleId], references: [id], onDelete: Cascade)
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, organizationId])
+  @@unique([memberId, organizationId])
 }
 
 model AuthProvider {

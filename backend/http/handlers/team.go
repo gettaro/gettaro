@@ -40,12 +40,12 @@ func (h *TeamHandler) RegisterRoutes(router *gin.RouterGroup) {
 	teams := router.Group("/teams")
 	{
 		teams.POST("", h.CreateTeam)
-		teams.GET("", h.ListTeams)
-		teams.GET("/:id", h.GetTeam)
-		teams.PUT("/:id", h.UpdateTeam)
-		teams.DELETE("/:id", h.DeleteTeam)
-		teams.POST("/:id/members", h.AddTeamMember)
-		teams.DELETE("/:id/members/:userId", h.RemoveTeamMember)
+		// teams.GET("", h.ListTeams)
+		// teams.GET("/:id", h.GetTeam)
+		// teams.PUT("/:id", h.UpdateTeam)
+		// teams.DELETE("/:id", h.DeleteTeam)
+		// teams.POST("/:id/members", h.AddTeamMember)
+		// teams.DELETE("/:id/members/:userId", h.RemoveTeamMember)
 	}
 }
 

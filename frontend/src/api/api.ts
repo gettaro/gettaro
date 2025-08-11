@@ -253,6 +253,10 @@ export default class Api {
     await this.put(`/organizations/${organizationId}/members/${memberId}`, request)
   }
 
+  static async deleteOrganizationMember(organizationId: string, memberId: string): Promise<void> {
+    await this.delete(`/organizations/${organizationId}/members/${memberId}`)
+  }
+
   // Source Control Account API functions
   static async getOrganizationSourceControlAccounts(organizationId: string): Promise<SourceControlAccount[]> {
     const response = await this.get(`/organizations/${organizationId}/source-control-accounts`)

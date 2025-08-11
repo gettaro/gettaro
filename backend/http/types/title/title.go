@@ -10,8 +10,8 @@ type UpdateTitleRequest struct {
 	Name string `json:"name" binding:"required"`
 }
 
-// AssignUserTitleRequest represents the request to assign a title to a user
-type AssignUserTitleRequest struct {
-	UserID  string `json:"userId" binding:"required"`
-	TitleID string `json:"titleId" binding:"required"`
+// AssignMemberTitleRequest represents the request to assign a title to a member
+type AssignMemberTitleRequest struct {
+	MemberID string `json:"memberId" binding:"required"`
+	TitleID  string `json:"titleId" binding:"required"`
 }

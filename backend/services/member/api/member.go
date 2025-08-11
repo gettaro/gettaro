@@ -18,8 +18,9 @@ type MemberAPI interface {
 	AddOrganizationMember(ctx context.Context, titleID string, sourceControlAccountID string, member *types.OrganizationMember) error
 	RemoveOrganizationMember(ctx context.Context, orgID string, userID string) error
 	GetOrganizationMembers(ctx context.Context, orgID string) ([]types.OrganizationMember, error)
+	GetOrganizationMemberByID(ctx context.Context, memberID string) (*types.OrganizationMember, error)
 	IsOrganizationOwner(ctx context.Context, orgID string, userID string) (bool, error)
-	UpdateOrganizationMember(ctx context.Context, orgID string, userID string, titleID string, sourceControlAccountID string, username string) error
+	UpdateOrganizationMember(ctx context.Context, orgID string, memberID string, titleID string, sourceControlAccountID string, username string) error
 }
 
 type Api struct {
@@ -80,15 +81,6 @@ func (a *Api) AddOrganizationMember(ctx context.Context, titleID string, sourceC
 
 	member.UserID = user.ID
 
-	err = a.titleApi.AssignUserTitle(ctx, titletypes.UserTitle{
-		TitleID:        title.ID,
-		UserID:         user.ID,
-		OrganizationID: member.OrganizationID,
-	})
-	if err != nil {
-		return err
-	}
-
 	// Add user as member first
 	err = a.db.AddOrganizationMember(member)
 	if err != nil {
@@ -97,6 +89,15 @@ func (a *Api) AddOrganizationMember(ctx context.Context, titleID string, sourceC
 
 	// Now get the member ID and update the source control account
 	createdMember, err := a.db.GetOrganizationMember(member.OrganizationID, user.ID)
+	if err != nil {
+		return err
+	}
+
+	err = a.titleApi.AssignMemberTitle(ctx, titletypes.MemberTitle{
+		TitleID:        title.ID,
+		MemberID:       createdMember.ID,
+		OrganizationID: member.OrganizationID,
+	})
 	if err != nil {
 		return err
 	}
@@ -122,13 +123,18 @@ func (a *Api) GetOrganizationMembers(ctx context.Context, orgID string) ([]types
 	return a.db.GetOrganizationMembers(orgID)
 }
 
+// GetOrganizationMemberByID retrieves a member by their ID
+func (a *Api) GetOrganizationMemberByID(ctx context.Context, memberID string) (*types.OrganizationMember, error) {
+	return a.db.GetOrganizationMemberByID(ctx, memberID)
+}
+
 // IsOrganizationOwner checks if a user is the owner of an organization
 func (a *Api) IsOrganizationOwner(ctx context.Context, orgID string, userID string) (bool, error) {
 	return a.db.IsOrganizationOwner(orgID, userID)
 }
 
 // UpdateOrganizationMember updates a member's details in an organization
-func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, userID string, titleID string, sourceControlAccountID string, username string) error {
+func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, memberID string, titleID string, sourceControlAccountID string, username string) error {
 	// Check if the title exists
 	title, err := a.titleApi.GetTitle(ctx, titleID)
 	if err != nil {
@@ -141,8 +147,8 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, userID
 		return errors.NewNotFoundError("source control account not found")
 	}
 
-	// Check if the member exists
-	existingMember, err := a.db.GetOrganizationMember(orgID, userID)
+	// Check if the member exists by member ID
+	existingMember, err := a.db.GetOrganizationMemberByID(ctx, memberID)
 	if err != nil {
 		return err
 	}
@@ -150,21 +156,26 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, userID
 		return errors.NewNotFoundError("member not found")
 	}
 
+	// Verify the member belongs to the specified organization
+	if existingMember.OrganizationID != orgID {
+		return errors.NewNotFoundError("member not found in this organization")
+	}
+
 	// Update the username in the organization_members table
-	err = a.db.UpdateOrganizationMember(orgID, userID, username)
+	err = a.db.UpdateOrganizationMember(orgID, existingMember.UserID, username)
 	if err != nil {
 		return err
 	}
 
 	// Update the title assignment
-	err = a.titleApi.RemoveUserTitle(ctx, userID, orgID)
+	err = a.titleApi.RemoveMemberTitle(ctx, memberID, orgID)
 	if err != nil {
 		return err
 	}
 
-	err = a.titleApi.AssignUserTitle(ctx, titletypes.UserTitle{
+	err = a.titleApi.AssignMemberTitle(ctx, titletypes.MemberTitle{
 		TitleID:        title.ID,
-		UserID:         userID,
+		MemberID:       memberID,
 		OrganizationID: orgID,
 	})
 	if err != nil {
@@ -172,7 +183,7 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, userID
 	}
 
 	// Update the source control account with member_id
-	sourceControlAccount.MemberID = &existingMember.ID
+	sourceControlAccount.MemberID = &memberID
 	err = a.sourceControlApi.UpdateSourceControlAccount(ctx, sourceControlAccount)
 	if err != nil {
 		return err

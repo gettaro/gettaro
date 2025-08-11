@@ -13,10 +13,10 @@ type Title struct {
 	UpdatedAt      time.Time `json:"updatedAt"`
 }
 
-// UserTitle represents a user's title assignment within an organization
-type UserTitle struct {
+// MemberTitle represents a member's title assignment within an organization
+type MemberTitle struct {
 	ID             string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	UserID         string    `json:"userId"`
+	MemberID       string    `json:"memberId"`
 	TitleID        string    `json:"titleId"`
 	OrganizationID string    `json:"organizationId"`
 	CreatedAt      time.Time `json:"createdAt" gorm:"default:now()"`

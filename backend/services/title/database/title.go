@@ -12,9 +12,9 @@ type TitleDB interface {
 	ListTitles(orgID string) ([]types.Title, error)
 	UpdateTitle(title types.Title) error
 	DeleteTitle(id string) error
-	AssignUserTitle(userTitle types.UserTitle) error
-	GetUserTitle(userID string, orgID string) (*types.UserTitle, error)
-	RemoveUserTitle(userID string, orgID string) error
+	AssignMemberTitle(memberTitle types.MemberTitle) error
+	GetMemberTitle(memberID string, orgID string) (*types.MemberTitle, error)
+	RemoveMemberTitle(memberID string, orgID string) error
 }
 
 type TitleDBImpl struct {
@@ -62,25 +62,25 @@ func (d *TitleDBImpl) DeleteTitle(id string) error {
 	return d.db.Delete(&types.Title{}, "id = ?", id).Error
 }
 
-// AssignUserTitle assigns a title to a user
-func (d *TitleDBImpl) AssignUserTitle(userTitle types.UserTitle) error {
-	return d.db.Create(&userTitle).Error
+// AssignMemberTitle assigns a title to a member
+func (d *TitleDBImpl) AssignMemberTitle(memberTitle types.MemberTitle) error {
+	return d.db.Create(&memberTitle).Error
 }
 
-// GetUserTitle retrieves a user's title assignment
-func (d *TitleDBImpl) GetUserTitle(userID string, orgID string) (*types.UserTitle, error) {
-	var userTitle types.UserTitle
-	err := d.db.First(&userTitle, "user_id = ? AND organization_id = ?", userID, orgID).Error
+// GetMemberTitle retrieves a member's title assignment
+func (d *TitleDBImpl) GetMemberTitle(memberID string, orgID string) (*types.MemberTitle, error) {
+	var memberTitle types.MemberTitle
+	err := d.db.First(&memberTitle, "member_id = ? AND organization_id = ?", memberID, orgID).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return &userTitle, nil
+	return &memberTitle, nil
 }
 
-// RemoveUserTitle removes a user's title assignment
-func (d *TitleDBImpl) RemoveUserTitle(userID string, orgID string) error {
-	return d.db.Delete(&types.UserTitle{}, "user_id = ? AND organization_id = ?", userID, orgID).Error
+// RemoveMemberTitle removes a member's title assignment
+func (d *TitleDBImpl) RemoveMemberTitle(memberID string, orgID string) error {
+	return d.db.Delete(&types.MemberTitle{}, "member_id = ? AND organization_id = ?", memberID, orgID).Error
 }

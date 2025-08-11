@@ -1,6 +1,8 @@
 package database
 
 import (
+	"context"
+
 	"ems.dev/backend/services/member/types"
 	"gorm.io/gorm"
 )
@@ -11,6 +13,7 @@ type DB interface {
 	RemoveOrganizationMember(orgID string, userID string) error
 	GetOrganizationMembers(orgID string) ([]types.OrganizationMember, error)
 	GetOrganizationMember(orgID string, userID string) (*types.OrganizationMember, error)
+	GetOrganizationMemberByID(ctx context.Context, memberID string) (*types.OrganizationMember, error)
 	IsOrganizationOwner(orgID string, userID string) (bool, error)
 	UpdateOrganizationMember(orgID string, userID string, username string) error
 }
@@ -60,6 +63,19 @@ func (d *MemberDB) GetOrganizationMembers(orgID string) ([]types.OrganizationMem
 func (d *MemberDB) GetOrganizationMember(orgID string, userID string) (*types.OrganizationMember, error) {
 	var member types.OrganizationMember
 	err := d.db.First(&member, "organization_id = ? AND user_id = ?", orgID, userID).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &member, nil
+}
+
+// GetOrganizationMemberByID retrieves a member by their ID
+func (d *MemberDB) GetOrganizationMemberByID(ctx context.Context, memberID string) (*types.OrganizationMember, error) {
+	var member types.OrganizationMember
+	err := d.db.First(&member, "id = ?", memberID).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil

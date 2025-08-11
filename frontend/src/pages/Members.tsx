@@ -112,7 +112,7 @@ export default function Members() {
     try {
       setIsUpdating(true)
       setError(null)
-      await Api.updateOrganizationMember(currentOrganization.id, selectedMember.userId, updateFormData)
+      await Api.updateOrganizationMember(currentOrganization.id, selectedMember.id, updateFormData)
       setUpdateFormData({
         username: '',
         titleId: '',
@@ -137,6 +137,23 @@ export default function Members() {
       sourceControlAccountId: '' // User will need to select the current source control account
     })
     setIsUpdateModalOpen(true)
+  }
+
+  const handleDeleteMember = async (member: Member) => {
+    if (!currentOrganization) return
+
+    if (!confirm(`Are you sure you want to remove ${member.username} from the organization?`)) {
+      return
+    }
+
+    try {
+      setError(null)
+      await Api.deleteOrganizationMember(currentOrganization.id, member.id)
+      await loadMembers() // Reload the list
+    } catch (err) {
+      setError('Failed to delete member')
+      console.error('Error deleting member:', err)
+    }
   }
 
   const getProviderIcon = (providerName: string) => {
@@ -244,26 +261,48 @@ export default function Members() {
                     {member.isOwner ? 'Owner' : 'Member'}
                   </span>
                   {!member.isOwner && (
-                    <button 
-                      onClick={() => handleEditMember(member)}
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                      title="Edit member"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg"
+                    <>
+                      <button 
+                        onClick={() => handleEditMember(member)}
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                        title="Edit member"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                        />
-                      </svg>
-                    </button>
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteMember(member)}
+                        className="text-red-500 hover:text-red-700 transition-colors"
+                        title="Delete member"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      </button>
+                    </>
                   )}
                 </div>
               </div>

@@ -100,9 +100,9 @@ func (h *MemberHandler) AddOrganizationMember(c *gin.Context) {
 
 // RemoveOrganizationMember handles removing a user from an organization
 // It:
-// 1. Validates the organization ID and user ID
+// 1. Validates the organization ID and member ID
 // 2. Checks if the current user is the owner
-// 3. Removes the specified user from the organization
+// 3. Removes the specified member from the organization
 // Returns:
 // - 204: If the member was removed successfully
 // - 400: If the IDs are missing
@@ -116,9 +116,9 @@ func (h *MemberHandler) RemoveOrganizationMember(c *gin.Context) {
 		return
 	}
 
-	userID := c.Param("userId")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user ID is required"})
+	memberID := c.Param("memberId")
+	if memberID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "member ID is required"})
 		return
 	}
 
@@ -127,7 +127,24 @@ func (h *MemberHandler) RemoveOrganizationMember(c *gin.Context) {
 		return
 	}
 
-	if err := h.memberApi.RemoveOrganizationMember(c.Request.Context(), orgID, userID); err != nil {
+	// Get the member to find the user ID
+	member, err := h.memberApi.GetOrganizationMemberByID(c.Request.Context(), memberID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if member == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "member not found"})
+		return
+	}
+
+	// Verify the member belongs to the specified organization
+	if member.OrganizationID != orgID {
+		c.JSON(http.StatusNotFound, gin.H{"error": "member not found in this organization"})
+		return
+	}
+
+	if err := h.memberApi.RemoveOrganizationMember(c.Request.Context(), orgID, member.UserID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -137,7 +154,7 @@ func (h *MemberHandler) RemoveOrganizationMember(c *gin.Context) {
 
 // UpdateOrganizationMember handles updating a member's details in an organization
 // It:
-// 1. Validates the organization ID and user ID
+// 1. Validates the organization ID and member ID
 // 2. Checks if the current user is the owner
 // 3. Validates the request body
 // 4. Updates the member's details (username, title, source control account)
@@ -148,6 +165,15 @@ func (h *MemberHandler) RemoveOrganizationMember(c *gin.Context) {
 // - 403: If the user is not the owner
 // - 404: If the member, title, or source control account is not found
 // - 500: If there's a database error
+// Side Effects:
+// - Updates member details in the database
+// - Performs organization ownership check
+// Errors:
+// - ErrMissingOrganizationID: When organization ID is missing from the request
+// - ErrUnauthorized: When user is not authenticated
+// - ErrForbidden: When user is not the owner
+// - ErrNotFound: When member, title, or source control account is not found
+// - ErrDatabaseQuery: When database query fails
 func (h *MemberHandler) UpdateOrganizationMember(c *gin.Context) {
 	orgID, err := utils.GetOrganizationIDFromContext(c)
 	if err != nil {
@@ -155,9 +181,9 @@ func (h *MemberHandler) UpdateOrganizationMember(c *gin.Context) {
 		return
 	}
 
-	userID := c.Param("userId")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user ID is required"})
+	memberID := c.Param("memberId")
+	if memberID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "member ID is required"})
 		return
 	}
 
@@ -172,7 +198,7 @@ func (h *MemberHandler) UpdateOrganizationMember(c *gin.Context) {
 		return
 	}
 
-	if err := h.memberApi.UpdateOrganizationMember(c.Request.Context(), orgID, userID, req.TitleID, req.SourceControlAccountID, req.Username); err != nil {
+	if err := h.memberApi.UpdateOrganizationMember(c.Request.Context(), orgID, memberID, req.TitleID, req.SourceControlAccountID, req.Username); err != nil {
 		utils.HandleError(c, err)
 		return
 	}
@@ -186,7 +212,7 @@ func (h *MemberHandler) RegisterRoutes(api *gin.RouterGroup) {
 	{
 		members.GET("", h.ListOrganizationMembers)
 		members.POST("", h.AddOrganizationMember)
-		members.PUT("/:userId", h.UpdateOrganizationMember)
-		members.DELETE("/:userId", h.RemoveOrganizationMember)
+		members.PUT("/:memberId", h.UpdateOrganizationMember)
+		members.DELETE("/:memberId", h.RemoveOrganizationMember)
 	}
 }

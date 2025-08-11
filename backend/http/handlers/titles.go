@@ -212,27 +212,33 @@ func (h *TitleHandler) DeleteTitle(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// AssignUserTitle handles the POST /api/organizations/{id}/titles/assign endpoint
+// RemoveMemberTitle handles the DELETE /api/organizations/{id}/members/{memberId}/title endpoint
 // Params:
 // - c: The Gin context containing request and response
 // Returns:
-// - 201: User title assigned successfully
-// - 400: Bad request if organization ID is missing or request body is invalid
+// - 204: Member title assignment removed successfully
+// - 400: Bad request if organization ID or member ID is missing
 // - 401: Unauthorized if user is not authenticated
 // - 403: Forbidden if user does not have access to the organization
 // - 500: Internal server error if service layer fails
 // Side Effects:
-// - Assigns a title to a user in the database
+// - Removes member title assignment from the database
 // - Performs organization ownership check
 // Errors:
 // - ErrMissingOrganizationID: When organization ID is missing from the request
 // - ErrUnauthorized: When user is not authenticated
 // - ErrForbidden: When user does not have access to the organization
 // - ErrDatabaseQuery: When database query fails
-func (h *TitleHandler) AssignUserTitle(c *gin.Context) {
+func (h *TitleHandler) RemoveMemberTitle(c *gin.Context) {
 	orgID, err := utils.GetOrganizationIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	memberID := c.Param("memberId")
+	if memberID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "member ID is required"})
 		return
 	}
 
@@ -241,60 +247,7 @@ func (h *TitleHandler) AssignUserTitle(c *gin.Context) {
 		return
 	}
 
-	var req httptypes.AssignUserTitleRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := h.titleApi.AssignUserTitle(c.Request.Context(), titletypes.UserTitle{
-		UserID:         req.UserID,
-		TitleID:        req.TitleID,
-		OrganizationID: orgID,
-	}); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.Status(http.StatusCreated)
-}
-
-// RemoveUserTitle handles the DELETE /api/organizations/{id}/users/{userId}/title endpoint
-// Params:
-// - c: The Gin context containing request and response
-// Returns:
-// - 204: User title assignment removed successfully
-// - 400: Bad request if organization ID or user ID is missing
-// - 401: Unauthorized if user is not authenticated
-// - 403: Forbidden if user does not have access to the organization
-// - 500: Internal server error if service layer fails
-// Side Effects:
-// - Removes user title assignment from the database
-// - Performs organization ownership check
-// Errors:
-// - ErrMissingOrganizationID: When organization ID is missing from the request
-// - ErrUnauthorized: When user is not authenticated
-// - ErrForbidden: When user does not have access to the organization
-// - ErrDatabaseQuery: When database query fails
-func (h *TitleHandler) RemoveUserTitle(c *gin.Context) {
-	orgID, err := utils.GetOrganizationIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	userID := c.Param("userId")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user ID is required"})
-		return
-	}
-
-	// Check if user is an owner of the organization
-	if !utils.CheckOrganizationOwnership(c, h.orgApi, orgID) {
-		return
-	}
-
-	if err := h.titleApi.RemoveUserTitle(c.Request.Context(), userID, orgID); err != nil {
+	if err := h.titleApi.RemoveMemberTitle(c.Request.Context(), memberID, orgID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -313,13 +266,12 @@ func (h *TitleHandler) RegisterRoutes(api *gin.RouterGroup) {
 			titles.GET("", h.ListTitles)
 			titles.PUT("/:titleId", h.UpdateTitle)
 			titles.DELETE("/:titleId", h.DeleteTitle)
-			titles.POST("/assign", h.AssignUserTitle)
 		}
 
-		// User title operations
-		users := organizations.Group("/users/:userId")
+		// Member title operations
+		members := organizations.Group("/members/:memberId")
 		{
-			users.DELETE("/title", h.RemoveUserTitle)
+			members.DELETE("/title", h.RemoveMemberTitle)
 		}
 	}
 }
