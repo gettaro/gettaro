@@ -7,8 +7,6 @@ import (
 	memberdb "ems.dev/backend/services/member/database"
 	"ems.dev/backend/services/member/types"
 	sourcecontrolapi "ems.dev/backend/services/sourcecontrol/api"
-	titleapi "ems.dev/backend/services/title/api"
-	titletypes "ems.dev/backend/services/title/types"
 	userapi "ems.dev/backend/services/user/api"
 	usertypes "ems.dev/backend/services/user/types"
 )
@@ -26,27 +24,20 @@ type MemberAPI interface {
 type Api struct {
 	db               memberdb.DB
 	userApi          userapi.UserAPI
-	titleApi         titleapi.TitleAPI
 	sourceControlApi sourcecontrolapi.SourceControlAPI
 }
 
-func NewApi(memberDb memberdb.DB, userApi userapi.UserAPI, titleApi titleapi.TitleAPI, sourceControlApi sourcecontrolapi.SourceControlAPI) *Api {
+func NewApi(memberDb memberdb.DB, userApi userapi.UserAPI, sourceControlApi sourcecontrolapi.SourceControlAPI) *Api {
 	return &Api{
 		db:               memberDb,
 		userApi:          userApi,
-		titleApi:         titleApi,
 		sourceControlApi: sourceControlApi,
 	}
 }
 
 // AddOrganizationMember adds a user as a member to an organization
 func (a *Api) AddOrganizationMember(ctx context.Context, titleID string, sourceControlAccountID string, member *types.OrganizationMember) error {
-	// Check if the title exists
-	title, err := a.titleApi.GetTitle(ctx, titleID)
-	if err != nil {
-		return errors.NewNotFoundError("title not found")
-	}
-
+	// Note: Title validation will be handled by the database foreign key constraint
 	// Get the source control account
 	sourceControlAccount, err := a.sourceControlApi.GetSourceControlAccount(ctx, sourceControlAccountID)
 	if err != nil {
@@ -80,8 +71,9 @@ func (a *Api) AddOrganizationMember(ctx context.Context, titleID string, sourceC
 	}
 
 	member.UserID = user.ID
+	member.TitleID = &titleID // Set the title ID directly
 
-	// Add user as member first
+	// Add user as member
 	err = a.db.AddOrganizationMember(member)
 	if err != nil {
 		return err
@@ -89,15 +81,6 @@ func (a *Api) AddOrganizationMember(ctx context.Context, titleID string, sourceC
 
 	// Now get the member ID and update the source control account
 	createdMember, err := a.db.GetOrganizationMember(member.OrganizationID, user.ID)
-	if err != nil {
-		return err
-	}
-
-	err = a.titleApi.AssignMemberTitle(ctx, titletypes.MemberTitle{
-		TitleID:        title.ID,
-		MemberID:       createdMember.ID,
-		OrganizationID: member.OrganizationID,
-	})
 	if err != nil {
 		return err
 	}
@@ -135,12 +118,7 @@ func (a *Api) IsOrganizationOwner(ctx context.Context, orgID string, userID stri
 
 // UpdateOrganizationMember updates a member's details in an organization
 func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, memberID string, titleID string, sourceControlAccountID string, username string) error {
-	// Check if the title exists
-	title, err := a.titleApi.GetTitle(ctx, titleID)
-	if err != nil {
-		return errors.NewNotFoundError("title not found")
-	}
-
+	// Note: Title validation will be handled by the database foreign key constraint
 	// Get the source control account
 	sourceControlAccount, err := a.sourceControlApi.GetSourceControlAccount(ctx, sourceControlAccountID)
 	if err != nil {
@@ -161,23 +139,8 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, member
 		return errors.NewNotFoundError("member not found in this organization")
 	}
 
-	// Update the username in the organization_members table
-	err = a.db.UpdateOrganizationMember(orgID, existingMember.UserID, username)
-	if err != nil {
-		return err
-	}
-
-	// Update the title assignment
-	err = a.titleApi.RemoveMemberTitle(ctx, memberID, orgID)
-	if err != nil {
-		return err
-	}
-
-	err = a.titleApi.AssignMemberTitle(ctx, titletypes.MemberTitle{
-		TitleID:        title.ID,
-		MemberID:       memberID,
-		OrganizationID: orgID,
-	})
+	// Update the username and title_id in the organization_members table
+	err = a.db.UpdateOrganizationMember(orgID, existingMember.UserID, username, &titleID)
 	if err != nil {
 		return err
 	}

@@ -15,7 +15,7 @@ type DB interface {
 	GetOrganizationMember(orgID string, userID string) (*types.OrganizationMember, error)
 	GetOrganizationMemberByID(ctx context.Context, memberID string) (*types.OrganizationMember, error)
 	IsOrganizationOwner(orgID string, userID string) (bool, error)
-	UpdateOrganizationMember(orgID string, userID string, username string) error
+	UpdateOrganizationMember(orgID string, userID string, username string, titleID *string) error
 }
 
 type MemberDB struct {
@@ -31,11 +31,12 @@ func NewMemberDB(db *gorm.DB) *MemberDB {
 // AddOrganizationMember adds a user as a member to an organization
 func (d *MemberDB) AddOrganizationMember(member *types.OrganizationMember) error {
 	return d.db.Exec(
-		"INSERT INTO organization_members (user_id, organization_id, email, username, is_owner) VALUES (?, ?, ?, ?, false)",
+		"INSERT INTO organization_members (user_id, organization_id, email, username, is_owner, title_id) VALUES (?, ?, ?, ?, false, ?)",
 		member.UserID,
 		member.OrganizationID,
 		member.Email,
 		member.Username,
+		member.TitleID,
 	).Error
 }
 
@@ -97,7 +98,16 @@ func (d *MemberDB) IsOrganizationOwner(orgID string, userID string) (bool, error
 }
 
 // UpdateOrganizationMember updates a member's details in an organization
-func (d *MemberDB) UpdateOrganizationMember(orgID string, userID string, username string) error {
+func (d *MemberDB) UpdateOrganizationMember(orgID string, userID string, username string, titleID *string) error {
+	if titleID != nil {
+		return d.db.Exec(
+			"UPDATE organization_members SET username = ?, title_id = ?, updated_at = NOW() WHERE organization_id = ? AND user_id = ? AND is_owner = false",
+			username,
+			titleID,
+			orgID,
+			userID,
+		).Error
+	}
 	return d.db.Exec(
 		"UPDATE organization_members SET username = ?, updated_at = NOW() WHERE organization_id = ? AND user_id = ? AND is_owner = false",
 		username,

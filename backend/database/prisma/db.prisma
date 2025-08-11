@@ -49,16 +49,19 @@ model Organization {
 model OrganizationMember {
   id             String   @id @default(uuid())
   userId         String
+  email          String
+  username       String
   organizationId String
   isOwner        Boolean  @default(false)
+  titleId        String?  // New field for direct title reference
   createdAt      DateTime @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime @updatedAt
 
   // Relations
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title        Title?       @relation(fields: [titleId], references: [id], onDelete: SetNull) // New relation
   sourceControlAccounts SourceControlAccount[]
-  memberTitles MemberTitle[]
 
   @@unique([userId, organizationId])
 }
@@ -67,26 +70,12 @@ model Title {
   id             String   @id @default(uuid())
   name           String
   organizationId String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime
 
   // Relations
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  memberTitles MemberTitle[]
-}
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members        OrganizationMember[] // New relation to members
 
-model MemberTitle {
-  id             String   @id @default(uuid())
-  memberId       String
-  titleId        String
-  organizationId String
-
-  // Relations
-  member       OrganizationMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  title        Title             @relation(fields: [titleId], references: [id], onDelete: Cascade)
-  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@unique([memberId, organizationId])
+  @@unique([name, organizationId])
 }
 
 model AuthProvider {

@@ -58,6 +58,7 @@ components:
         username: { type: string }
         organizationId: { type: string }
         isOwner: { type: boolean }
+        titleId: { type: string, format: uuid, nullable: true }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
@@ -66,16 +67,6 @@ components:
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
-        organizationId: { type: string, format: uuid }
-        createdAt: { type: string, format: date-time }
-        updatedAt: { type: string, format: date-time }
-
-    MemberTitle:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        memberId: { type: string, format: uuid }
-        titleId: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -93,15 +84,6 @@ components:
         name: { type: string }
       required:
         - name
-
-    AssignMemberTitleRequest:
-      type: object
-      properties:
-        memberId: { type: string, format: uuid }
-        titleId: { type: string, format: uuid }
-      required:
-        - memberId
-        - titleId
 
     UpdateOrganizationMemberRequest:
       type: object
@@ -702,62 +684,6 @@ paths:
       responses:
         "204":
           description: Title deleted
-        "400":
-          description: Bad request
-        "401":
-          description: Unauthorized
-        "403":
-          description: Forbidden - User is not an organization owner
-        "500":
-          description: Internal server error
-      security:
-        - bearerAuth: []
-
-  /organizations/{id}/titles/assign:
-    post:
-      summary: Assign title to user
-      description: Assigns a title to a user within an organization. Only organization owners can assign titles.
-      parameters:
-        - in: path
-          name: id
-          schema: { type: string, format: uuid }
-          required: true
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AssignMemberTitleRequest"
-      responses:
-        "201":
-          description: Title assigned to user
-        "400":
-          description: Bad request
-        "401":
-          description: Unauthorized
-        "403":
-          description: Forbidden - User is not an organization owner
-        "500":
-          description: Internal server error
-      security:
-        - bearerAuth: []
-
-  /organizations/{id}/members/{memberId}/title:
-    delete:
-      summary: Remove member title
-      description: Removes a member's title assignment. Only organization owners can remove title assignments.
-      parameters:
-        - in: path
-          name: id
-          schema: { type: string, format: uuid }
-          required: true
-        - in: path
-          name: memberId
-          schema: { type: string, format: uuid }
-          required: true
-      responses:
-        "204":
-          description: Member title removed
         "400":
           description: Bad request
         "401":
