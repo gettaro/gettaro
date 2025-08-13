@@ -23,6 +23,10 @@ type DB interface {
 
 	// Comments
 	CreatePRComments(ctx context.Context, comments []*types.PRComment) error
+	GetPullRequestComments(ctx context.Context, prID string) ([]*types.PRComment, error)
+
+	// Member Activity
+	GetMemberActivity(ctx context.Context, params *types.MemberActivityParams) ([]*types.MemberActivity, error)
 }
 
 type SourceControlDB struct {
@@ -143,6 +147,120 @@ func (d *SourceControlDB) GetSourceControlAccountsByOrganization(ctx context.Con
 	result := make([]*types.SourceControlAccount, len(accounts))
 	for i := range accounts {
 		result[i] = &accounts[i]
+	}
+	return result, nil
+}
+
+// GetMemberActivity retrieves a timeline of source control activities for a specific member
+func (d *SourceControlDB) GetMemberActivity(ctx context.Context, params *types.MemberActivityParams) ([]*types.MemberActivity, error) {
+	var activities []types.MemberActivity
+
+	// Build date filter conditions
+	var dateFilter string
+	var args []interface{}
+	args = append(args, params.MemberID)
+
+	if params.StartDate != nil {
+		dateFilter += " AND pr.created_at >= ?"
+		args = append(args, params.StartDate)
+	}
+	if params.EndDate != nil {
+		dateFilter += " AND pr.created_at <= ?"
+		args = append(args, params.EndDate)
+	}
+
+	// Get pull requests with their activities for the member
+	query := `
+		SELECT DISTINCT
+			pr.id,
+			'pull_request' as type,
+			pr.title,
+			COALESCE(pr.description, '') as description,
+			COALESCE(pr.url, '') as url,
+			COALESCE(pr.repository_name, '') as repository,
+			pr.created_at,
+			COALESCE(pr.metadata, '{}'::jsonb) as metadata,
+			sca.username as author_username
+		FROM pull_requests pr
+		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		WHERE EXISTS (
+			SELECT 1 FROM source_control_accounts sca2
+			WHERE sca2.id = pr.source_control_account_id 
+			AND sca2.member_id = ?
+		)` + dateFilter + `
+		ORDER BY pr.created_at DESC
+	`
+
+	var prActivities []types.MemberActivity
+	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&prActivities).Error; err != nil {
+		return nil, err
+	}
+
+	// For each PR, get its comments and reviews
+	for _, pr := range prActivities {
+		// Get comments for this PR
+		commentQuery := `
+			SELECT 
+				pc.id,
+				CASE 
+					WHEN pc.type = 'REVIEW' THEN 'pr_review'
+					ELSE 'pr_comment'
+				END as type,
+				pr.title as title,
+				pc.body as description,
+				pr.url as url,
+				pr.repository_name as repository,
+				pc.created_at,
+				'{}'::jsonb as metadata,
+				sca.username as author_username
+			FROM pr_comments pc
+			JOIN pull_requests pr ON pc.pr_id = pr.id
+			JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+			WHERE pc.pr_id = ? AND EXISTS (
+				SELECT 1 FROM source_control_accounts sca2
+				WHERE sca2.id = pc.source_control_account_id 
+				AND sca2.member_id = ?
+			)
+			ORDER BY pc.created_at DESC
+		`
+
+		var comments []types.MemberActivity
+		if err := d.db.WithContext(ctx).Raw(commentQuery, pr.ID, params.MemberID).Scan(&comments).Error; err != nil {
+			return nil, err
+		}
+
+		// Add comments to the activities
+		activities = append(activities, pr)
+		activities = append(activities, comments...)
+	}
+
+	// Sort all activities by creation date (newest first)
+	for i := 0; i < len(activities)-1; i++ {
+		for j := i + 1; j < len(activities); j++ {
+			if activities[i].CreatedAt.Before(activities[j].CreatedAt) {
+				activities[i], activities[j] = activities[j], activities[i]
+			}
+		}
+	}
+
+	result := make([]*types.MemberActivity, len(activities))
+	for i := range activities {
+		result[i] = &activities[i]
+	}
+	return result, nil
+}
+
+// GetPullRequestComments retrieves all comments for a specific pull request
+func (d *SourceControlDB) GetPullRequestComments(ctx context.Context, prID string) ([]*types.PRComment, error) {
+	var comments []types.PRComment
+	err := d.db.WithContext(ctx).Where("pr_id = ?", prID).Find(&comments).Error
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*types.PRComment, len(comments))
+	for i := range comments {
+		result[i] = &comments[i]
 	}
 	return result, nil
 }

@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react'
 import Api from '../api/api'
 import { Title, CreateTitleRequest } from '../types/title'
-import { useAuth } from '../hooks/useAuth'
 import { useOrganizationStore } from '../stores/organization'
 
 export default function Titles() {
-  const { user } = useAuth()
   const { currentOrganization } = useOrganizationStore()
   const [titles, setTitles] = useState<Title[]>([])
   const [loading, setLoading] = useState(true)

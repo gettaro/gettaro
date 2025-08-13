@@ -133,6 +133,16 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 			}
 
 			// 6. Get all reviews, comments and review comments
+			existingComments, err := p.sourceControlAPI.GetPullRequestComments(ctx, sourceControlPR.ID)
+			if err != nil {
+				return fmt.Errorf("failed to fetch comments for PR %d: %w", pr.Number, err)
+			}
+
+			existingCommentsMap := make(map[string]internaltypes.PRComment)
+			for _, comment := range existingComments {
+				existingCommentsMap[comment.ProviderID] = *comment
+			}
+
 			reviews, err := p.githubClient.GetPullRequestReviews(ctx, owner, repoName, token, pr.Number)
 			if err != nil {
 				return fmt.Errorf("failed to fetch reviews for PR %d: %w", pr.Number, err)
@@ -140,6 +150,10 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 
 			allComments := []*githubtypes.ReviewComment{}
 			for _, review := range reviews {
+				if _, exists := existingCommentsMap[fmt.Sprintf("%d", review.ID)]; exists {
+					continue
+				}
+
 				allComments = append(allComments, &githubtypes.ReviewComment{
 					ID:        review.ID,
 					User:      review.User,
@@ -155,6 +169,10 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 			}
 
 			for _, reviewComment := range reviewComments {
+				if _, exists := existingCommentsMap[fmt.Sprintf("%d", reviewComment.ID)]; exists {
+					continue
+				}
+
 				reviewComment.Type = string(githubtypes.CommentTypeReviewComment)
 				allComments = append(allComments, reviewComment)
 			}
@@ -165,6 +183,10 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 			}
 
 			for _, comment := range comments {
+				if _, exists := existingCommentsMap[fmt.Sprintf("%d", comment.ID)]; exists {
+					continue
+				}
+
 				comment.Type = string(githubtypes.CommentTypeComment)
 				allComments = append(allComments, comment)
 			}

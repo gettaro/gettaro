@@ -4,6 +4,7 @@ import { CreateIntegrationConfigRequest, IntegrationConfig, UpdateIntegrationCon
 import { Title, CreateTitleRequest, UpdateTitleRequest } from '../types/title'
 import { Member, AddMemberRequest, UpdateMemberRequest } from '../types/member'
 import { SourceControlAccount } from '../types/sourcecontrol'
+import { GetMemberActivityParams, MemberActivity } from '../types/memberActivity'
 
 export default class Api {
   private static API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
@@ -255,6 +256,21 @@ export default class Api {
 
   static async deleteOrganizationMember(organizationId: string, memberId: string): Promise<void> {
     await this.delete(`/organizations/${organizationId}/members/${memberId}`)
+  }
+
+  // Member Activity API functions
+  static async getMemberActivity(organizationId: string, memberId: string, params?: GetMemberActivityParams): Promise<MemberActivity[]> {
+    let url = `/organizations/${organizationId}/members/${memberId}/sourcecontrol/activity`
+    
+    if (params?.startDate || params?.endDate) {
+      const queryParams = new URLSearchParams()
+      if (params.startDate) queryParams.append('startDate', params.startDate)
+      if (params.endDate) queryParams.append('endDate', params.endDate)
+      url += `?${queryParams.toString()}`
+    }
+    
+    const response = await this.get(url)
+    return response.activities
   }
 
   // Source Control Account API functions

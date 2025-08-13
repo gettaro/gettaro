@@ -8,7 +8,6 @@ import { useAuth } from '../hooks/useAuth'
 export default function Navigation() {
   const { isAuthenticated, user, login, logout } = useAuth()
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false)
-  const [isOrgDropdownOpen, setIsOrgDropdownOpen] = useState(false)
   
   useEffect(() => {
     console.log(user)

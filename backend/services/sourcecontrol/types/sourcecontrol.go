@@ -68,3 +68,23 @@ type PullRequestMetrics struct {
 	MeanPublishToMergeTime float64
 	MeanTimeToFirstReview  float64
 }
+
+// MemberActivity represents a single activity item in the timeline
+type MemberActivity struct {
+	ID             string         `json:"id"`
+	Type           string         `json:"type"` // "pull_request", "pr_review", "pr_comment"
+	Title          string         `json:"title"`
+	Description    string         `json:"description,omitempty"`
+	URL            string         `json:"url,omitempty"`
+	Repository     string         `json:"repository,omitempty"`
+	CreatedAt      time.Time      `json:"createdAt"`
+	Metadata       datatypes.JSON `json:"metadata,omitempty"`
+	AuthorUsername string         `json:"authorUsername,omitempty"`
+}
+
+// MemberActivityParams represents the parameters for querying member activity
+type MemberActivityParams struct {
+	MemberID  string
+	StartDate *time.Time
+	EndDate   *time.Time
+}

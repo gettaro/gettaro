@@ -216,6 +216,48 @@ components:
           items:
             $ref: "#/components/schemas/SourceControlAccount"
 
+    GetMemberActivityResponse:
+      type: object
+      properties:
+        activities:
+          type: array
+          items:
+            $ref: "#/components/schemas/MemberActivity"
+
+    MemberActivity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [pull_request, pr_review, pr_comment]
+          description: Type of activity
+        title:
+          type: string
+          description: Title or main content of the activity
+        description:
+          type: string
+          nullable: true
+          description: Optional description of the activity
+        url:
+          type: string
+          nullable: true
+          description: URL to the activity (for pull requests)
+        repository:
+          type: string
+          nullable: true
+          description: Repository name where the activity occurred
+        createdAt:
+          type: string
+          format: date-time
+          description: When the activity was created
+        metadata:
+          type: object
+          nullable: true
+          description: Additional metadata about the activity
+
 paths:
   /users:
     get:
@@ -878,6 +920,47 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ListOrganizationSourceControlAccountsResponse"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - User is not an organization member
+        "500":
+          description: Internal server error
+      security:
+        - bearerAuth: []
+
+  /organizations/{id}/members/{memberId}/sourcecontrol/activity:
+    get:
+      summary: Get member source control activity
+      description: Returns a timeline of source control activities for a specific member including pull requests, reviews, and comments
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+          description: Organization ID
+        - in: path
+          name: memberId
+          schema: { type: string, format: uuid }
+          required: true
+          description: Member ID
+        - in: query
+          name: startDate
+          schema: { type: string, format: date }
+          description: Start date for filtering activities (YYYY-MM-DD format)
+        - in: query
+          name: endDate
+          schema: { type: string, format: date }
+          description: End date for filtering activities (YYYY-MM-DD format)
+      responses:
+        "200":
+          description: Timeline of member activities
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetMemberActivityResponse"
         "400":
           description: Bad request
         "401":

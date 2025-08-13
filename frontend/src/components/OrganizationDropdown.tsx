@@ -6,7 +6,7 @@ import CreateOrganizationModal from './CreateOrganizationModal'
 export default function OrganizationDropdown() {
   const [isOpen, setIsOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const { currentOrganization, organizations, setCurrentOrganization, fetchOrganizations, isLoading: isLoadingOrgs, error } = useOrganizationStore()
+  const { currentOrganization, organizations, setCurrentOrganization, fetchOrganizations, isLoading: isLoadingOrgs } = useOrganizationStore()
 
   useEffect(() => {
       fetchOrganizations()

@@ -9,6 +9,7 @@ import (
 	"ems.dev/backend/services/sourcecontrol/types"
 )
 
+// SourceControlAPI defines the interface for source control operations
 type SourceControlAPI interface {
 	// Source Control Accounts
 	GetSourceControlAccountsByUsernames(ctx context.Context, usernames []string) (map[string]*types.SourceControlAccount, error)
@@ -21,10 +22,14 @@ type SourceControlAPI interface {
 	GetPullRequests(ctx context.Context, params *types.PullRequestParams) ([]*types.PullRequest, error)
 	CreatePullRequests(ctx context.Context, prs []*types.PullRequest) error
 	UpdatePullRequest(ctx context.Context, pr *types.PullRequest) error
-	GetPullRequestMetrics(ctx context.Context, orgID string, userIDs []string, startDate, endDate *time.Time) (*types.PullRequestMetrics, error)
+	GetPullRequestMetrics(ctx context.Context, params *types.PullRequestParams) (*types.PullRequestMetrics, error)
 
 	// Comments
 	CreatePRComments(ctx context.Context, comments []*types.PRComment) error
+	GetPullRequestComments(ctx context.Context, prID string) ([]*types.PRComment, error)
+
+	// Member Activity
+	GetMemberActivity(ctx context.Context, params *types.MemberActivityParams) ([]*types.MemberActivity, error)
 }
 
 type Api struct {
@@ -69,6 +74,11 @@ func (a *Api) CreatePRComments(ctx context.Context, comments []*types.PRComment)
 	return a.db.CreatePRComments(ctx, comments)
 }
 
+// GetPullRequestComments retrieves all comments for a specific pull request
+func (a *Api) GetPullRequestComments(ctx context.Context, prID string) ([]*types.PRComment, error) {
+	return a.db.GetPullRequestComments(ctx, prID)
+}
+
 func (a *Api) UpdatePullRequest(ctx context.Context, pr *types.PullRequest) error {
 	return a.db.UpdatePullRequest(ctx, pr)
 }
@@ -76,10 +86,7 @@ func (a *Api) UpdatePullRequest(ctx context.Context, pr *types.PullRequest) erro
 // GetPullRequestMetrics handles the retrieval of pull request metrics for an organization.
 // Params:
 // - ctx: The context for the request, used for cancellation and timeouts
-// - orgID: The organization ID to filter pull requests by
-// - userIDs: Optional list of user IDs to filter pull requests by
-// - startDate: Optional start date for the time range filter
-// - endDate: Optional end date for the time range filter
+// - params: The parameters for filtering pull requests
 // Returns:
 // - *types.PullRequestMetrics: The calculated metrics including:
 //   - Number of merged PRs
@@ -93,17 +100,10 @@ func (a *Api) UpdatePullRequest(ctx context.Context, pr *types.PullRequest) erro
 // - Performs calculations on the fetched data
 func (s *Api) GetPullRequestMetrics(
 	ctx context.Context,
-	orgID string,
-	userIDs []string,
-	startDate, endDate *time.Time,
+	params *types.PullRequestParams,
 ) (*types.PullRequestMetrics, error) {
 	// Get pull requests from database
-	prs, err := s.db.GetPullRequests(ctx, &types.PullRequestParams{
-		OrganizationID: &orgID,
-		UserIDs:        userIDs,
-		StartDate:      startDate,
-		EndDate:        endDate,
-	})
+	prs, err := s.db.GetPullRequests(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -148,4 +148,17 @@ func (s *Api) GetPullRequestMetrics(
 	}
 
 	return metrics, nil
+}
+
+// GetMemberActivity handles the retrieval of source control activity timeline for a specific member.
+// Params:
+// - ctx: The context for the request, used for cancellation and timeouts
+// - params: The parameters containing member ID and optional date range filters
+// Returns:
+// - []*types.MemberActivity: A timeline of activities including pull requests and comments
+// - error: If any error occurs during the retrieval
+// Side Effects:
+// - Makes a database query to fetch member activities
+func (a *Api) GetMemberActivity(ctx context.Context, params *types.MemberActivityParams) ([]*types.MemberActivity, error) {
+	return a.db.GetMemberActivity(ctx, params)
 }
