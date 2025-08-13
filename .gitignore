@@ -55,3 +55,5 @@ postgres_data/
 __debug*
 *secrets.sh
 /frontend2/temp-vite
+
+backend/main
