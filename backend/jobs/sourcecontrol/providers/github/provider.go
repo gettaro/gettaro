@@ -260,6 +260,7 @@ func (p *GitHubProvider) upsertAuthor(ctx context.Context, organizationID string
 		}
 	}
 
+	// Get the member ID for this user in this org username
 	// For now, we'll create the account without member_id and let the application handle the association later
 	metadata, _ := json.Marshal(user)
 	newAccount := &internaltypes.SourceControlAccount{

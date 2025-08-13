@@ -171,7 +171,6 @@ model SourceControlAccount {
 model PullRequest {
   id                     String   @id @default(uuid())
   sourceControlAccountId String
-  organizationId         String
   providerId             String
   url                    String
   title                  String
@@ -191,7 +190,6 @@ model PullRequest {
   metadata               Json?
 
   account    SourceControlAccount @relation(fields: [sourceControlAccountId], references: [id], onDelete: Cascade)
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   comments   PRComment[]
 }
 

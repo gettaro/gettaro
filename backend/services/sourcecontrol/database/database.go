@@ -63,22 +63,23 @@ func (d *SourceControlDB) CreateSourceControlAccounts(ctx context.Context, accou
 func (d *SourceControlDB) GetPullRequests(ctx context.Context, params *types.PullRequestParams) ([]*types.PullRequest, error) {
 	var prs []types.PullRequest
 	query := d.db.WithContext(ctx).Model(&types.PullRequest{})
+	query = query.Joins(`
+		JOIN source_control_accounts sca ON pull_requests.source_control_account_id = sca.id
+		JOIN organization_members om ON sca.member_id = om.id
+	`)
 
 	if params.ProviderID != "" {
 		query = query.Where("provider_id = ?", params.ProviderID)
 	}
 	if params.OrganizationID != nil {
-		query = query.Where("organization_id = ?", *params.OrganizationID)
+		query = query.Where("sca.organization_id = ?", *params.OrganizationID)
 	}
 	if params.RepositoryName != "" {
 		query = query.Where("repository_name = ?", params.RepositoryName)
 	}
 	// Add user IDs filter if provided - convert to member IDs
 	if len(params.UserIDs) > 0 {
-		query = query.Joins(`
-			JOIN source_control_accounts sca ON pull_requests.source_control_account_id = sca.id
-			JOIN organization_members om ON sca.member_id = om.id
-		`).Where("om.user_id IN ?", params.UserIDs)
+		query = query.Where("om.user_id IN ?", params.UserIDs)
 	}
 	// Add date range filters if provided
 	if params.StartDate != nil {
