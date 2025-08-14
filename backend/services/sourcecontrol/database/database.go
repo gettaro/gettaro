@@ -166,17 +166,20 @@ func (d *SourceControlDB) GetSourceControlAccountsByOrganization(ctx context.Con
 func (d *SourceControlDB) GetMemberActivity(ctx context.Context, params *types.MemberActivityParams) ([]*types.MemberActivity, error) {
 	var activities []*types.MemberActivity
 
-	// Build date filter conditions
-	var dateFilter string
+	// Build date filter conditions for PRs
+	var prDateFilter string
+	var commentDateFilter string
 	var args []interface{}
 	args = append(args, params.MemberID)
 
 	if params.StartDate != nil {
-		dateFilter += " AND pr.created_at >= ?"
+		prDateFilter += " AND pr.created_at >= ?"
+		commentDateFilter += " AND pc.created_at >= ?"
 		args = append(args, params.StartDate)
 	}
 	if params.EndDate != nil {
-		dateFilter += " AND pr.created_at <= ?"
+		prDateFilter += " AND pr.created_at <= ?"
+		commentDateFilter += " AND pc.created_at <= ?"
 		args = append(args, params.EndDate)
 	}
 
@@ -196,7 +199,7 @@ func (d *SourceControlDB) GetMemberActivity(ctx context.Context, params *types.M
 			NULL as pr_author_username
 		FROM pull_requests pr
 		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
-		WHERE sca.member_id = ?` + dateFilter + `
+		WHERE sca.member_id = ?` + prDateFilter + `
 		ORDER BY pr.created_at DESC
 	`
 
@@ -226,7 +229,7 @@ func (d *SourceControlDB) GetMemberActivity(ctx context.Context, params *types.M
 		JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
 		JOIN source_control_accounts pr_author ON pr.source_control_account_id = pr_author.id
 		WHERE sca.member_id = ? 
-		AND sca.id != pr.source_control_account_id` + dateFilter + `
+		AND sca.id != pr.source_control_account_id` + commentDateFilter + `
 		ORDER BY pc.created_at DESC
 	`
 
