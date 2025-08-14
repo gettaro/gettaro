@@ -121,7 +121,18 @@ func (d *SourceControlDB) UpdatePullRequest(ctx context.Context, pr *types.PullR
 
 // UpdateSourceControlAccount updates an existing source control account
 func (d *SourceControlDB) UpdateSourceControlAccount(ctx context.Context, account *types.SourceControlAccount) error {
-	return d.db.WithContext(ctx).Model(account).Updates(account).Error
+	// Use explicit field updates to handle nil values properly
+	updates := map[string]interface{}{
+		"member_id":       account.MemberID,
+		"organization_id": account.OrganizationID,
+		"provider_name":   account.ProviderName,
+		"provider_id":     account.ProviderID,
+		"username":        account.Username,
+		"metadata":        account.Metadata,
+		"last_synced_at":  account.LastSyncedAt,
+	}
+
+	return d.db.WithContext(ctx).Model(account).Updates(updates).Error
 }
 
 // GetSourceControlAccount retrieves a source control account by ID
@@ -153,7 +164,7 @@ func (d *SourceControlDB) GetSourceControlAccountsByOrganization(ctx context.Con
 
 // GetMemberActivity retrieves a timeline of source control activities for a specific member
 func (d *SourceControlDB) GetMemberActivity(ctx context.Context, params *types.MemberActivityParams) ([]*types.MemberActivity, error) {
-	var activities []types.MemberActivity
+	var activities []*types.MemberActivity
 
 	// Build date filter conditions
 	var dateFilter string
@@ -169,9 +180,9 @@ func (d *SourceControlDB) GetMemberActivity(ctx context.Context, params *types.M
 		args = append(args, params.EndDate)
 	}
 
-	// Get pull requests with their activities for the member
-	query := `
-		SELECT DISTINCT
+	// Get pull requests created by the member
+	prQuery := `
+		SELECT 
 			pr.id,
 			'pull_request' as type,
 			pr.title,
@@ -180,58 +191,56 @@ func (d *SourceControlDB) GetMemberActivity(ctx context.Context, params *types.M
 			COALESCE(pr.repository_name, '') as repository,
 			pr.created_at,
 			COALESCE(pr.metadata, '{}'::jsonb) as metadata,
-			sca.username as author_username
+			sca.username as author_username,
+			NULL as pr_title,
+			NULL as pr_author_username
 		FROM pull_requests pr
 		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
-		WHERE EXISTS (
-			SELECT 1 FROM source_control_accounts sca2
-			WHERE sca2.id = pr.source_control_account_id 
-			AND sca2.member_id = ?
-		)` + dateFilter + `
+		WHERE sca.member_id = ?` + dateFilter + `
 		ORDER BY pr.created_at DESC
 	`
 
-	var prActivities []types.MemberActivity
-	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&prActivities).Error; err != nil {
+	var prs []types.MemberActivity
+	if err := d.db.WithContext(ctx).Raw(prQuery, args...).Scan(&prs).Error; err != nil {
 		return nil, err
 	}
 
-	// For each PR, get its comments and reviews
-	for _, pr := range prActivities {
-		// Get comments for this PR
-		commentQuery := `
-			SELECT 
-				pc.id,
-				CASE 
-					WHEN pc.type = 'REVIEW' THEN 'pr_review'
-					ELSE 'pr_comment'
-				END as type,
-				pr.title as title,
-				pc.body as description,
-				pr.url as url,
-				pr.repository_name as repository,
-				pc.created_at,
-				'{}'::jsonb as metadata,
-				sca.username as author_username
-			FROM pr_comments pc
-			JOIN pull_requests pr ON pc.pr_id = pr.id
-			JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
-			WHERE pc.pr_id = ? AND EXISTS (
-				SELECT 1 FROM source_control_accounts sca2
-				WHERE sca2.id = pc.source_control_account_id 
-				AND sca2.member_id = ?
-			)
-			ORDER BY pc.created_at DESC
-		`
+	// Get comments and reviews by the member on other people's PRs
+	commentQuery := `
+		SELECT 
+			pc.id,
+			CASE 
+				WHEN pc.type = 'REVIEW' THEN 'pr_review'
+				ELSE 'pr_comment'
+			END as type,
+			pc.body as description,
+			pr.url as url,
+			pr.repository_name as repository,
+			pc.created_at,
+			'{}'::jsonb as metadata,
+			sca.username as author_username,
+			pr.title as pr_title,
+			pr_author.username as pr_author_username
+		FROM pr_comments pc
+		JOIN pull_requests pr ON pc.pr_id = pr.id
+		JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+		JOIN source_control_accounts pr_author ON pr.source_control_account_id = pr_author.id
+		WHERE sca.member_id = ? 
+		AND sca.id != pr.source_control_account_id` + dateFilter + `
+		ORDER BY pc.created_at DESC
+	`
 
-		var comments []types.MemberActivity
-		if err := d.db.WithContext(ctx).Raw(commentQuery, pr.ID, params.MemberID).Scan(&comments).Error; err != nil {
-			return nil, err
-		}
+	var comments []types.MemberActivity
+	if err := d.db.WithContext(ctx).Raw(commentQuery, args...).Scan(&comments).Error; err != nil {
+		return nil, err
+	}
 
-		// Add comments to the activities
-		activities = append(activities, pr)
-		activities = append(activities, comments...)
+	// Convert to pointers and combine
+	for i := range prs {
+		activities = append(activities, &prs[i])
+	}
+	for i := range comments {
+		activities = append(activities, &comments[i])
 	}
 
 	// Sort all activities by creation date (newest first)
@@ -243,11 +252,7 @@ func (d *SourceControlDB) GetMemberActivity(ctx context.Context, params *types.M
 		}
 	}
 
-	result := make([]*types.MemberActivity, len(activities))
-	for i := range activities {
-		result[i] = &activities[i]
-	}
-	return result, nil
+	return activities, nil
 }
 
 // GetPullRequestComments retrieves all comments for a specific pull request

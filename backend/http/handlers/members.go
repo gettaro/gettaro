@@ -145,7 +145,7 @@ func (h *MemberHandler) RemoveOrganizationMember(c *gin.Context) {
 	}
 
 	if err := h.memberApi.RemoveOrganizationMember(c.Request.Context(), orgID, member.UserID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.HandleError(c, err)
 		return
 	}
 

@@ -8,6 +8,8 @@ export interface MemberActivity {
   createdAt: string
   metadata?: Record<string, any>
   authorUsername?: string
+  prTitle?: string          // For comments/reviews: the PR title
+  prAuthorUsername?: string // For comments/reviews: the PR author
 }
 
 export interface GetMemberActivityResponse {

@@ -326,15 +326,17 @@ func (h *SourceControlHandler) GetMemberActivity(c *gin.Context) {
 		authorUsername := activity.AuthorUsername
 
 		response.Activities[i] = types.MemberActivity{
-			ID:             activity.ID,
-			Type:           activity.Type,
-			Title:          activity.Title,
-			Description:    activity.Description,
-			URL:            activity.URL,
-			Repository:     activity.Repository,
-			CreatedAt:      activity.CreatedAt,
-			Metadata:       metadata,
-			AuthorUsername: authorUsername,
+			ID:               activity.ID,
+			Type:             activity.Type,
+			Title:            activity.Title,
+			Description:      activity.Description,
+			URL:              activity.URL,
+			Repository:       activity.Repository,
+			CreatedAt:        activity.CreatedAt,
+			Metadata:         metadata,
+			AuthorUsername:   authorUsername,
+			PRTitle:          activity.PRTitle,
+			PRAuthorUsername: activity.PRAuthorUsername,
 		}
 	}
 

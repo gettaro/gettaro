@@ -257,6 +257,18 @@ components:
           type: object
           nullable: true
           description: Additional metadata about the activity
+        authorUsername:
+          type: string
+          nullable: true
+          description: Username of the author for pull requests
+        prTitle:
+          type: string
+          nullable: true
+          description: For comments/reviews, the title of the PR being commented on
+        prAuthorUsername:
+          type: string
+          nullable: true
+          description: For comments/reviews, the username of the PR author
 
 paths:
   /users:

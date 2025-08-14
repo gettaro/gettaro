@@ -118,13 +118,6 @@ func (a *Api) IsOrganizationOwner(ctx context.Context, orgID string, userID stri
 
 // UpdateOrganizationMember updates a member's details in an organization
 func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, memberID string, titleID string, sourceControlAccountID string, username string) error {
-	// Note: Title validation will be handled by the database foreign key constraint
-	// Get the source control account
-	sourceControlAccount, err := a.sourceControlApi.GetSourceControlAccount(ctx, sourceControlAccountID)
-	if err != nil {
-		return errors.NewNotFoundError("source control account not found")
-	}
-
 	// Check if the member exists by member ID
 	existingMember, err := a.db.GetOrganizationMemberByID(ctx, memberID)
 	if err != nil {
@@ -139,15 +132,44 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, member
 		return errors.NewNotFoundError("member not found in this organization")
 	}
 
+	// Verify the new source control account exists and belongs to the organization
+	newSourceControlAccount, err := a.sourceControlApi.GetSourceControlAccount(ctx, sourceControlAccountID)
+	if err != nil {
+		return errors.NewNotFoundError("source control account not found")
+	}
+
+	// Check if the source control account belongs to the organization
+	if newSourceControlAccount.OrganizationID == nil || *newSourceControlAccount.OrganizationID != orgID {
+		return errors.NewNotFoundError("source control account does not belong to this organization")
+	}
+
 	// Update the username and title_id in the organization_members table
 	err = a.db.UpdateOrganizationMember(orgID, existingMember.UserID, username, &titleID)
 	if err != nil {
 		return err
 	}
 
-	// Update the source control account with member_id
-	sourceControlAccount.MemberID = &memberID
-	err = a.sourceControlApi.UpdateSourceControlAccount(ctx, sourceControlAccount)
+	// First, remove the member_id from any existing source control accounts for this member
+	// This ensures we don't have multiple accounts pointing to the same member
+	existingAccounts, err := a.sourceControlApi.GetSourceControlAccountsByOrganization(ctx, orgID)
+	if err != nil {
+		return err
+	}
+
+	for _, account := range existingAccounts {
+		if account.MemberID != nil && *account.MemberID == memberID {
+			// Clear the member_id from this account
+			account.MemberID = nil
+			err = a.sourceControlApi.UpdateSourceControlAccount(ctx, account)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Now assign the new source control account to this member
+	newSourceControlAccount.MemberID = &memberID
+	err = a.sourceControlApi.UpdateSourceControlAccount(ctx, newSourceControlAccount)
 	if err != nil {
 		return err
 	}
