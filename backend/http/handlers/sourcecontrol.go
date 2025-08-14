@@ -297,11 +297,30 @@ func (h *SourceControlHandler) GetMemberActivity(c *gin.Context) {
 		return
 	}
 
+	// Parse dates if provided
+	var startDate, endDate *time.Time
+	if query.StartDate != "" {
+		parsed, err := time.Parse("2006-01-02", query.StartDate)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid startDate format, expected YYYY-MM-DD"})
+			return
+		}
+		startDate = &parsed
+	}
+	if query.EndDate != "" {
+		parsed, err := time.Parse("2006-01-02", query.EndDate)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid endDate format, expected YYYY-MM-DD"})
+			return
+		}
+		endDate = &parsed
+	}
+
 	// Get member activity from service
 	activities, err := h.scApi.GetMemberActivity(c.Request.Context(), &servicetypes.MemberActivityParams{
 		MemberID:  memberID,
-		StartDate: query.StartDate,
-		EndDate:   query.EndDate,
+		StartDate: startDate,
+		EndDate:   endDate,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

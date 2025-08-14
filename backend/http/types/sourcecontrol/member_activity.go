@@ -4,8 +4,8 @@ import "time"
 
 // GetMemberActivityRequest represents the request parameters for getting member activity
 type GetMemberActivityRequest struct {
-	StartDate *time.Time `form:"startDate" binding:"omitempty"`
-	EndDate   *time.Time `form:"endDate" binding:"omitempty"`
+	StartDate string `form:"startDate" binding:"omitempty"`
+	EndDate   string `form:"endDate" binding:"omitempty"`
 }
 
 // MemberActivity represents a single activity item in the timeline
