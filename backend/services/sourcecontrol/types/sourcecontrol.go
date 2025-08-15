@@ -82,12 +82,65 @@ type MemberActivity struct {
 	AuthorUsername   string         `json:"authorUsername,omitempty"`
 	PRTitle          string         `json:"prTitle,omitempty"`          // For comments/reviews: the PR title
 	PRAuthorUsername string         `json:"prAuthorUsername,omitempty"` // For comments/reviews: the PR author
-	PRMetrics        datatypes.JSON `json:"prMetrics,omitempty"`
+	PRMetrics        datatypes.JSON `json:"prMetrics,omitempty"`        // Added PRMetrics
 }
 
-// MemberActivityParams represents the parameters for querying member activity
+// MemberActivityParams represents the parameters for getting member activity
 type MemberActivityParams struct {
-	MemberID  string
-	StartDate *time.Time
-	EndDate   *time.Time
+	MemberID  string     `json:"memberId"`
+	StartDate *time.Time `json:"startDate,omitempty"`
+	EndDate   *time.Time `json:"endDate,omitempty"`
+}
+
+// MemberMetricsParams represents the parameters for getting member metrics
+type MemberMetricsParams struct {
+	MemberID  string     `json:"memberId"`
+	StartDate *time.Time `json:"startDate,omitempty"`
+	EndDate   *time.Time `json:"endDate,omitempty"`
+	Interval  string     `json:"interval,omitempty"` // daily, weekly, monthly
+}
+
+// SnapshotMetric represents a single metric in the snapshot
+type SnapshotMetric struct {
+	Label      string  `json:"label"`
+	Value      float64 `json:"value"`
+	PeersValue float64 `json:"peersValue"`
+	Unit       string  `json:"unit"` // "count", "time", "loc", etc.
+}
+
+// SnapshotCategory represents a category of metrics in the snapshot
+type SnapshotCategory struct {
+	Category string           `json:"category"`
+	Metrics  []SnapshotMetric `json:"metrics"`
+}
+
+// TimeSeriesDataPoint represents a single data point in a time series
+type TimeSeriesDataPoint struct {
+	Key   string  `json:"key"`
+	Value float64 `json:"value"`
+}
+
+// TimeSeriesEntry represents a single time entry in a time series
+type TimeSeriesEntry struct {
+	Date string                `json:"date"`
+	Data []TimeSeriesDataPoint `json:"data"`
+}
+
+// GraphMetric represents a single metric in the graph data
+type GraphMetric struct {
+	Label      string            `json:"label"`
+	Type       string            `json:"type"`
+	TimeSeries []TimeSeriesEntry `json:"timeSeries"`
+}
+
+// GraphCategory represents a category of metrics in the graph data
+type GraphCategory struct {
+	Category string        `json:"category"`
+	Metrics  []GraphMetric `json:"metrics"`
+}
+
+// MemberMetricsResponse represents the response for getting member metrics
+type MemberMetricsResponse struct {
+	SnapshotMetrics []SnapshotCategory `json:"snapshotMetrics"`
+	GraphMetrics    []GraphCategory    `json:"graphMetrics"`
 }

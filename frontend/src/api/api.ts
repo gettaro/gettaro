@@ -5,6 +5,7 @@ import { Title, CreateTitleRequest, UpdateTitleRequest } from '../types/title'
 import { Member, AddMemberRequest, UpdateMemberRequest } from '../types/member'
 import { SourceControlAccount } from '../types/sourcecontrol'
 import { GetMemberActivityParams, MemberActivity } from '../types/memberActivity'
+import { GetMemberMetricsParams, GetMemberMetricsResponse } from '../types/memberMetrics'
 
 export default class Api {
   private static API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
@@ -259,18 +260,61 @@ export default class Api {
   }
 
   // Member Activity API functions
-  static async getMemberActivity(organizationId: string, memberId: string, params?: GetMemberActivityParams): Promise<MemberActivity[]> {
-    let url = `/organizations/${organizationId}/members/${memberId}/sourcecontrol/activity`
+  static async getMemberActivity(organizationId: string, memberId: string, params: GetMemberActivityParams): Promise<MemberActivity[]> {
+    const token = this.accessToken
+    const queryParams = new URLSearchParams()
     
-    if (params?.startDate || params?.endDate) {
-      const queryParams = new URLSearchParams()
-      if (params.startDate) queryParams.append('startDate', params.startDate)
-      if (params.endDate) queryParams.append('endDate', params.endDate)
-      url += `?${queryParams.toString()}`
+    if (params.startDate) {
+      queryParams.append('startDate', params.startDate)
     }
+    if (params.endDate) {
+      queryParams.append('endDate', params.endDate)
+    }
+
+    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/sourcecontrol/activity?${queryParams}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to get member activity: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    return data.activities
+  }
+
+  // Get member source control metrics
+  static async getMemberMetrics(organizationId: string, memberId: string, params: GetMemberMetricsParams): Promise<GetMemberMetricsResponse> {
+    const token = this.accessToken
+    const queryParams = new URLSearchParams()
     
-    const response = await this.get(url)
-    return response.activities
+    if (params.startDate) {
+      queryParams.append('startDate', params.startDate)
+    }
+    if (params.endDate) {
+      queryParams.append('endDate', params.endDate)
+    }
+    if (params.interval) {
+      queryParams.append('interval', params.interval)
+    }
+
+    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/sourcecontrol/metrics?${queryParams}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to get member metrics: ${response.statusText}`)
+    }
+
+    return await response.json()
   }
 
   // Source Control Account API functions

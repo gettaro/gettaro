@@ -224,6 +224,93 @@ components:
           items:
             $ref: "#/components/schemas/MemberActivity"
 
+    GetMemberMetricsResponse:
+      type: object
+      properties:
+        snapshotMetrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/SnapshotCategory"
+        graphMetrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphCategory"
+
+    SnapshotCategory:
+      type: object
+      properties:
+        category:
+          type: string
+          description: Category name (e.g., "Activity", "Efficiency", "Collaboration")
+        metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/SnapshotMetric"
+
+    SnapshotMetric:
+      type: object
+      properties:
+        label:
+          type: string
+          description: Metric label (e.g., "Merged PRs", "LoC Added")
+        value:
+          type: number
+          format: float
+          description: Member's metric value
+        peersValue:
+          type: number
+          format: float
+          description: Average peer metric value for comparison
+
+    GraphCategory:
+      type: object
+      properties:
+        category:
+          type: string
+          description: Category name for graph metrics
+        metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphMetric"
+
+    GraphMetric:
+      type: object
+      properties:
+        label:
+          type: string
+          description: Metric label for the graph
+        type:
+          type: string
+          enum: [timeseries]
+          description: Type of graph visualization
+        timeSeries:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeSeriesEntry"
+
+    TimeSeriesEntry:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          description: Date for the time series entry
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeSeriesDataPoint"
+
+    TimeSeriesDataPoint:
+      type: object
+      properties:
+        key:
+          type: string
+          description: Data series key (e.g., "Merged PRs", "Peers merged PRs")
+        value:
+          type: number
+          format: float
+          description: Data point value
+
     MemberActivity:
       type: object
       properties:
@@ -269,6 +356,20 @@ components:
           type: string
           nullable: true
           description: For comments/reviews, the username of the PR author
+
+    GetMemberMetricsResponse:
+      type: object
+      properties:
+        merged_prs_count:
+          type: integer
+        open_prs_count:
+          type: integer
+        mean_publish_to_merge_time:
+          type: number
+          format: float
+        mean_time_to_first_review:
+          type: number
+          format: float
 
 paths:
   /users:
@@ -946,43 +1047,103 @@ paths:
   /organizations/{id}/members/{memberId}/sourcecontrol/activity:
     get:
       summary: Get member source control activity
-      description: Returns a timeline of source control activities for a specific member including pull requests, reviews, and comments
+      description: Retrieves a timeline of source control activities for a specific member
       parameters:
-        - in: path
-          name: id
-          schema: { type: string, format: uuid }
+        - name: id
+          in: path
           required: true
+          schema:
+            type: string
+            format: uuid
           description: Organization ID
-        - in: path
-          name: memberId
-          schema: { type: string, format: uuid }
+        - name: memberId
+          in: path
           required: true
+          schema:
+            type: string
+            format: uuid
           description: Member ID
-        - in: query
-          name: startDate
-          schema: { type: string, format: date }
-          description: Start date for filtering activities (YYYY-MM-DD format)
-        - in: query
-          name: endDate
-          schema: { type: string, format: date }
-          description: End date for filtering activities (YYYY-MM-DD format)
+        - name: startDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Start date for filtering (YYYY-MM-DD)
+        - name: endDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: End date for filtering (YYYY-MM-DD)
       responses:
         "200":
-          description: Timeline of member activities
+          description: Member activity timeline retrieved successfully
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/GetMemberActivityResponse"
         "400":
-          description: Bad request
+          $ref: "#/components/responses/BadRequest"
         "401":
-          description: Unauthorized
-        "403":
-          description: Forbidden - User is not an organization member
+          $ref: "#/components/responses/Unauthorized"
         "500":
-          description: Internal server error
-      security:
-        - bearerAuth: []
+          $ref: "#/components/responses/InternalServerError"
+
+  /organizations/{id}/members/{memberId}/sourcecontrol/metrics:
+    get:
+      summary: Get member source control metrics
+      description: Retrieves source control metrics for a specific member with peer comparison
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Organization ID
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Member ID
+        - name: startDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Start date for filtering (YYYY-MM-DD)
+        - name: endDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: End date for filtering (YYYY-MM-DD)
+        - name: interval
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [daily, weekly, monthly]
+          description: Time interval for graph metrics
+      responses:
+        "200":
+          description: Member metrics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetMemberMetricsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /teams:
     get:

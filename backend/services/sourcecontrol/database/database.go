@@ -2,6 +2,8 @@ package database
 
 import (
 	"context"
+	"encoding/json"
+	"time"
 
 	"ems.dev/backend/services/sourcecontrol/types"
 	"gorm.io/gorm"
@@ -27,6 +29,9 @@ type DB interface {
 
 	// Member Activity
 	GetMemberActivity(ctx context.Context, params *types.MemberActivityParams) ([]*types.MemberActivity, error)
+
+	// GetMemberMetrics retrieves source control metrics for a specific member
+	GetMemberMetrics(ctx context.Context, params *types.MemberMetricsParams) (*types.MemberMetricsResponse, error)
 }
 
 type SourceControlDB struct {
@@ -206,7 +211,7 @@ func (d *SourceControlDB) GetMemberActivity(ctx context.Context, params *types.M
 			pr.metrics as pr_metrics
 		FROM pull_requests pr
 		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
-		WHERE sca.member_id = ?` + prDateFilter + `
+		WHERE sca.member_id = ? AND pr.merged_at is not null` + prDateFilter + `
 		ORDER BY pr.created_at DESC
 	`
 
@@ -254,16 +259,390 @@ func (d *SourceControlDB) GetMemberActivity(ctx context.Context, params *types.M
 		activities = append(activities, &comments[i])
 	}
 
-	// Sort all activities by creation date (newest first)
-	for i := 0; i < len(activities)-1; i++ {
-		for j := i + 1; j < len(activities); j++ {
-			if activities[i].CreatedAt.Before(activities[j].CreatedAt) {
-				activities[i], activities[j] = activities[j], activities[i]
+	return activities, nil
+}
+
+// GetMemberMetrics retrieves source control metrics for a specific member
+func (d *SourceControlDB) GetMemberMetrics(ctx context.Context, params *types.MemberMetricsParams) (*types.MemberMetricsResponse, error) {
+	// Build date filter conditions
+	var dateFilter string
+	var args []interface{}
+	args = append(args, params.MemberID)
+
+	if params.StartDate != nil {
+		dateFilter += " AND pr.created_at >= ?"
+		args = append(args, params.StartDate)
+	}
+	if params.EndDate != nil {
+		dateFilter += " AND pr.created_at <= ?"
+		args = append(args, params.EndDate)
+	}
+
+	// Get member's activities for metrics calculation
+	activities, err := d.GetMemberActivity(ctx, &types.MemberActivityParams{
+		MemberID:  params.MemberID,
+		StartDate: params.StartDate,
+		EndDate:   params.EndDate,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Get organization ID for peer comparison
+	var orgID string
+	if err := d.db.WithContext(ctx).Raw(`
+		SELECT om.organization_id 
+		FROM organization_members om 
+		WHERE om.id = ?
+	`, params.MemberID).Scan(&orgID).Error; err != nil {
+		return nil, err
+	}
+
+	// Get peer metrics for comparison
+	peerMetrics, err := d.getPeerMetrics(ctx, orgID, params.MemberID, params.StartDate, params.EndDate)
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate snapshot metrics
+	snapshotMetrics := d.calculateSnapshotMetrics(activities, peerMetrics)
+
+	// Calculate graph metrics
+	graphMetrics := d.calculateGraphMetrics(activities, peerMetrics, params.Interval)
+
+	return &types.MemberMetricsResponse{
+		SnapshotMetrics: snapshotMetrics,
+		GraphMetrics:    graphMetrics,
+	}, nil
+}
+
+// getPeerMetrics calculates average metrics for other members in the same organization with the same title
+func (d *SourceControlDB) getPeerMetrics(ctx context.Context, orgID, excludeMemberID string, startDate, endDate *time.Time) (map[string]float64, error) {
+	// First, get the member's title
+	var memberTitleID *string
+	if err := d.db.WithContext(ctx).Raw(`
+		SELECT title_id 
+		FROM organization_members om 
+		WHERE om.id = ?
+	`, excludeMemberID).Scan(&memberTitleID).Error; err != nil {
+		return nil, err
+	}
+
+	// If member has no title, return empty metrics (no peers to compare against)
+	if memberTitleID == nil {
+		return make(map[string]float64), nil
+	}
+
+	peerMetrics := make(map[string]float64)
+
+	// Query pull request metrics for peers with same title
+	prMetrics, err := d.getPeerPullRequestMetrics(ctx, orgID, *memberTitleID, excludeMemberID, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	// Query review metrics for peers with same title
+	reviewMetrics, err := d.getPeerReviewMetrics(ctx, orgID, *memberTitleID, excludeMemberID, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	// Query comment metrics for peers with same title
+	commentMetrics, err := d.getPeerCommentMetrics(ctx, orgID, *memberTitleID, excludeMemberID, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	// Merge all metrics
+	for k, v := range prMetrics {
+		peerMetrics[k] = v
+	}
+	for k, v := range reviewMetrics {
+		peerMetrics[k] = v
+	}
+	for k, v := range commentMetrics {
+		peerMetrics[k] = v
+	}
+
+	return peerMetrics, nil
+}
+
+// getPeerPullRequestMetrics gets pull request metrics for peers
+func (d *SourceControlDB) getPeerPullRequestMetrics(ctx context.Context, orgID, titleID, excludeMemberID string, startDate, endDate *time.Time) (map[string]float64, error) {
+	query := `
+		SELECT 
+			COUNT(*) as pr_count,
+			COALESCE(SUM(CAST(pr.metadata->>'additions' AS BIGINT)), 0) as total_additions,
+			COALESCE(SUM(CAST(pr.metadata->>'deletions' AS BIGINT)), 0) as total_deletions,
+			COALESCE(AVG(CAST(pr.metrics->>'time_to_merge_seconds' AS BIGINT)), 0) as avg_merge_time,
+			COALESCE(AVG(CAST(pr.metrics->>'time_to_first_non_bot_review_seconds' AS BIGINT)), 0) as avg_review_time
+		FROM pull_requests pr
+		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		JOIN organization_members om ON sca.member_id = om.id
+		WHERE om.organization_id = ? AND om.title_id = ? AND om.id != ? AND pr.status = 'merged'
+	`
+
+	var args []interface{}
+	args = append(args, orgID, titleID, excludeMemberID)
+
+	if startDate != nil {
+		query += " AND pr.created_at >= ?"
+		args = append(args, startDate)
+	}
+	if endDate != nil {
+		query += " AND pr.created_at <= ?"
+		args = append(args, endDate)
+	}
+
+	var result struct {
+		PRCount        int64   `json:"pr_count"`
+		TotalAdditions int64   `json:"total_additions"`
+		TotalDeletions int64   `json:"total_deletions"`
+		AvgMergeTime   float64 `json:"avg_merge_time"`
+		AvgReviewTime  float64 `json:"avg_review_time"`
+	}
+
+	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&result).Error; err != nil {
+		return nil, err
+	}
+
+	metrics := make(map[string]float64)
+	if result.PRCount > 0 {
+		metrics["merged_prs"] = float64(result.PRCount)
+		metrics["loc_added"] = float64(result.TotalAdditions)
+		metrics["loc_deleted"] = float64(result.TotalDeletions)
+		metrics["mean_time_to_merge"] = result.AvgMergeTime
+		metrics["mean_time_to_first_review"] = result.AvgReviewTime
+	}
+
+	return metrics, nil
+}
+
+// getPeerReviewMetrics gets review metrics for peers
+func (d *SourceControlDB) getPeerReviewMetrics(ctx context.Context, orgID, titleID, excludeMemberID string, startDate, endDate *time.Time) (map[string]float64, error) {
+	query := `
+		SELECT COUNT(*) as review_count
+		FROM pr_comments pc
+		JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+		JOIN organization_members om ON sca.member_id = om.id
+		WHERE om.organization_id = ? AND om.title_id = ? AND om.id != ? AND pc.type = 'REVIEW'
+	`
+
+	var args []interface{}
+	args = append(args, orgID, titleID, excludeMemberID)
+
+	if startDate != nil {
+		query += " AND pc.created_at >= ?"
+		args = append(args, startDate)
+	}
+	if endDate != nil {
+		query += " AND pc.created_at <= ?"
+		args = append(args, endDate)
+	}
+
+	var result struct {
+		ReviewCount int `json:"review_count"`
+	}
+
+	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&result).Error; err != nil {
+		return nil, err
+	}
+
+	metrics := make(map[string]float64)
+	metrics["prs_reviewed"] = float64(result.ReviewCount)
+
+	return metrics, nil
+}
+
+// getPeerCommentMetrics gets comment metrics for peers
+func (d *SourceControlDB) getPeerCommentMetrics(ctx context.Context, orgID, titleID, excludeMemberID string, startDate, endDate *time.Time) (map[string]float64, error) {
+	query := `
+		SELECT COUNT(*) as comment_count
+		FROM pr_comments pc
+		JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+		JOIN organization_members om ON sca.member_id = om.id
+		WHERE om.organization_id = ? AND om.title_id = ? AND om.id != ? AND pc.type != 'REVIEW'
+	`
+
+	var args []interface{}
+	args = append(args, orgID, titleID, excludeMemberID)
+
+	if startDate != nil {
+		query += " AND pc.created_at >= ?"
+		args = append(args, startDate)
+	}
+	if endDate != nil {
+		query += " AND pc.created_at <= ?"
+		args = append(args, endDate)
+	}
+
+	var result struct {
+		CommentCount int `json:"comment_count"`
+	}
+
+	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&result).Error; err != nil {
+		return nil, err
+	}
+
+	metrics := make(map[string]float64)
+	metrics["pr_comments"] = float64(result.CommentCount)
+
+	return metrics, nil
+}
+
+// calculateSnapshotMetrics calculates the snapshot metrics for the member
+func (d *SourceControlDB) calculateSnapshotMetrics(activities []*types.MemberActivity, peerMetrics map[string]float64) []types.SnapshotCategory {
+	// Calculate member metrics
+	memberMetrics := make(map[string]float64)
+
+	prCount := 0
+	reviewCount := 0
+	commentCount := 0
+	totalAdditions := 0
+	totalDeletions := 0
+	totalMergeTime := 0
+	totalReviewTime := 0
+
+	for _, activity := range activities {
+		switch activity.Type {
+		case "pull_request":
+			prCount++
+			// Parse metadata for LoC
+			if activity.Metadata != nil {
+				var metadata map[string]interface{}
+				if err := json.Unmarshal(activity.Metadata, &metadata); err == nil {
+					if additions, ok := metadata["additions"].(float64); ok {
+						totalAdditions += int(additions)
+					}
+					if deletions, ok := metadata["deletions"].(float64); ok {
+						totalDeletions += int(deletions)
+					}
+				}
 			}
+			// Parse metrics for time
+			if activity.PRMetrics != nil {
+				var metrics map[string]interface{}
+				if err := json.Unmarshal(activity.PRMetrics, &metrics); err == nil {
+					if mergeTime, ok := metrics["time_to_merge_seconds"].(float64); ok {
+						totalMergeTime += int(mergeTime)
+					}
+					if reviewTime, ok := metrics["time_to_first_non_bot_review_seconds"].(float64); ok {
+						totalReviewTime += int(reviewTime)
+					}
+				}
+			}
+		case "pr_review":
+			reviewCount++
+		case "pr_comment":
+			commentCount++
 		}
 	}
 
-	return activities, nil
+	// Calculate averages
+	if prCount > 0 {
+		memberMetrics["mean_time_to_merge"] = float64(totalMergeTime) / float64(prCount)
+		memberMetrics["mean_time_to_first_review"] = float64(totalReviewTime) / float64(prCount)
+	}
+
+	// Build snapshot categories
+	activityCategory := types.SnapshotCategory{
+		Category: "Activity",
+		Metrics: []types.SnapshotMetric{
+			{
+				Label:      "Merged PRs",
+				Value:      float64(prCount),
+				PeersValue: peerMetrics["merged_prs"],
+				Unit:       "count",
+			},
+			{
+				Label:      "PRs Reviewed",
+				Value:      float64(reviewCount),
+				PeersValue: peerMetrics["prs_reviewed"],
+				Unit:       "count",
+			},
+			{
+				Label:      "LoC Added",
+				Value:      float64(totalAdditions),
+				PeersValue: peerMetrics["loc_added"],
+				Unit:       "count",
+			},
+			{
+				Label:      "LoC Deleted",
+				Value:      float64(totalDeletions),
+				PeersValue: peerMetrics["loc_deleted"],
+				Unit:       "count",
+			},
+		},
+	}
+
+	efficiencyCategory := types.SnapshotCategory{
+		Category: "Efficiency",
+		Metrics: []types.SnapshotMetric{
+			{
+				Label:      "Mean time to merge",
+				Value:      memberMetrics["mean_time_to_merge"],
+				PeersValue: peerMetrics["mean_time_to_merge"],
+				Unit:       "seconds",
+			},
+			{
+				Label:      "Mean time to first review",
+				Value:      memberMetrics["mean_time_to_first_review"],
+				PeersValue: peerMetrics["mean_time_to_first_review"],
+				Unit:       "seconds",
+			},
+			{
+				Label:      "Time waiting on reviews",
+				Value:      0, // Placeholder
+				PeersValue: 0, // Placeholder
+				Unit:       "seconds",
+			},
+		},
+	}
+
+	collaborationCategory := types.SnapshotCategory{
+		Category: "Collaboration",
+		Metrics: []types.SnapshotMetric{
+			{
+				Label:      "Mean response time to PRs",
+				Value:      0, // Placeholder
+				PeersValue: 0, // Placeholder
+				Unit:       "seconds",
+			},
+		},
+	}
+
+	return []types.SnapshotCategory{activityCategory, efficiencyCategory, collaborationCategory}
+}
+
+// calculateGraphMetrics calculates the graph metrics for time series visualization
+func (d *SourceControlDB) calculateGraphMetrics(activities []*types.MemberActivity, peerMetrics map[string]float64, interval string) []types.GraphCategory {
+	// For now, return a simple structure - this can be enhanced with actual time series data
+	activityGraph := types.GraphCategory{
+		Category: "Activity",
+		Metrics: []types.GraphMetric{
+			{
+				Label: "Merged PRs",
+				Type:  "timeseries",
+				TimeSeries: []types.TimeSeriesEntry{
+					{
+						Date: time.Now().Format("2006-01-02"),
+						Data: []types.TimeSeriesDataPoint{
+							{
+								Key:   "Merged PRs",
+								Value: float64(len(activities)),
+							},
+							{
+								Key:   "Peers merged PRs",
+								Value: peerMetrics["merged_prs"],
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return []types.GraphCategory{activityGraph}
 }
 
 // GetPullRequestComments retrieves all comments for a specific pull request

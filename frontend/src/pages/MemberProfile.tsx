@@ -5,8 +5,10 @@ import { Member } from '../types/member'
 import { Title } from '../types/title'
 import { SourceControlAccount } from '../types/sourcecontrol'
 import { MemberActivity, GetMemberActivityParams } from '../types/memberActivity'
+import { GetMemberMetricsResponse, GetMemberMetricsParams } from '../types/memberMetrics'
 import { useOrganizationStore } from '../stores/organization'
 import { useAuth } from '../hooks/useAuth'
+import { formatMetricValue } from '../utils/formatMetrics'
 
 type TabType = 'overview' | 'source-control-metrics'
 
@@ -36,6 +38,8 @@ export default function MemberProfilePage() {
   const [activitiesLoading, setActivitiesLoading] = useState(false)
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
   const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set())
+  const [metrics, setMetrics] = useState<GetMemberMetricsResponse | null>(null)
+  const [metricsLoading, setMetricsLoading] = useState(false)
 
   useEffect(() => {
     if (isAuthenticated && !authLoading && currentOrganization && memberId) {
@@ -47,6 +51,7 @@ export default function MemberProfilePage() {
   useEffect(() => {
     if (activeTab === 'source-control-metrics' && currentOrganization?.id && memberId) {
       loadActivities()
+      loadMetrics()
     }
   }, [activeTab, currentOrganization?.id, memberId])
 
@@ -54,6 +59,7 @@ export default function MemberProfilePage() {
   useEffect(() => {
     if (activeTab === 'source-control-metrics' && currentOrganization?.id && memberId && (dateParams.startDate || dateParams.endDate)) {
       loadActivities()
+      loadMetrics()
     }
   }, [dateParams, activeTab, currentOrganization?.id, memberId])
 
@@ -80,6 +86,29 @@ export default function MemberProfilePage() {
       setError('Failed to load activities')
     } finally {
       setActivitiesLoading(false)
+    }
+  }
+
+  const loadMetrics = async () => {
+    if (!currentOrganization?.id || !memberId) return
+
+    try {
+      setMetricsLoading(true)
+      setError(null)
+      
+      const metricsParams: GetMemberMetricsParams = {
+        startDate: dateParams.startDate,
+        endDate: dateParams.endDate,
+        interval: 'monthly'
+      }
+      
+      const metricsData = await Api.getMemberMetrics(currentOrganization.id, memberId, metricsParams)
+      setMetrics(metricsData)
+    } catch (err) {
+      console.error('Error loading metrics:', err)
+      setError('Failed to load metrics')
+    } finally {
+      setMetricsLoading(false)
     }
   }
 
@@ -486,146 +515,96 @@ export default function MemberProfilePage() {
             <div className="bg-card border border-border rounded-lg p-6">
               <h3 className="text-lg font-semibold text-foreground mb-6">Metrics</h3>
               
-              {/* Activity Section */}
-              <div className="mb-8">
-                <h4 className="text-md font-semibold text-foreground mb-4">Activity</h4>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
-                    <div className="flex justify-center mb-2">
-                      <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div className="text-2xl font-bold text-foreground">
-                      {activities.filter(a => a.type === 'pull_request' && a.metadata?.state === 'closed' && a.metadata?.merged_at).length}
-                    </div>
-                    <div className="text-sm text-muted-foreground">PRs Merged</div>
-                  </div>
-                  <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
-                    <div className="flex justify-center mb-2">
-                      <svg className="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                    </div>
-                    <div className="text-2xl font-bold text-foreground">
-                      {activities.filter(a => a.type === 'pr_review').length}
-                    </div>
-                    <div className="text-sm text-muted-foreground">PRs Reviewed</div>
-                  </div>
-                  <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
-                    <div className="flex justify-center mb-2">
-                      <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                      </svg>
-                    </div>
-                    <div className="text-2xl font-bold text-foreground">
-                      {(() => {
-                        const totalAdditions = activities
-                          .filter(a => a.type === 'pull_request' && a.metadata?.state === 'closed' && a.metadata?.merged_at && a.metadata?.additions)
-                          .reduce((sum, a) => sum + (a.metadata?.additions || 0), 0)
-                        return totalAdditions.toLocaleString()
-                      })()}
-                    </div>
-                    <div className="text-sm text-muted-foreground">LoC Added</div>
-                  </div>
-                  <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
-                    <div className="flex justify-center mb-2">
-                      <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                      </svg>
-                    </div>
-                    <div className="text-2xl font-bold text-foreground">
-                      {(() => {
-                        const totalDeletions = activities
-                          .filter(a => a.type === 'pull_request' && a.metadata?.state === 'closed' && a.metadata?.merged_at && a.metadata?.deletions)
-                          .reduce((sum, a) => sum + (a.metadata?.deletions || 0), 0)
-                        return totalDeletions.toLocaleString()
-                      })()}
-                    </div>
-                    <div className="text-sm text-muted-foreground">LoC Deleted</div>
+              {metricsLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="flex items-center space-x-2 text-muted-foreground">
+                    <svg className="animate-spin h-6 w-6" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Loading metrics...</span>
                   </div>
                 </div>
-              </div>
-
-              {/* Efficiency Section */}
-              <div className="mb-8">
-                <h4 className="text-md font-semibold text-foreground mb-4">Efficiency</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
-                    <div className="flex justify-center mb-2">
-                      <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
+              ) : metrics ? (
+                <div className="space-y-8">
+                  {metrics.snapshotMetrics.map((category) => (
+                    <div key={category.category} className="space-y-4">
+                      <h4 className="text-md font-semibold text-foreground">{category.category}</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {category.metrics.map((metric) => (
+                          <div key={metric.label} className="text-center p-4 bg-muted/30 rounded-lg border border-border">
+                            <div className="flex justify-center mb-2">
+                              {/* Icon based on metric type */}
+                              {metric.label.includes('PRs Merged') && (
+                                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              )}
+                              {metric.label.includes('PRs Reviewed') && (
+                                <svg className="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                              )}
+                              {metric.label.includes('LoC Added') && (
+                                <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                              )}
+                              {metric.label.includes('LoC Deleted') && (
+                                <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                                </svg>
+                              )}
+                              {metric.label.includes('Time to Merge') && (
+                                <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              )}
+                              {metric.label.includes('Time to First Review') && (
+                                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              )}
+                              {metric.label.includes('Response Time') && (
+                                <svg className="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                </svg>
+                              )}
+                              {/* Default icon for other metrics */}
+                              {!metric.label.includes('PRs Merged') && !metric.label.includes('PRs Reviewed') && 
+                               !metric.label.includes('LoC Added') && !metric.label.includes('LoC Deleted') &&
+                               !metric.label.includes('Time to Merge') && !metric.label.includes('Time to First Review') &&
+                               !metric.label.includes('Response Time') && (
+                                <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="text-2xl font-bold text-foreground">
+                              {formatMetricValue(metric.value, metric.unit)}
+                            </div>
+                            <div className="text-sm text-muted-foreground">{metric.label}</div>
+                            {typeof metric.peersValue === 'number' && metric.peersValue > 0 && (
+                              <div className="text-xs text-muted-foreground mt-1">
+                                vs {formatMetricValue(metric.peersValue, metric.unit)} (peers)
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="text-2xl font-bold text-foreground">
-                      {(() => {
-                        const mergeTimes = activities
-                          .filter(a => a.type === 'pull_request' && a.prMetrics && typeof a.prMetrics === 'object' && 'time_to_merge_seconds' in a.prMetrics)
-                          .map(a => (a.prMetrics as any).time_to_merge_seconds)
-                          .filter(time => typeof time === 'number')
-                        
-                        if (mergeTimes.length === 0) return 'N/A'
-                        
-                        // Calculate mean
-                        const mean = mergeTimes.reduce((sum, time) => sum + time, 0) / mergeTimes.length
-                        return formatTimeFromSeconds(Math.round(mean))
-                      })()}
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-32">
+                  <div className="text-center">
+                    <div className="text-muted-foreground mb-2">No metrics available</div>
+                    <div className="text-sm text-muted-foreground">
+                      Metrics will appear here once you have source control activity
                     </div>
-                    <div className="text-sm text-muted-foreground">Mean Time to Merge</div>
-                  </div>
-                  <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
-                    <div className="flex justify-center mb-2">
-                      <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div className="text-2xl font-bold text-foreground">
-                      {(() => {
-                        const reviewTimes = activities
-                          .filter(a => a.type === 'pull_request' && a.prMetrics && typeof a.prMetrics === 'object' && 'time_to_first_non_bot_review_seconds' in a.prMetrics)
-                          .map(a => (a.prMetrics as any).time_to_first_non_bot_review_seconds)
-                          .filter(time => typeof time === 'number')
-                        
-                        if (reviewTimes.length === 0) return 'N/A'
-                        
-                        // Calculate mean
-                        const mean = reviewTimes.reduce((sum, time) => sum + time, 0) / reviewTimes.length
-                        return formatTimeFromSeconds(Math.round(mean))
-                      })()}
-                    </div>
-                    <div className="text-sm text-muted-foreground">Mean Time to First Review</div>
-                  </div>
-                  <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
-                    <div className="flex justify-center mb-2">
-                      <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div className="text-2xl font-bold text-foreground">
-                      Coming Soon
-                    </div>
-                    <div className="text-sm text-muted-foreground">Time Waiting on Reviews</div>
                   </div>
                 </div>
-              </div>
-
-              {/* Collaboration Section */}
-              <div>
-                <h4 className="text-md font-semibold text-foreground mb-4">Collaboration</h4>
-                <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-                  <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
-                    <div className="flex justify-center mb-2">
-                      <svg className="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
-                    </div>
-                    <div className="text-2xl font-bold text-foreground">
-                      Coming Soon
-                    </div>
-                    <div className="text-sm text-muted-foreground">Mean Response Time to PRs</div>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Recent Pull Requests Table */}

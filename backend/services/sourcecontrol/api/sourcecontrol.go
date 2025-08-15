@@ -30,6 +30,9 @@ type SourceControlAPI interface {
 
 	// Member Activity
 	GetMemberActivity(ctx context.Context, params *types.MemberActivityParams) ([]*types.MemberActivity, error)
+
+	// GetMemberMetrics retrieves source control metrics for a specific member
+	GetMemberMetrics(ctx context.Context, params *types.MemberMetricsParams) (*types.MemberMetricsResponse, error)
 }
 
 type Api struct {
@@ -161,4 +164,9 @@ func (s *Api) GetPullRequestMetrics(
 // - Makes a database query to fetch member activities
 func (a *Api) GetMemberActivity(ctx context.Context, params *types.MemberActivityParams) ([]*types.MemberActivity, error) {
 	return a.db.GetMemberActivity(ctx, params)
+}
+
+// GetMemberMetrics retrieves source control metrics for a specific member
+func (a *Api) GetMemberMetrics(ctx context.Context, params *types.MemberMetricsParams) (*types.MemberMetricsResponse, error) {
+	return a.db.GetMemberMetrics(ctx, params)
 }
