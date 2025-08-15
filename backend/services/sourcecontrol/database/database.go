@@ -3,8 +3,10 @@ package database
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
+	metrictypes "ems.dev/backend/services/sourcecontrol/metrics/types"
 	"ems.dev/backend/services/sourcecontrol/types"
 	"gorm.io/gorm"
 )
@@ -12,11 +14,10 @@ import (
 // SourceControlDB defines the interface for source control database operations
 type DB interface {
 	// Source Control Accounts
-	GetSourceControlAccountsByUsernames(ctx context.Context, usernames []string) (map[string]*types.SourceControlAccount, error)
+	GetSourceControlAccounts(ctx context.Context, params *types.SourceControlAccountParams) ([]types.SourceControlAccount, error)
 	CreateSourceControlAccounts(ctx context.Context, accounts []*types.SourceControlAccount) error
 	GetSourceControlAccount(ctx context.Context, id string) (*types.SourceControlAccount, error)
 	UpdateSourceControlAccount(ctx context.Context, account *types.SourceControlAccount) error
-	GetSourceControlAccountsByOrganization(ctx context.Context, orgID string) ([]*types.SourceControlAccount, error)
 
 	// Pull Requests
 	GetPullRequests(ctx context.Context, params *types.PullRequestParams) ([]*types.PullRequest, error)
@@ -32,6 +33,10 @@ type DB interface {
 
 	// GetMemberMetrics retrieves source control metrics for a specific member
 	GetMemberMetrics(ctx context.Context, params *types.MemberMetricsParams) (*types.MemberMetricsResponse, error)
+
+	// Calculate time to merge metrics
+	CalculateTimeToMerge(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
+	CalculateTimeToMergeGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
 }
 
 type SourceControlDB struct {
@@ -45,22 +50,31 @@ func NewSourceControlDB(db *gorm.DB) *SourceControlDB {
 	}
 }
 
-// GetSourceControlAccountsByUsernames retrieves source control accounts by their usernames
-func (d *SourceControlDB) GetSourceControlAccountsByUsernames(ctx context.Context, usernames []string) (map[string]*types.SourceControlAccount, error) {
+// GetSourceControlAccounts retrieves source control accounts
+func (d *SourceControlDB) GetSourceControlAccounts(ctx context.Context, params *types.SourceControlAccountParams) ([]types.SourceControlAccount, error) {
 	var accounts []types.SourceControlAccount
-	err := d.db.WithContext(ctx).
-		Where("username IN ?", usernames).
-		Find(&accounts).Error
-	if err != nil {
+	query := d.db.WithContext(ctx).Model(&types.SourceControlAccount{})
+
+	// Query by source control account IDs if provided
+	if len(params.SourceControlAccountIDs) > 0 {
+		query = query.Where("id IN ?", params.SourceControlAccountIDs)
+	}
+
+	// Query by usernames if provided
+	if len(params.Usernames) > 0 {
+		query = query.Where("username IN ?", params.Usernames)
+	}
+
+	// Filter by organization ID if provided
+	if params.OrganizationID != "" {
+		query = query.Where("organization_id = ?", params.OrganizationID)
+	}
+
+	if err := query.Find(&accounts).Error; err != nil {
 		return nil, err
 	}
 
-	result := make(map[string]*types.SourceControlAccount)
-	for i := range accounts {
-		result[accounts[i].Username] = &accounts[i]
-	}
-
-	return result, nil
+	return accounts, nil
 }
 
 // CreateSourceControlAccounts creates multiple source control accounts
@@ -153,23 +167,6 @@ func (d *SourceControlDB) GetSourceControlAccount(ctx context.Context, id string
 		return nil, err
 	}
 	return &account, nil
-}
-
-// GetSourceControlAccountsByOrganization retrieves source control accounts for an organization
-func (d *SourceControlDB) GetSourceControlAccountsByOrganization(ctx context.Context, orgID string) ([]*types.SourceControlAccount, error) {
-	var accounts []types.SourceControlAccount
-	err := d.db.WithContext(ctx).
-		Where("organization_id = ?", orgID).
-		Find(&accounts).Error
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]*types.SourceControlAccount, len(accounts))
-	for i := range accounts {
-		result[i] = &accounts[i]
-	}
-	return result, nil
 }
 
 // GetMemberActivity retrieves a timeline of source control activities for a specific member
@@ -622,7 +619,6 @@ func (d *SourceControlDB) calculateGraphMetrics(activities []*types.MemberActivi
 		Metrics: []types.GraphMetric{
 			{
 				Label: "Merged PRs",
-				Type:  "timeseries",
 				TimeSeries: []types.TimeSeriesEntry{
 					{
 						Date: time.Now().Format("2006-01-02"),
@@ -666,4 +662,111 @@ func (d *SourceControlDB) CreatePullRequest(ctx context.Context, pr *types.PullR
 		return nil, err
 	}
 	return pr, nil
+}
+
+// CalculateTimeToMerge calculates the time to merge metric
+func (d *SourceControlDB) CalculateTimeToMerge(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error) {
+	selectStatement := ""
+	switch metricOperation {
+	case metrictypes.MetricOperationMedian:
+		selectStatement = "PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (pr.merged_at - pr.created_at)))"
+	case metrictypes.MetricOperationAverage:
+		selectStatement = "AVG(EXTRACT(EPOCH FROM (pr.merged_at - pr.created_at)))"
+	default:
+		return nil, fmt.Errorf("invalid metric operation: %s", metricOperation)
+	}
+
+	query := `
+		SELECT ` + selectStatement + ` as time_to_merge_seconds
+		FROM pull_requests pr
+		WHERE pr.organization_id = ?
+		AND pr.created_at >= ?
+		AND pr.created_at <= ?
+		AND pr.merged_at IS NOT NULL
+		AND pr.status = 'closed'
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate)
+
+	if len(sourceControlAccountIDs) > 0 {
+		query += " AND pr.source_control_account_id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	var result struct {
+		TimeToMergeSeconds *float64 `json:"time_to_merge_seconds"`
+	}
+
+	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&result).Error; err != nil {
+		return nil, err
+	}
+
+	// If no results found, return 0
+	value := 0
+	if result.TimeToMergeSeconds != nil {
+		value = int(*result.TimeToMergeSeconds)
+	}
+
+	return &value, nil
+}
+
+// CalculateTimeToMergeGraph calculates the time to merge metric for a graph
+func (d *SourceControlDB) CalculateTimeToMergeGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error) {
+	selectStatement := ""
+	switch metricOperation {
+	case metrictypes.MetricOperationMedian:
+		selectStatement = "PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (pr.merged_at - pr.created_at)))"
+	case metrictypes.MetricOperationAverage:
+		selectStatement = "AVG(EXTRACT(EPOCH FROM (pr.merged_at - pr.created_at)))"
+	}
+
+	query := `
+		SELECT 
+			DATE_TRUNC('` + interval + `', pr.merged_at) as date,
+			` + selectStatement + ` as time_to_merge_seconds
+		FROM pull_requests pr
+		WHERE pr.organization_id = ?
+		AND pr.created_at >= ?
+		AND pr.created_at <= ?
+		AND pr.merged_at IS NOT NULL
+		AND pr.status = 'closed'
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate)
+
+	if len(sourceControlAccountIDs) > 0 {
+		query += " AND pr.source_control_account_id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	var result struct {
+		Date             time.Time `json:"date"`
+		TimeToMergeValue float64   `json:"time_to_merge_value"`
+	}
+
+	rows, err := d.db.WithContext(ctx).Raw(query, args...).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	dataPoints := []types.TimeSeriesEntry{}
+	for rows.Next() {
+		if err := rows.Scan(&result.Date, &result.TimeToMergeValue); err != nil {
+			return nil, err
+		}
+		dataPoints = append(dataPoints, types.TimeSeriesEntry{
+			Date: result.Date.Format("2006-01-02"),
+			Data: []types.TimeSeriesDataPoint{
+				{
+					Key:   metricLabel,
+					Value: result.TimeToMergeValue,
+				},
+			},
+		})
+	}
+
+	return dataPoints, nil
 }

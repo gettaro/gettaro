@@ -69,6 +69,12 @@ type PullRequestMetrics struct {
 	MeanTimeToFirstReview  float64
 }
 
+type SourceControlAccountParams struct {
+	SourceControlAccountIDs []string `json:"sourceControlAccountIds"`
+	OrganizationID          string   `json:"organizationId"`
+	Usernames               []string `json:"usernames"`
+}
+
 // MemberActivity represents a single activity item in the timeline
 type MemberActivity struct {
 	ID               string         `json:"id"`
@@ -100,12 +106,20 @@ type MemberMetricsParams struct {
 	Interval  string     `json:"interval,omitempty"` // daily, weekly, monthly
 }
 
+// MetricRuleParams represents the parameters for a metric rule
+type MetricRuleParams struct {
+	MetricParams datatypes.JSON `json:"metricParams"`
+	StartDate    *time.Time     `json:"startDate,omitempty"`
+	EndDate      *time.Time     `json:"endDate,omitempty"`
+	Interval     string         `json:"interval,omitempty"` // daily, weekly, monthly
+}
+
 // SnapshotMetric represents a single metric in the snapshot
 type SnapshotMetric struct {
 	Label      string  `json:"label"`
 	Value      float64 `json:"value"`
 	PeersValue float64 `json:"peersValue"`
-	Unit       string  `json:"unit"` // "count", "time", "loc", etc.
+	Unit       Unit    `json:"unit"` // "count", "time", "loc", etc.
 }
 
 // SnapshotCategory represents a category of metrics in the snapshot
@@ -126,10 +140,18 @@ type TimeSeriesEntry struct {
 	Data []TimeSeriesDataPoint `json:"data"`
 }
 
+// Unit represents a unit of measurement
+type Unit string
+
+const (
+	UnitCount   Unit = "count" // nit: This is not a unit of measurement and probably should be renamed
+	UnitSeconds Unit = "seconds"
+)
+
 // GraphMetric represents a single metric in the graph data
 type GraphMetric struct {
 	Label      string            `json:"label"`
-	Type       string            `json:"type"`
+	Unit       Unit              `json:"unit"`
 	TimeSeries []TimeSeriesEntry `json:"timeSeries"`
 }
 

@@ -125,83 +125,6 @@ func (h *SourceControlHandler) ListOrganizationPullRequests(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// ListOrganizationPullRequestsMetrics handles retrieving pull request metrics for an organization
-// Params:
-// - c: The Gin context containing request and response
-// Query Parameters:
-// - userIds: Optional list of user IDs to filter pull requests by
-// - repositoryName: Optional repository name to filter pull requests by
-// - startDate: Optional start date in format "2006-01-02" to filter pull requests by
-// - endDate: Optional end date in format "2006-01-02" to filter pull requests by
-// Returns:
-// - 200: Success response with pull request metrics in PullRequestMetrics format
-// - 400: Bad request if organization ID is missing or query parameters are invalid
-// - 401: Unauthorized if user is not authenticated
-// - 403: Forbidden if user does not have access to the organization
-// - 500: Internal server error if service layer fails
-// Side Effects:
-// - Makes a database query to fetch pull requests
-// - Performs organization ownership check
-// - Calculates metrics from pull request data
-// Errors:
-// - ErrMissingOrganizationID: When organization ID is missing from the request
-// - ErrInvalidDateFormat: When startDate or endDate has invalid format
-// - ErrDatabaseQuery: When database query fails
-// - ErrUnauthorized: When user is not authenticated
-// - ErrForbidden: When user does not have access to the organization
-// - ErrMetricsCalculation: When metrics calculation fails
-func (h *SourceControlHandler) ListOrganizationPullRequestsMetrics(c *gin.Context) {
-	orgID, err := utils.GetOrganizationIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Check if user has access to the organization
-	if !utils.CheckOrganizationMembership(c, h.orgApi, &orgID) {
-		return
-	}
-
-	var query types.ListOrganizationPullRequestsMetricsQuery
-	if err := c.ShouldBindQuery(&query); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Parse dates if provided
-	var startDate, endDate *time.Time
-	if query.StartDate != "" {
-		parsed, err := time.Parse("2006-01-02", query.StartDate)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid startDate format"})
-			return
-		}
-		startDate = &parsed
-	}
-	if query.EndDate != "" {
-		parsed, err := time.Parse("2006-01-02", query.EndDate)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid endDate format"})
-			return
-		}
-		endDate = &parsed
-	}
-
-	// Get metrics from service
-	metrics, err := h.scApi.GetPullRequestMetrics(c.Request.Context(), &servicetypes.PullRequestParams{
-		OrganizationID: &orgID,
-		UserIDs:        query.UserIDs,
-		StartDate:      startDate,
-		EndDate:        endDate,
-	})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, metrics)
-}
-
 // ListOrganizationSourceControlAccounts handles retrieving source control accounts for an organization
 // Params:
 // - c: The Gin context containing request and response
@@ -232,7 +155,9 @@ func (h *SourceControlHandler) ListOrganizationSourceControlAccounts(c *gin.Cont
 	}
 
 	// Get source control accounts from service
-	accounts, err := h.scApi.GetSourceControlAccountsByOrganization(c.Request.Context(), orgID)
+	accounts, err := h.scApi.GetSourceControlAccounts(c.Request.Context(), &servicetypes.SourceControlAccountParams{
+		OrganizationID: orgID,
+	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -240,10 +165,6 @@ func (h *SourceControlHandler) ListOrganizationSourceControlAccounts(c *gin.Cont
 
 	response := types.ListOrganizationSourceControlAccountsResponse{
 		SourceControlAccounts: make([]servicetypes.SourceControlAccount, len(accounts)),
-	}
-
-	for i, account := range accounts {
-		response.SourceControlAccounts[i] = *account
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -450,7 +371,6 @@ func (h *SourceControlHandler) GetMemberMetrics(c *gin.Context) {
 		for j, metric := range category.Metrics {
 			response.GraphMetrics[i].Metrics[j] = types.GraphMetric{
 				Label:      metric.Label,
-				Type:       metric.Type,
 				TimeSeries: make([]types.TimeSeriesEntry, len(metric.TimeSeries)),
 			}
 			for k, entry := range metric.TimeSeries {
@@ -477,7 +397,6 @@ func (h *SourceControlHandler) RegisterRoutes(api *gin.RouterGroup) {
 	{
 		sourceControl.GET("/source-control-accounts", h.ListOrganizationSourceControlAccounts)
 		sourceControl.GET("/pull-requests", h.ListOrganizationPullRequests)
-		sourceControl.GET("/pull-requests/metrics", h.ListOrganizationPullRequestsMetrics)
 	}
 
 	// Member-specific routes

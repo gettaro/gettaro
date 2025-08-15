@@ -288,14 +288,21 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 func (p *GitHubProvider) upsertAuthor(ctx context.Context, organizationID string, user githubtypes.User) (*internaltypes.SourceControlAccount, error) {
 	// Check if account exists
 	// TODO: Get account by username
-	accounts, err := p.sourceControlAPI.GetSourceControlAccountsByUsernames(ctx, []string{user.Login})
+	accounts, err := p.sourceControlAPI.GetSourceControlAccounts(ctx, &internaltypes.SourceControlAccountParams{
+		Usernames: []string{user.Login},
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch source control account: %w", err)
 	}
 
-	if account, exists := accounts[user.Login]; exists {
+	accountsMap := make(map[string]internaltypes.SourceControlAccount)
+	for _, account := range accounts {
+		accountsMap[account.Username] = account
+	}
+
+	if account, exists := accountsMap[user.Login]; exists {
 		if *account.OrganizationID == organizationID {
-			return account, nil
+			return &account, nil
 		}
 	}
 

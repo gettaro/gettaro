@@ -1,5 +1,7 @@
 package sourcecontrol
 
+import "ems.dev/backend/services/sourcecontrol/types"
+
 // GetMemberMetricsRequest represents the request parameters for getting member metrics
 type GetMemberMetricsRequest struct {
 	StartDate string `form:"startDate" binding:"omitempty"` // YYYY-MM-DD format
@@ -9,10 +11,10 @@ type GetMemberMetricsRequest struct {
 
 // SnapshotMetric represents a single metric in the snapshot
 type SnapshotMetric struct {
-	Label      string  `json:"label"`
-	Value      float64 `json:"value"`
-	PeersValue float64 `json:"peersValue"`
-	Unit       string  `json:"unit"` // "count", "time" etc.
+	Label      string     `json:"label"`
+	Value      float64    `json:"value"`
+	PeersValue float64    `json:"peersValue"`
+	Unit       types.Unit `json:"unit"` // "count", "time" etc.
 }
 
 // SnapshotCategory represents a category of metrics in the snapshot
@@ -36,7 +38,6 @@ type TimeSeriesEntry struct {
 // GraphMetric represents a single metric in the graph data
 type GraphMetric struct {
 	Label      string            `json:"label"`
-	Type       string            `json:"type"`
 	TimeSeries []TimeSeriesEntry `json:"timeSeries"`
 }
 

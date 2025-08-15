@@ -7,6 +7,7 @@ import (
 	memberdb "ems.dev/backend/services/member/database"
 	"ems.dev/backend/services/member/types"
 	sourcecontrolapi "ems.dev/backend/services/sourcecontrol/api"
+	servicetypes "ems.dev/backend/services/sourcecontrol/types"
 	userapi "ems.dev/backend/services/user/api"
 	usertypes "ems.dev/backend/services/user/types"
 )
@@ -151,7 +152,9 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, member
 
 	// First, remove the member_id from any existing source control accounts for this member
 	// This ensures we don't have multiple accounts pointing to the same member
-	existingAccounts, err := a.sourceControlApi.GetSourceControlAccountsByOrganization(ctx, orgID)
+	existingAccounts, err := a.sourceControlApi.GetSourceControlAccounts(ctx, &servicetypes.SourceControlAccountParams{
+		OrganizationID: orgID,
+	})
 	if err != nil {
 		return err
 	}
@@ -160,7 +163,7 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, member
 		if account.MemberID != nil && *account.MemberID == memberID {
 			// Clear the member_id from this account
 			account.MemberID = nil
-			err = a.sourceControlApi.UpdateSourceControlAccount(ctx, account)
+			err = a.sourceControlApi.UpdateSourceControlAccount(ctx, &account)
 			if err != nil {
 				return err
 			}

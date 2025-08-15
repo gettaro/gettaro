@@ -95,6 +95,7 @@ func (a *Api) CreateIntegrationConfig(ctx context.Context, orgID string, req *ty
 		return nil, err
 	}
 
+	// TODO: Ideally this would come from a factory
 	providerType := types.IntegrationProviderTypeSourceControl
 	switch req.ProviderName {
 	case "github":
