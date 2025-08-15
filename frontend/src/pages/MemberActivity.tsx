@@ -7,7 +7,7 @@ import { useOrganizationStore } from '../stores/organization'
 import { useAuth } from '../hooks/useAuth'
 
 export default function MemberActivityPage() {
-  const { id: organizationId, memberId } = useParams<{ id: string; memberId: string }>()
+  const { memberId } = useParams<{ memberId: string }>()
   const { currentOrganization } = useOrganizationStore()
   const { isAuthenticated, isLoading: authLoading, getToken } = useAuth()
   const [activities, setActivities] = useState<MemberActivity[]>([])
@@ -38,13 +38,13 @@ export default function MemberActivityPage() {
   }
 
   useEffect(() => {
-    if (isAuthenticated && !authLoading && currentOrganization && organizationId && memberId) {
+    if (isAuthenticated && !authLoading && currentOrganization && memberId) {
       initializePage()
     }
-  }, [isAuthenticated, authLoading, currentOrganization, organizationId, memberId])
+  }, [isAuthenticated, authLoading, currentOrganization, memberId])
 
   useEffect(() => {
-    if (isAuthenticated && !authLoading && currentOrganization && organizationId && memberId && (dateParams.startDate || dateParams.endDate)) {
+    if (isAuthenticated && !authLoading && currentOrganization && memberId && (dateParams.startDate || dateParams.endDate)) {
       loadActivities()
     }
   }, [dateParams])
@@ -61,10 +61,10 @@ export default function MemberActivityPage() {
   }
 
   const loadMember = async () => {
-    if (!organizationId || !memberId) return
+    if (!currentOrganization?.id || !memberId) return
 
     try {
-      const members = await Api.getOrganizationMembers(organizationId)
+      const members = await Api.getOrganizationMembers(currentOrganization.id)
       const foundMember = members.find(m => m.id === memberId)
       if (foundMember) {
         setMember(foundMember)
@@ -75,7 +75,7 @@ export default function MemberActivityPage() {
   }
 
   const loadActivities = async () => {
-    if (!organizationId || !memberId) return
+    if (!currentOrganization?.id || !memberId) return
 
     try {
       if (dateParams.startDate || dateParams.endDate) {
@@ -84,7 +84,7 @@ export default function MemberActivityPage() {
         setLoading(true)
       }
       setError(null)
-      const activitiesData = await Api.getMemberActivity(organizationId, memberId, dateParams)
+      const activitiesData = await Api.getMemberActivity(currentOrganization.id, memberId, dateParams)
       setActivities(activitiesData)
     } catch (err) {
       setError('Failed to load activities')
@@ -103,7 +103,7 @@ export default function MemberActivityPage() {
   }
 
   const loadMore = async () => {
-    if (!organizationId || !memberId || loadingMore) return
+    if (!currentOrganization?.id || !memberId || loadingMore) return
 
     try {
       setLoadingMore(true)
@@ -119,7 +119,7 @@ export default function MemberActivityPage() {
       }
       
       // Load activities for the new date range
-      const moreActivities = await Api.getMemberActivity(organizationId, memberId, newDateParams)
+      const moreActivities = await Api.getMemberActivity(currentOrganization.id, memberId, newDateParams)
       
       if (moreActivities.length === 0) {
         setHasMoreData(false)
@@ -411,11 +411,13 @@ export default function MemberActivityPage() {
     }
   }
 
-  if (!organizationId || !memberId) {
+  if (!currentOrganization) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          <div className="text-red-600">Invalid organization or member ID</div>
+          <div className="flex items-center justify-center h-64">
+            <div className="text-muted-foreground">No organization selected</div>
+          </div>
         </div>
       </div>
     )
@@ -439,18 +441,6 @@ export default function MemberActivityPage() {
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-center h-64">
             <div className="text-red-600">Please log in to view this page</div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!currentOrganization) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-muted-foreground">No organization selected</div>
           </div>
         </div>
       </div>

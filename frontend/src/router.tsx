@@ -7,6 +7,7 @@ import Settings from './pages/Settings'
 import Members from './pages/Members'
 import Titles from './pages/Titles'
 import MemberActivityPage from './pages/MemberActivity'
+import MemberProfile from './pages/MemberProfile'
 
 export const router = createBrowserRouter([
   {
@@ -38,8 +39,12 @@ export const router = createBrowserRouter([
         element: <Titles />,
       },
       {
-        path: "organizations/:id/members/:memberId/activity",
+        path: "members/:memberId/activity",
         element: <MemberActivityPage />,
+      },
+      {
+        path: "members/:memberId/profile",
+        element: <MemberProfile />,
       }
     ],
   },
