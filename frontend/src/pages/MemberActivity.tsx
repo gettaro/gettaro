@@ -15,8 +15,19 @@ export default function MemberActivityPage() {
   const [loading, setLoading] = useState(true)
   const [filterLoading, setFilterLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [dateParams, setDateParams] = useState<GetMemberActivityParams>({})
+  const [dateParams, setDateParams] = useState<GetMemberActivityParams>(() => {
+    const endDate = new Date()
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - 14) // 2 weeks ago
+    
+    return {
+      startDate: startDate.toISOString().split('T')[0], // YYYY-MM-DD format
+      endDate: endDate.toISOString().split('T')[0]
+    }
+  })
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
+  const [hasMoreData, setHasMoreData] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
 
   // Utility function to convert seconds to human readable format
   const formatTimeFromSeconds = (seconds: number): string => {
@@ -89,6 +100,44 @@ export default function MemberActivityPage() {
       ...prev,
       [field]: value || undefined
     }))
+  }
+
+  const loadMore = async () => {
+    if (!organizationId || !memberId || loadingMore) return
+
+    try {
+      setLoadingMore(true)
+      
+      // Calculate new start date (1 week earlier than current start date)
+      const currentStartDate = new Date(dateParams.startDate!)
+      const newStartDate = new Date(currentStartDate)
+      newStartDate.setDate(newStartDate.getDate() - 7)
+      
+      const newDateParams = {
+        startDate: newStartDate.toISOString().split('T')[0],
+        endDate: dateParams.startDate! // End date becomes the old start date
+      }
+      
+      // Load activities for the new date range
+      const moreActivities = await Api.getMemberActivity(organizationId, memberId, newDateParams)
+      
+      if (moreActivities.length === 0) {
+        setHasMoreData(false)
+      } else {
+        // Prepend new activities to existing ones
+        setActivities(prev => [...moreActivities, ...prev])
+        // Update date params to reflect the new range
+        setDateParams(prev => ({
+          ...prev,
+          startDate: newDateParams.startDate
+        }))
+      }
+    } catch (err) {
+      console.error('Error loading more activities:', err)
+      setError('Failed to load more activities')
+    } finally {
+      setLoadingMore(false)
+    }
   }
 
   const toggleExpanded = (itemId: string) => {
@@ -518,42 +567,70 @@ export default function MemberActivityPage() {
               </div>
             </div>
           ) : (
-            <div className="divide-y divide-border">
-              {activities.map((activity) => (
-                <div key={activity.id} className="p-6">
-                  <div className="flex items-start space-x-4">
-                    <div className="flex-shrink-0 mt-1">
-                      {getActivityIcon(activity.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      {renderActivityContent(activity)}
-                      
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-3">
-                        <span>
-                          {new Date(activity.createdAt).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </span>
-                        {activity.url && (
-                          <a
-                            href={activity.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary hover:text-primary/80 transition-colors"
-                          >
-                            View on GitHub →
-                          </a>
-                        )}
+            <>
+              {/* Scrollable Activity List */}
+              <div className="h-96 overflow-y-auto">
+                <div className="divide-y divide-border">
+                  {activities.map((activity) => (
+                    <div key={activity.id} className="p-6">
+                      <div className="flex items-start space-x-4">
+                        <div className="flex-shrink-0 mt-1">
+                          {getActivityIcon(activity.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          {renderActivityContent(activity)}
+                          
+                          <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-3">
+                            <span>
+                              {new Date(activity.createdAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                            {activity.url && (
+                              <a
+                                href={activity.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:text-primary/80 transition-colors"
+                              >
+                                View on GitHub →
+                              </a>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+
+              {/* Load More Button */}
+              {hasMoreData && (
+                <div className="p-6 border-t border-border">
+                  <button
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="w-full py-3 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
+                  >
+                    {loadingMore ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Loading...</span>
+                      </>
+                    ) : (
+                      <span>Load More (Previous Week)</span>
+                    )}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
