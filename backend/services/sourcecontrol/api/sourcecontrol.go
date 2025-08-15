@@ -20,7 +20,7 @@ type SourceControlAPI interface {
 
 	// Pull Requests
 	GetPullRequests(ctx context.Context, params *types.PullRequestParams) ([]*types.PullRequest, error)
-	CreatePullRequests(ctx context.Context, prs []*types.PullRequest) error
+	CreatePullRequest(ctx context.Context, pr *types.PullRequest) (*types.PullRequest, error)
 	UpdatePullRequest(ctx context.Context, pr *types.PullRequest) error
 	GetPullRequestMetrics(ctx context.Context, params *types.PullRequestParams) (*types.PullRequestMetrics, error)
 
@@ -66,8 +66,8 @@ func (a *Api) GetPullRequests(ctx context.Context, params *types.PullRequestPara
 	return a.db.GetPullRequests(ctx, params)
 }
 
-func (a *Api) CreatePullRequests(ctx context.Context, prs []*types.PullRequest) error {
-	return a.db.CreatePullRequests(ctx, prs)
+func (a *Api) CreatePullRequest(ctx context.Context, pr *types.PullRequest) (*types.PullRequest, error) {
+	return a.db.CreatePullRequest(ctx, pr)
 }
 
 func (a *Api) CreatePRComments(ctx context.Context, comments []*types.PRComment) error {

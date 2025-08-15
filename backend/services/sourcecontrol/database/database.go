@@ -18,7 +18,7 @@ type DB interface {
 
 	// Pull Requests
 	GetPullRequests(ctx context.Context, params *types.PullRequestParams) ([]*types.PullRequest, error)
-	CreatePullRequests(ctx context.Context, prs []*types.PullRequest) error
+	CreatePullRequest(ctx context.Context, pr *types.PullRequest) (*types.PullRequest, error)
 	UpdatePullRequest(ctx context.Context, pr *types.PullRequest) error
 
 	// Comments
@@ -67,13 +67,23 @@ func (d *SourceControlDB) CreateSourceControlAccounts(ctx context.Context, accou
 func (d *SourceControlDB) GetPullRequests(ctx context.Context, params *types.PullRequestParams) ([]*types.PullRequest, error) {
 	var prs []types.PullRequest
 	query := d.db.WithContext(ctx).Model(&types.PullRequest{})
-	query = query.Joins(`
-		JOIN source_control_accounts sca ON pull_requests.source_control_account_id = sca.id
-		JOIN organization_members om ON sca.member_id = om.id
-	`)
 
-	if params.ProviderID != "" {
-		query = query.Where("provider_id = ?", params.ProviderID)
+	// Add JOINs if needed for filtering
+	if params.OrganizationID != nil || len(params.UserIDs) > 0 {
+		query = query.Joins(`
+			JOIN source_control_accounts sca ON pull_requests.source_control_account_id = sca.id
+		`)
+	}
+
+	// Add organization_members JOIN if user IDs filtering is needed
+	if len(params.UserIDs) > 0 {
+		query = query.Joins(`
+			LEFT JOIN organization_members om ON sca.member_id = om.id
+		`)
+	}
+
+	if len(params.ProviderIDs) > 0 {
+		query = query.Where("pull_requests.provider_id IN ?", params.ProviderIDs)
 	}
 	if params.OrganizationID != nil {
 		query = query.Where("sca.organization_id = ?", *params.OrganizationID)
@@ -102,11 +112,6 @@ func (d *SourceControlDB) GetPullRequests(ctx context.Context, params *types.Pul
 		result[i] = &prs[i]
 	}
 	return result, nil
-}
-
-// CreatePullRequests creates multiple pull requests
-func (d *SourceControlDB) CreatePullRequests(ctx context.Context, prs []*types.PullRequest) error {
-	return d.db.WithContext(ctx).Create(prs).Error
 }
 
 // CreatePRComments creates multiple PR comments
@@ -189,6 +194,7 @@ func (d *SourceControlDB) GetMemberActivity(ctx context.Context, params *types.M
 			pr.id,
 			'pull_request' as type,
 			pr.title,
+			pr.metrics,
 			COALESCE(pr.description, '') as description,
 			COALESCE(pr.url, '') as url,
 			COALESCE(pr.repository_name, '') as repository,
@@ -196,7 +202,8 @@ func (d *SourceControlDB) GetMemberActivity(ctx context.Context, params *types.M
 			COALESCE(pr.metadata, '{}'::jsonb) as metadata,
 			sca.username as author_username,
 			NULL as pr_title,
-			NULL as pr_author_username
+			NULL as pr_author_username,
+			pr.metrics as pr_metrics
 		FROM pull_requests pr
 		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
 		WHERE sca.member_id = ?` + prDateFilter + `
@@ -223,7 +230,8 @@ func (d *SourceControlDB) GetMemberActivity(ctx context.Context, params *types.M
 			'{}'::jsonb as metadata,
 			sca.username as author_username,
 			pr.title as pr_title,
-			pr_author.username as pr_author_username
+			pr_author.username as pr_author_username,
+			NULL as pr_metrics
 		FROM pr_comments pc
 		JOIN pull_requests pr ON pc.pr_id = pr.id
 		JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
@@ -271,4 +279,12 @@ func (d *SourceControlDB) GetPullRequestComments(ctx context.Context, prID strin
 		result[i] = &comments[i]
 	}
 	return result, nil
+}
+
+// CreatePullRequest creates a single pull request and returns it
+func (d *SourceControlDB) CreatePullRequest(ctx context.Context, pr *types.PullRequest) (*types.PullRequest, error) {
+	if err := d.db.WithContext(ctx).Create(pr).Error; err != nil {
+		return nil, err
+	}
+	return pr, nil
 }

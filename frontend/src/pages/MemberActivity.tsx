@@ -18,6 +18,14 @@ export default function MemberActivityPage() {
   const [dateParams, setDateParams] = useState<GetMemberActivityParams>({})
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
 
+  // Utility function to convert seconds to human readable format
+  const formatTimeFromSeconds = (seconds: number): string => {
+    if (seconds < 60) return `${seconds}s`
+    if (seconds < 3600) return `${Math.round(seconds / 60)}m`
+    if (seconds < 86400) return `${Math.round(seconds / 3600)}h`
+    return `${Math.round(seconds / 86400)}d`
+  }
+
   useEffect(() => {
     if (isAuthenticated && !authLoading && currentOrganization && organizationId && memberId) {
       initializePage()
@@ -178,20 +186,55 @@ export default function MemberActivityPage() {
                     <span>{activity.metadata.commits} commits</span>
                   </span>
                 )}
-                {activity.metadata.comments !== undefined && (
-                  <span className="flex items-center space-x-1">
-                    <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                    <span>{activity.metadata.comments} comments</span>
-                  </span>
-                )}
                 {activity.metadata.changed_files !== undefined && (
                   <span className="flex items-center space-x-1">
                     <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     <span>{activity.metadata.changed_files} files</span>
+                  </span>
+                )}
+                {activity.metadata.review_comments !== undefined && (
+                  <span className="flex items-center space-x-1">
+                    <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    <span>{activity.metadata.review_comments} comments</span>
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* PR Metrics */}
+            {activity.prMetrics && (
+              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-3">
+                {/* Time to merge */}
+                {activity.prMetrics.time_to_merge_seconds !== undefined && (
+                  <span className="flex items-center space-x-1">
+                    <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Merge: {formatTimeFromSeconds(activity.prMetrics.time_to_merge_seconds)}</span>
+                  </span>
+                )}
+                
+                {/* Time to first review */}
+                {activity.prMetrics.time_to_first_non_bot_review_seconds !== undefined && (
+                  <span className="flex items-center space-x-1">
+                    <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>First review: {formatTimeFromSeconds(activity.prMetrics.time_to_first_non_bot_review_seconds)}</span>
+                  </span>
+                )}
+
+                {/* Show opened duration for open PRs */}
+                {activity.metadata?.state === 'open' && (
+                  <span className="flex items-center space-x-1">
+                    <svg className="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Opened {Math.ceil((Date.now() - new Date(activity.createdAt).getTime()) / (1000 * 60 * 60 * 24))}d</span>
                   </span>
                 )}
               </div>

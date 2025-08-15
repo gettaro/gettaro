@@ -57,11 +57,22 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 
 		owner, repoName := parts[0], parts[1]
 
-		// 1. Get all PRs from the database
+		// 1. Fetch all PRs from GitHub
+		// TODO: This is really inefficient, better to filter by date and try to backfill little by little
+		prs, err := p.githubClient.GetPullRequests(ctx, owner, repoName, token, 20)
+		if err != nil {
+			return fmt.Errorf("failed to fetch pull requests for %s: %w", repo, err)
+		}
+
+		prIds := []string{}
+		for _, pr := range prs {
+			prIds = append(prIds, fmt.Sprintf("%d", pr.ID))
+		}
+
+		// 2. Get all PRs from the database
 		// TODO: Add a filter by created at
 		importedPRs, err := p.sourceControlAPI.GetPullRequests(ctx, &internaltypes.PullRequestParams{
-			OrganizationID: &config.OrganizationID,
-			RepositoryName: repoName,
+			ProviderIDs: prIds,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to fetch imported pull requests for %s: %w", repo, err)
@@ -73,12 +84,6 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 			importedPRsMap[pr.ProviderID] = *pr
 		}
 
-		// 2. Fetch all PRs from GitHub
-		prs, err := p.githubClient.GetPullRequests(ctx, owner, repoName, token, 20)
-		if err != nil {
-			return fmt.Errorf("failed to fetch pull requests for %s: %w", repo, err)
-		}
-
 		// 3. Process each PR
 		for _, pr := range prs {
 			// TODO: This should come from the integrations config. It should give the user the possibility to add settings to each repo he wants to import. (ex. Exclude PRs to prod branch)
@@ -88,9 +93,10 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 			}
 
 			// Check if PR exists in DB and skip if not open
-			// TODO: If PR is closed, we should flag it as such in our db.
-			if existingPR, exists := importedPRsMap[fmt.Sprintf("%d", pr.ID)]; exists {
-				if existingPR.Status != "open" {
+			existingPR, exists := importedPRsMap[fmt.Sprintf("%d", pr.ID)]
+
+			if exists {
+				if existingPR.Status != "open" && existingPR.Status == pr.State {
 					continue
 				}
 			}
@@ -128,8 +134,19 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 				Metadata:               datatypes.JSON(prDetailsBytes),
 			}
 
-			if err := p.sourceControlAPI.CreatePullRequests(ctx, []*internaltypes.PullRequest{sourceControlPR}); err != nil {
-				return fmt.Errorf("failed to save pull request %d: %w", pr.Number, err)
+			if exists {
+				sourceControlPR.ID = existingPR.ID
+				err := p.sourceControlAPI.UpdatePullRequest(ctx, sourceControlPR)
+				if err != nil {
+					return fmt.Errorf("failed to update pull request %d: %w", pr.Number, err)
+				}
+			} else {
+				createdPR, err := p.sourceControlAPI.CreatePullRequest(ctx, sourceControlPR)
+				if err != nil {
+					return fmt.Errorf("failed to create pull request %d: %w", pr.Number, err)
+				}
+				// Update the sourceControlPR with the created PR's ID if needed
+				sourceControlPR.ID = createdPR.ID
 			}
 
 			// 6. Get all reviews, comments and review comments

@@ -10,6 +10,7 @@ export interface MemberActivity {
   authorUsername?: string
   prTitle?: string          // For comments/reviews: the PR title
   prAuthorUsername?: string // For comments/reviews: the PR author
+  prMetrics?: Record<string, any> // PR performance metrics
 }
 
 export interface GetMemberActivityResponse {

@@ -1,6 +1,10 @@
 package sourcecontrol
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/datatypes"
+)
 
 // GetMemberActivityRequest represents the request parameters for getting member activity
 type GetMemberActivityRequest struct {
@@ -21,6 +25,7 @@ type MemberActivity struct {
 	AuthorUsername   string                 `json:"authorUsername,omitempty"`
 	PRTitle          string                 `json:"prTitle,omitempty"`          // For comments/reviews: the PR title
 	PRAuthorUsername string                 `json:"prAuthorUsername,omitempty"` // For comments/reviews: the PR author
+	PRMetrics        datatypes.JSON         `json:"prMetrics,omitempty"`
 }
 
 // GetMemberActivityResponse represents the response for getting member activity

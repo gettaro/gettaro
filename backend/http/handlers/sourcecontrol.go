@@ -356,6 +356,7 @@ func (h *SourceControlHandler) GetMemberActivity(c *gin.Context) {
 			AuthorUsername:   authorUsername,
 			PRTitle:          activity.PRTitle,
 			PRAuthorUsername: activity.PRAuthorUsername,
+			PRMetrics:        activity.PRMetrics,
 		}
 	}
 

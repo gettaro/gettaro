@@ -54,7 +54,7 @@ type PRComment struct {
 
 // PullRequestParams represents the parameters for querying pull requests
 type PullRequestParams struct {
-	ProviderID     string
+	ProviderIDs    []string
 	OrganizationID *string
 	RepositoryName string
 	UserIDs        []string
@@ -82,6 +82,7 @@ type MemberActivity struct {
 	AuthorUsername   string         `json:"authorUsername,omitempty"`
 	PRTitle          string         `json:"prTitle,omitempty"`          // For comments/reviews: the PR title
 	PRAuthorUsername string         `json:"prAuthorUsername,omitempty"` // For comments/reviews: the PR author
+	PRMetrics        datatypes.JSON `json:"prMetrics,omitempty"`
 }
 
 // MemberActivityParams represents the parameters for querying member activity
