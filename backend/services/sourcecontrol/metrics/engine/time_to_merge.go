@@ -44,10 +44,13 @@ func (r *TimeToMergeRule) Calculate(ctx context.Context, params types.MetricRule
 	}
 
 	snapshotMetric := types.SnapshotMetric{
-		Label:      r.Name,
-		Unit:       r.Unit,
-		Value:      float64(*timeToMergeValue),
-		PeersValue: float64(*peersTimeToMergeValue),
+		Label:          r.Name,
+		Description:    r.Description,
+		Unit:           r.Unit,
+		Value:          float64(*timeToMergeValue),
+		PeersValue:     float64(*peersTimeToMergeValue),
+		IconIdentifier: r.IconIdentifier,
+		IconColor:      r.IconColor,
 	}
 
 	// Calculate time to merge graph value

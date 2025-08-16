@@ -12,33 +12,33 @@ import (
 	"github.com/google/uuid"
 )
 
-type PRsReviewedRule struct {
+type LOCAddedRule struct {
 	metrictypes.BaseMetricRule
 	sourceControlDB database.DB
 }
 
-func NewPRsReviewedRule(baseMetricRule metrictypes.BaseMetricRule, sourceControlDB database.DB) *PRsReviewedRule {
-	return &PRsReviewedRule{
+func NewLOCAddedRule(baseMetricRule metrictypes.BaseMetricRule, sourceControlDB database.DB) *LOCAddedRule {
+	return &LOCAddedRule{
 		BaseMetricRule:  baseMetricRule,
 		sourceControlDB: sourceControlDB,
 	}
 }
 
-func (r *PRsReviewedRule) Calculate(ctx context.Context, params types.MetricRuleParams) (*types.SnapshotMetric, *types.GraphMetric, error) {
+func (r *LOCAddedRule) Calculate(ctx context.Context, params types.MetricRuleParams) (*types.SnapshotMetric, *types.GraphMetric, error) {
 	// Validate params
 	organizationID, startDate, endDate, sourceControlAccountIDs, peersSourceControlAccountIDs, err := r.extractParams(params)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Calculate PRs reviewed value
-	prsReviewedValue, err := r.sourceControlDB.CalculatePRsReviewed(ctx, *organizationID, sourceControlAccountIDs, *startDate, *endDate, r.Operation)
+	// Calculate LOC added value
+	locAddedValue, err := r.sourceControlDB.CalculateLOCAdded(ctx, *organizationID, sourceControlAccountIDs, *startDate, *endDate, r.Operation)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Calculate PRs reviewed peers value
-	peersPRsReviewedValue, err := r.sourceControlDB.CalculatePRsReviewed(ctx, *organizationID, peersSourceControlAccountIDs, *startDate, *endDate, r.Operation)
+	// Calculate LOC added peers value
+	peersLOCAddedValue, err := r.sourceControlDB.CalculateLOCAdded(ctx, *organizationID, peersSourceControlAccountIDs, *startDate, *endDate, r.Operation)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -47,14 +47,14 @@ func (r *PRsReviewedRule) Calculate(ctx context.Context, params types.MetricRule
 		Label:          r.Name,
 		Description:    r.Description,
 		Unit:           r.Unit,
-		Value:          float64(*prsReviewedValue),
-		PeersValue:     float64(*peersPRsReviewedValue),
+		Value:          float64(*locAddedValue),
+		PeersValue:     float64(*peersLOCAddedValue),
 		IconIdentifier: r.IconIdentifier,
 		IconColor:      r.IconColor,
 	}
 
-	// Calculate PRs reviewed graph value
-	prsReviewedGraphValue, err := r.sourceControlDB.CalculatePRsReviewedGraph(ctx, *organizationID, sourceControlAccountIDs, *startDate, *endDate, r.Operation, r.Name, params.Interval)
+	// Calculate LOC added graph value
+	locAddedGraphValue, err := r.sourceControlDB.CalculateLOCAddedGraph(ctx, *organizationID, sourceControlAccountIDs, *startDate, *endDate, r.Operation, r.Name, params.Interval)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -62,17 +62,17 @@ func (r *PRsReviewedRule) Calculate(ctx context.Context, params types.MetricRule
 	graphMetric := types.GraphMetric{
 		Label:      r.Name,
 		Unit:       r.Unit,
-		TimeSeries: prsReviewedGraphValue,
+		TimeSeries: locAddedGraphValue,
 	}
 
 	return &snapshotMetric, &graphMetric, nil
 }
 
-func (r *PRsReviewedRule) Category() string {
+func (r *LOCAddedRule) Category() string {
 	return r.BaseMetricRule.Category
 }
 
-func (r *PRsReviewedRule) extractParams(params types.MetricRuleParams) (*string, *time.Time, *time.Time, []string, []string, error) {
+func (r *LOCAddedRule) extractParams(params types.MetricRuleParams) (*string, *time.Time, *time.Time, []string, []string, error) {
 	if params.Interval == "" {
 		return nil, nil, nil, nil, nil, errors.NewBadRequestError("interval is required")
 	}

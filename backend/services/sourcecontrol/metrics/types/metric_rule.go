@@ -19,12 +19,13 @@ const (
 type MetricDimension string
 
 const (
-	MetricDimensionTimeToMerge       MetricDimension = "TIME_TO_MERGE"
-	MetricDimensionTimeToFirstReview MetricDimension = "TIME_TO_FIRST_REVIEW"
-	MetricDimensionMergedPRs         MetricDimension = "MERGED_PRS"
-	MetricDimensionReviwedPRs        MetricDimension = "REVIEWED_PRS"
-	MetricDimensionLOCAdded          MetricDimension = "LOC_ADDED"
-	MetricDimensionLOCRemoved        MetricDimension = "LOC_REMOVED"
+	MetricDimensionTimeToMerge        MetricDimension = "TIME_TO_MERGE"
+	MetricDimensionTimeToFirstReview  MetricDimension = "TIME_TO_FIRST_REVIEW"
+	MetricDimensionMergedPRs          MetricDimension = "MERGED_PRS"
+	MetricDimensionReviwedPRs         MetricDimension = "REVIEWED_PRS"
+	MetricDimensionLOCAdded           MetricDimension = "LOC_ADDED"
+	MetricDimensionLOCRemoved         MetricDimension = "LOC_REMOVED"
+	MetricDimensionPRReviewComplexity MetricDimension = "PR_REVIEW_COMPLEXITY"
 )
 
 type MetricRule interface {
@@ -33,10 +34,13 @@ type MetricRule interface {
 }
 
 type BaseMetricRule struct {
-	ID        string          `json:"id"`
-	Name      string          `json:"name"`
-	Category  string          `json:"category"`
-	Unit      types.Unit      `json:"unit"`
-	Dimension MetricDimension `json:"dimension"`
-	Operation MetricOperation `json:"operation"`
+	ID             string          `json:"id"`
+	Name           string          `json:"name"`
+	Description    string          `json:"description"`
+	Category       string          `json:"category"`
+	Unit           types.Unit      `json:"unit"`
+	Dimension      MetricDimension `json:"dimension"`
+	Operation      MetricOperation `json:"operation"`
+	IconIdentifier string          `json:"iconIdentifier"`
+	IconColor      string          `json:"iconColor"`
 }

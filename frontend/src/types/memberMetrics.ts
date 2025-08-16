@@ -8,9 +8,12 @@ export interface GetMemberMetricsParams {
 // Snapshot metric for comparison
 export interface SnapshotMetric {
   label: string
+  description: string
   value: number
   peersValue: number
   unit: string // "count", "time", "loc", etc.
+  iconIdentifier: string
+  iconColor: string
 }
 
 // Category of snapshot metrics

@@ -167,6 +167,11 @@ func (h *SourceControlHandler) ListOrganizationSourceControlAccounts(c *gin.Cont
 		SourceControlAccounts: make([]servicetypes.SourceControlAccount, len(accounts)),
 	}
 
+	// Copy accounts to response
+	for i, account := range accounts {
+		response.SourceControlAccounts[i] = account
+	}
+
 	c.JSON(http.StatusOK, response)
 }
 

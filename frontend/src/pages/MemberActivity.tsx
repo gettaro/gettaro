@@ -5,6 +5,7 @@ import { MemberActivity, GetMemberActivityParams } from '../types/memberActivity
 import { Member } from '../types/member'
 import { useOrganizationStore } from '../stores/organization'
 import { useAuth } from '../hooks/useAuth'
+import { formatTimeMetric } from '../utils/formatMetrics'
 
 export default function MemberActivityPage() {
   const { memberId } = useParams<{ memberId: string }>()
@@ -28,14 +29,6 @@ export default function MemberActivityPage() {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
   const [hasMoreData, setHasMoreData] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
-
-  // Utility function to convert seconds to human readable format
-  const formatTimeFromSeconds = (seconds: number): string => {
-    if (seconds < 60) return `${seconds}s`
-    if (seconds < 3600) return `${Math.round(seconds / 60)}m`
-    if (seconds < 86400) return `${Math.round(seconds / 3600)}h`
-    return `${Math.round(seconds / 86400)}d`
-  }
 
   useEffect(() => {
     if (isAuthenticated && !authLoading && currentOrganization && memberId) {
@@ -263,7 +256,7 @@ export default function MemberActivityPage() {
                     <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span>Merge: {formatTimeFromSeconds(activity.prMetrics.time_to_merge_seconds)}</span>
+                    <span>Merge: {formatTimeMetric(activity.prMetrics.time_to_merge_seconds)}</span>
                   </span>
                 )}
                 
@@ -273,7 +266,7 @@ export default function MemberActivityPage() {
                     <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span>First review: {formatTimeFromSeconds(activity.prMetrics.time_to_first_non_bot_review_seconds)}</span>
+                    <span>First review: {formatTimeMetric(activity.prMetrics.time_to_first_non_bot_review_seconds)}</span>
                   </span>
                 )}
 

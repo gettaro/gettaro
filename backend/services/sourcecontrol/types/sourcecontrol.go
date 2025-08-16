@@ -117,11 +117,14 @@ type MetricRuleParams struct {
 
 // SnapshotMetric represents a single metric in the snapshot
 type SnapshotMetric struct {
-	Label      string  `json:"label"`
-	Category   string  `json:"category"`
-	Value      float64 `json:"value"`
-	PeersValue float64 `json:"peersValue"`
-	Unit       Unit    `json:"unit"` // "count", "time", "loc", etc.
+	Label          string  `json:"label"`
+	Description    string  `json:"description"`
+	Category       string  `json:"category"`
+	Value          float64 `json:"value"`
+	PeersValue     float64 `json:"peersValue"`
+	Unit           Unit    `json:"unit"` // "count", "time", "loc", etc.
+	IconIdentifier string  `json:"iconIdentifier"`
+	IconColor      string  `json:"iconColor"`
 }
 
 // SnapshotCategory represents a category of metrics in the snapshot

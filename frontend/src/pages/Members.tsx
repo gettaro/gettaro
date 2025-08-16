@@ -6,6 +6,7 @@ import { SourceControlAccount } from '../types/sourcecontrol'
 import { GetMemberMetricsResponse, SnapshotMetric } from '../types/memberMetrics'
 import { useOrganizationStore } from '../stores/organization'
 import { formatMetricValue } from '../utils/formatMetrics'
+import MetricIcon from '../components/MetricIcon'
 
 export default function Members() {
   const { currentOrganization } = useOrganizationStore()
@@ -153,9 +154,12 @@ export default function Members() {
           } else {
             categoryMap.get(category.category)?.push({
               label: metric.label,
+              description: metric.description || '',
               value: metric.value,
               peersValue: metric.peersValue,
-              unit: metric.unit
+              unit: metric.unit,
+              iconIdentifier: metric.iconIdentifier || 'default',
+              iconColor: metric.iconColor || 'gray'
             })
           }
         })
@@ -346,177 +350,203 @@ export default function Members() {
             </div>
 
             <div className="divide-y divide-border">
-              {members.map((member) => (
-                <div key={member.id} className="p-6 flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                      <span className="text-primary font-medium">
-                        {member.username.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-foreground">{member.username}</h3>
-                      <p className="text-sm text-muted-foreground">{member.email}</p>
-                      <div className="mt-2 space-y-1">
-                        {member.titleId && (
-                          <div className="flex items-center space-x-2 text-sm text-foreground">
-                            <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2z" />
-                            </svg>
-                            <span>{titles.find(t => t.id === member.titleId)?.name || 'Unknown Title'}</span>
-                          </div>
-                        )}
-                        {sourceControlAccounts.find(acc => acc.memberId === member.id) && (
-                          <div className="flex items-center space-x-2 text-sm text-foreground">
+              {/* Debug info - remove this after testing */}
+              {sourceControlAccounts.length > 0 && (
+                <div className="p-4 bg-blue-50 border-l-4 border-blue-400">
+                  <p className="text-sm text-blue-800">
+                    <strong>Debug:</strong> Loaded {sourceControlAccounts.length} source control account(s)
+                  </p>
+                  <div className="mt-2 text-xs text-blue-700">
+                    {sourceControlAccounts.map(acc => (
+                      <div key={acc.id}>
+                        {acc.username} (Provider: {acc.providerName}) → Member ID: {acc.memberId}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {members.map((member) => {
+                // Find source control account once for efficiency
+                const sourceControlAccount = sourceControlAccounts.find(acc => acc.memberId === member.id)
+                
+                return (
+                  <div key={member.id} className="p-6 flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                        <span className="text-primary font-medium">
+                          {member.username.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-foreground">{member.username}</h3>
+                        <p className="text-sm text-muted-foreground">{member.email}</p>
+                        <div className="mt-2 space-y-1">
+                          {member.titleId && (
+                            <div className="flex items-center space-x-2 text-sm text-foreground">
+                              <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2z" />
+                              </svg>
+                              <span>{titles.find(t => t.id === member.titleId)?.name || 'Unknown Title'}</span>
+                            </div>
+                          )}
+                          {/* Source Control Account - Always show this section */}
+                          <div className="flex items-center space-x-2 text-sm">
                             <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                             </svg>
-                            <span>
-                              {sourceControlAccounts.find(acc => acc.memberId === member.id)?.username}
-                              {sourceControlAccounts.find(acc => acc.memberId === member.id)?.providerName && 
-                                ` (${sourceControlAccounts.find(acc => acc.memberId === member.id)?.providerName})`
-                              }
-                            </span>
+                            {sourceControlAccount ? (
+                              <span className="font-medium text-blue-600">
+                                @{sourceControlAccount.username}
+                                {sourceControlAccount.providerName && 
+                                  ` (${sourceControlAccount.providerName})`
+                                }
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground italic">
+                                No source control account
+                              </span>
+                            )}
                           </div>
-                        )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Joined {new Date(member.createdAt).toLocaleDateString()}
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Joined {new Date(member.createdAt).toLocaleDateString()}
-                      </p>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <span className={getRoleBadge(member.isOwner)}>
+                        {member.isOwner ? 'Owner' : 'Member'}
+                      </span>
+                      {!member.isOwner && (
+                        <>
+                          <button 
+                            onClick={() => handleEditMember(member)}
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            title="Edit member"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
+                          </button>
+                          <a
+                            href={`/members/${member.id}/profile`}
+                            className="text-green-500 hover:text-green-700 transition-colors"
+                            title="View profile"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                              />
+                            </svg>
+                          </a>
+                          <a
+                            href={`/members/${member.id}/activity`}
+                            className="text-blue-500 hover:text-blue-700 transition-colors"
+                            title="View activity"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                              />
+                            </svg>
+                          </a>
+                          <button 
+                            onClick={() => handleDeleteMember(member)}
+                            className="text-red-500 hover:text-red-700 transition-colors"
+                            title="Delete member"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        </>
+                      )}
+                      {/* Profile and Activity buttons for all members (including owners) */}
+                      <a
+                        href={`/members/${member.id}/profile`}
+                        className="text-green-500 hover:text-green-700 transition-colors"
+                        title="View profile"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                          />
+                        </svg>
+                      </a>
+                      <a
+                        href={`/members/${member.id}/activity`}
+                        className="text-blue-500 hover:text-blue-700 transition-colors"
+                        title="View activity"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                          />
+                        </svg>
+                      </a>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-3">
-                    <span className={getRoleBadge(member.isOwner)}>
-                      {member.isOwner ? 'Owner' : 'Member'}
-                    </span>
-                    {!member.isOwner && (
-                      <>
-                        <button 
-                          onClick={() => handleEditMember(member)}
-                          className="text-muted-foreground hover:text-foreground transition-colors"
-                          title="Edit member"
-                        >
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                            />
-                          </svg>
-                        </button>
-                        <a
-                          href={`/members/${member.id}/profile`}
-                          className="text-green-500 hover:text-green-700 transition-colors"
-                          title="View profile"
-                        >
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                            />
-                          </svg>
-                        </a>
-                        <a
-                          href={`/members/${member.id}/activity`}
-                          className="text-blue-500 hover:text-blue-700 transition-colors"
-                          title="View activity"
-                        >
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                            />
-                          </svg>
-                        </a>
-                        <button 
-                          onClick={() => handleDeleteMember(member)}
-                          className="text-red-500 hover:text-red-700 transition-colors"
-                          title="Delete member"
-                        >
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                        </button>
-                      </>
-                    )}
-                    {/* Profile and Activity buttons for all members (including owners) */}
-                    <a
-                      href={`/members/${member.id}/profile`}
-                      className="text-green-500 hover:text-green-700 transition-colors"
-                      title="View profile"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                        />
-                      </svg>
-                    </a>
-                    <a
-                      href={`/members/${member.id}/activity`}
-                      className="text-blue-500 hover:text-blue-700 transition-colors"
-                      title="View activity"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                        />
-                      </svg>
-                    </a>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         ) : (
@@ -548,7 +578,14 @@ export default function Members() {
                         {category.metrics.map((metric) => (
                           <div key={metric.label} className="bg-muted/30 rounded-lg border border-border p-4">
                             <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-medium text-foreground">{metric.label}</span>
+                              <div className="flex items-center space-x-2">
+                                <MetricIcon 
+                                  iconIdentifier={metric.iconIdentifier || 'default'} 
+                                  iconColor={metric.iconColor || 'gray'} 
+                                  className="w-5 h-5"
+                                />
+                                <span className="text-sm font-medium text-foreground">{metric.label}</span>
+                              </div>
                               <span className="text-xs text-muted-foreground">vs Peers</span>
                             </div>
                             <div className="flex items-center justify-between">

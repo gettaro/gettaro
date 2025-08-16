@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"ems.dev/backend/libraries/errors"
@@ -12,67 +13,102 @@ import (
 	"github.com/google/uuid"
 )
 
-type PRsReviewedRule struct {
+// PRReviewComplexityRule calculates the average complexity of PRs reviewed by a member
+type PRReviewComplexityRule struct {
 	metrictypes.BaseMetricRule
 	sourceControlDB database.DB
 }
 
-func NewPRsReviewedRule(baseMetricRule metrictypes.BaseMetricRule, sourceControlDB database.DB) *PRsReviewedRule {
-	return &PRsReviewedRule{
-		BaseMetricRule:  baseMetricRule,
+// NewPRReviewComplexityRule creates a new PR Review Complexity rule
+func NewPRReviewComplexityRule(base metrictypes.BaseMetricRule, sourceControlDB database.DB) *PRReviewComplexityRule {
+	return &PRReviewComplexityRule{
+		BaseMetricRule:  base,
 		sourceControlDB: sourceControlDB,
 	}
 }
 
-func (r *PRsReviewedRule) Calculate(ctx context.Context, params types.MetricRuleParams) (*types.SnapshotMetric, *types.GraphMetric, error) {
-	// Validate params
+// Calculate implements the MetricRule interface
+func (r *PRReviewComplexityRule) Calculate(ctx context.Context, params types.MetricRuleParams) (*types.SnapshotMetric, *types.GraphMetric, error) {
+	// Extract parameters
 	organizationID, startDate, endDate, sourceControlAccountIDs, peersSourceControlAccountIDs, err := r.extractParams(params)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Calculate PRs reviewed value
-	prsReviewedValue, err := r.sourceControlDB.CalculatePRsReviewed(ctx, *organizationID, sourceControlAccountIDs, *startDate, *endDate, r.Operation)
+	// Calculate PR review complexity for the member
+	prReviewComplexityValue, err := r.sourceControlDB.CalculatePRReviewComplexity(
+		ctx,
+		*organizationID,
+		sourceControlAccountIDs,
+		*startDate,
+		*endDate,
+		r.Operation,
+	)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to calculate PR review complexity: %w", err)
 	}
 
-	// Calculate PRs reviewed peers value
-	peersPRsReviewedValue, err := r.sourceControlDB.CalculatePRsReviewed(ctx, *organizationID, peersSourceControlAccountIDs, *startDate, *endDate, r.Operation)
+	// Calculate PR review complexity for peers (other members in the organization)
+	peersPRReviewComplexityValue, err := r.sourceControlDB.CalculatePRReviewComplexity(
+		ctx,
+		*organizationID,
+		peersSourceControlAccountIDs,
+		*startDate,
+		*endDate,
+		r.Operation,
+	)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to calculate peers PR review complexity: %w", err)
 	}
 
+	// Create snapshot metric
 	snapshotMetric := types.SnapshotMetric{
 		Label:          r.Name,
 		Description:    r.Description,
 		Unit:           r.Unit,
-		Value:          float64(*prsReviewedValue),
-		PeersValue:     float64(*peersPRsReviewedValue),
+		Value:          *prReviewComplexityValue,
+		PeersValue:     *peersPRReviewComplexityValue,
 		IconIdentifier: r.IconIdentifier,
 		IconColor:      r.IconColor,
 	}
 
-	// Calculate PRs reviewed graph value
-	prsReviewedGraphValue, err := r.sourceControlDB.CalculatePRsReviewedGraph(ctx, *organizationID, sourceControlAccountIDs, *startDate, *endDate, r.Operation, r.Name, params.Interval)
+	// Calculate graph metric
+	graphMetric, err := r.calculateGraphMetric(ctx, *organizationID, sourceControlAccountIDs, *startDate, *endDate, params.Interval)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to calculate graph metric: %w", err)
 	}
 
+	return &snapshotMetric, graphMetric, nil
+}
+
+// calculateGraphMetric calculates the time series data for the metric
+func (r *PRReviewComplexityRule) calculateGraphMetric(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, interval string) (*types.GraphMetric, error) {
+	// Calculate time series data
+	timeSeriesData, err := r.sourceControlDB.CalculatePRReviewComplexityGraph(
+		ctx,
+		organizationID,
+		sourceControlAccountIDs,
+		startDate,
+		endDate,
+		r.Operation,
+		r.Name,
+		interval,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate PR review complexity graph: %w", err)
+	}
+
+	// Create graph metric
 	graphMetric := types.GraphMetric{
 		Label:      r.Name,
-		Unit:       r.Unit,
-		TimeSeries: prsReviewedGraphValue,
+		TimeSeries: timeSeriesData,
 	}
 
-	return &snapshotMetric, &graphMetric, nil
+	return &graphMetric, nil
 }
 
-func (r *PRsReviewedRule) Category() string {
-	return r.BaseMetricRule.Category
-}
-
-func (r *PRsReviewedRule) extractParams(params types.MetricRuleParams) (*string, *time.Time, *time.Time, []string, []string, error) {
+// extractParams extracts and validates the metric parameters
+func (r *PRReviewComplexityRule) extractParams(params types.MetricRuleParams) (*string, *time.Time, *time.Time, []string, []string, error) {
 	if params.Interval == "" {
 		return nil, nil, nil, nil, nil, errors.NewBadRequestError("interval is required")
 	}
@@ -134,7 +170,7 @@ func (r *PRsReviewedRule) extractParams(params types.MetricRuleParams) (*string,
 			for _, idInterface := range peersSrcControlAccountIDsArray {
 				if id, ok := idInterface.(string); ok {
 					if _, err := uuid.Parse(id); err != nil {
-						return nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid peers source control account id")
+						return nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid peer source control account id")
 					}
 					peersSourceControlAccountIDs = append(peersSourceControlAccountIDs, id)
 				}
@@ -143,4 +179,9 @@ func (r *PRsReviewedRule) extractParams(params types.MetricRuleParams) (*string,
 	}
 
 	return &organizationID, params.StartDate, params.EndDate, sourceControlAccountIDs, peersSourceControlAccountIDs, nil
+}
+
+// Category returns the category of the metric
+func (r *PRReviewComplexityRule) Category() string {
+	return r.BaseMetricRule.Category
 }

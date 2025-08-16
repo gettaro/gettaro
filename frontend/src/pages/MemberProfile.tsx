@@ -1,21 +1,20 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import Api from '../api/api'
+import { useOrganizationStore } from '../stores/organization'
 import { Member } from '../types/member'
+import { GetMemberMetricsResponse, GetMemberMetricsParams } from '../types/memberMetrics'
 import { Title } from '../types/title'
 import { SourceControlAccount } from '../types/sourcecontrol'
 import { MemberActivity, GetMemberActivityParams } from '../types/memberActivity'
-import { GetMemberMetricsResponse, GetMemberMetricsParams } from '../types/memberMetrics'
-import { useOrganizationStore } from '../stores/organization'
-import { useAuth } from '../hooks/useAuth'
-import { formatMetricValue } from '../utils/formatMetrics'
+import Api from '../api/api'
+import { formatMetricValue, formatTimeMetric } from '../utils/formatMetrics'
+import MetricIcon from '../components/MetricIcon'
 
 type TabType = 'overview' | 'source-control-metrics'
 
 export default function MemberProfilePage() {
   const { memberId } = useParams<{ memberId: string }>()
   const { currentOrganization } = useOrganizationStore()
-  const { isAuthenticated, isLoading: authLoading, getToken } = useAuth()
   const [member, setMember] = useState<Member | null>(null)
   const [title, setTitle] = useState<Title | null>(null)
   const [sourceControlAccount, setSourceControlAccount] = useState<SourceControlAccount | null>(null)
@@ -42,10 +41,10 @@ export default function MemberProfilePage() {
   const [metricsLoading, setMetricsLoading] = useState(false)
 
   useEffect(() => {
-    if (isAuthenticated && !authLoading && currentOrganization && memberId) {
+    if (currentOrganization && memberId) {
       initializePage()
     }
-  }, [isAuthenticated, authLoading, currentOrganization, memberId])
+  }, [currentOrganization, memberId])
 
   // Load activities when Code Contributions tab is selected
   useEffect(() => {
@@ -65,7 +64,6 @@ export default function MemberProfilePage() {
 
   const initializePage = async () => {
     try {
-      await getToken()
       await loadMemberData()
     } catch (err) {
       console.error('Error initializing page:', err)
@@ -110,14 +108,6 @@ export default function MemberProfilePage() {
     } finally {
       setMetricsLoading(false)
     }
-  }
-
-  // Utility function to convert seconds to human readable format
-  const formatTimeFromSeconds = (seconds: number): string => {
-    if (seconds < 60) return `${seconds}s`
-    if (seconds < 3600) return `${Math.round(seconds / 60)}m`
-    if (seconds < 86400) return `${Math.round(seconds / 3600)}h`
-    return `${Math.round(seconds / 86400)}d`
   }
 
   const handleDateChange = (field: 'startDate' | 'endDate', value: string) => {
@@ -262,7 +252,7 @@ export default function MemberProfilePage() {
                     <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span>Merge: {formatTimeFromSeconds(activity.prMetrics.time_to_merge_seconds)}</span>
+                    <span>Merge: {formatTimeMetric(activity.prMetrics.time_to_merge_seconds)}</span>
                   </span>
                 )}
                 
@@ -272,7 +262,7 @@ export default function MemberProfilePage() {
                     <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span>First review: {formatTimeFromSeconds(activity.prMetrics.time_to_first_non_bot_review_seconds)}</span>
+                    <span>First review: {formatTimeMetric(activity.prMetrics.time_to_first_non_bot_review_seconds)}</span>
                   </span>
                 )}
 
@@ -534,51 +524,11 @@ export default function MemberProfilePage() {
                         {category.metrics.map((metric) => (
                           <div key={metric.label} className="text-center p-4 bg-muted/30 rounded-lg border border-border">
                             <div className="flex justify-center mb-2">
-                              {/* Icon based on metric type */}
-                              {metric.label.includes('PRs Merged') && (
-                                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                              )}
-                              {metric.label.includes('PRs Reviewed') && (
-                                <svg className="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                </svg>
-                              )}
-                              {metric.label.includes('LoC Added') && (
-                                <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                </svg>
-                              )}
-                              {metric.label.includes('LoC Deleted') && (
-                                <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                                </svg>
-                              )}
-                              {metric.label.includes('Time to Merge') && (
-                                <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                              )}
-                              {metric.label.includes('Time to First Review') && (
-                                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                              )}
-                              {metric.label.includes('Response Time') && (
-                                <svg className="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                                </svg>
-                              )}
-                              {/* Default icon for other metrics */}
-                              {!metric.label.includes('PRs Merged') && !metric.label.includes('PRs Reviewed') && 
-                               !metric.label.includes('LoC Added') && !metric.label.includes('LoC Deleted') &&
-                               !metric.label.includes('Time to Merge') && !metric.label.includes('Time to First Review') &&
-                               !metric.label.includes('Response Time') && (
-                                <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                              )}
+                              {/* Use backend-provided icon */}
+                              <MetricIcon 
+                                iconIdentifier={metric.iconIdentifier || 'default'} 
+                                iconColor={metric.iconColor || 'gray'} 
+                              />
                             </div>
                             <div className="text-2xl font-bold text-foreground">
                               {formatMetricValue(metric.value, metric.unit)}
@@ -784,42 +734,6 @@ export default function MemberProfilePage() {
     )
   }
 
-  if (authLoading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-muted-foreground">Authenticating...</div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-red-600">Please log in to view this page</div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!currentOrganization) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-muted-foreground">No organization selected</div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -850,6 +764,18 @@ export default function MemberProfilePage() {
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-center h-64">
             <div className="text-red-600">Member not found</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentOrganization) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-muted-foreground">No organization selected</div>
           </div>
         </div>
       </div>

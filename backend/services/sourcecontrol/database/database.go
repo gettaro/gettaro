@@ -45,6 +45,16 @@ type DB interface {
 	// Calculate PRs reviewed metrics
 	CalculatePRsReviewed(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
 	CalculatePRsReviewedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
+
+	// Calculate LOC metrics
+	CalculateLOCAdded(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
+	CalculateLOCAddedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
+	CalculateLOCRemoved(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
+	CalculateLOCRemovedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
+
+	// Calculate PR Review Complexity metrics
+	CalculatePRReviewComplexity(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*float64, error)
+	CalculatePRReviewComplexityGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
 }
 
 type SourceControlDB struct {
@@ -926,28 +936,27 @@ func (d *SourceControlDB) CalculatePRsReviewed(ctx context.Context, organization
 	selectStatement := ""
 	switch metricOperation {
 	case metrictypes.MetricOperationCount:
-		selectStatement = "COUNT(*)"
+		selectStatement = "COUNT(DISTINCT pr.id)"
 	default:
 		return nil, fmt.Errorf("invalid metric operation for PRs reviewed: %s", metricOperation)
 	}
 
 	query := `
 		SELECT ` + selectStatement + ` as prs_reviewed_count
-		FROM pr_comments pc
-		JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
-		WHERE sca.organization_id = ?
-		AND pc.created_at >= ?
-		AND pc.created_at <= ?
-		AND pc.type = 'REVIEW'
+		FROM pull_requests pr
+		WHERE pr.created_at >= ?
+		AND pr.created_at <= ?
+		AND EXISTS (
+			SELECT 1 FROM pr_comments pc 
+			JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+			WHERE pc.pr_id = pr.id 
+			AND sca.organization_id = ?
+			AND sca.id IN ?
+		)
 	`
 
 	var args []any
-	args = append(args, organizationID, startDate, endDate)
-
-	if len(sourceControlAccountIDs) > 0 {
-		query += " AND pc.source_control_account_id IN ?"
-		args = append(args, sourceControlAccountIDs)
-	}
+	args = append(args, startDate, endDate, organizationID, sourceControlAccountIDs)
 
 	var count int64
 	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&count).Error; err != nil {
@@ -965,7 +974,7 @@ func (d *SourceControlDB) CalculatePRsReviewedGraph(ctx context.Context, organiz
 	selectStatement := ""
 	switch metricOperation {
 	case metrictypes.MetricOperationCount:
-		selectStatement = "COUNT(*)"
+		selectStatement = "COUNT(DISTINCT pr.id)"
 	default:
 		return nil, fmt.Errorf("invalid metric operation for PRs reviewed: %s", metricOperation)
 	}
@@ -983,29 +992,24 @@ func (d *SourceControlDB) CalculatePRsReviewedGraph(ctx context.Context, organiz
 
 	query := `
 		SELECT 
-			DATE_TRUNC('` + postgresInterval + `', pc.created_at) as date,
+			DATE_TRUNC('` + postgresInterval + `', pr.created_at) as date,
 			` + selectStatement + ` as prs_reviewed_count
-		FROM pr_comments pc
-		JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
-		WHERE sca.organization_id = ?
-		AND pc.created_at >= ?
-		AND pc.created_at <= ?
-		AND pc.type = 'REVIEW'
+		FROM pull_requests pr
+		WHERE pr.created_at >= ?
+		AND pr.created_at <= ?
+		AND EXISTS (
+			SELECT 1 FROM pr_comments pc 
+			JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+			WHERE pc.pr_id = pr.id 
+			AND sca.organization_id = ?
+			AND sca.id IN ?
+		)
+		GROUP BY DATE_TRUNC('` + postgresInterval + `', pr.created_at)
+		ORDER BY date
 	`
 
 	var args []any
-	args = append(args, organizationID, startDate, endDate)
-
-	if len(sourceControlAccountIDs) > 0 {
-		query += " AND pc.source_control_account_id IN ?"
-		args = append(args, sourceControlAccountIDs)
-	}
-
-	// Add GROUP BY clause for the DATE_TRUNC grouping
-	query += " GROUP BY DATE_TRUNC('" + postgresInterval + "', pc.created_at)"
-
-	// Add ORDER BY to ensure consistent results
-	query += " ORDER BY date"
+	args = append(args, startDate, endDate, organizationID, sourceControlAccountIDs)
 
 	var result struct {
 		Date             time.Time `json:"date"`
@@ -1029,6 +1033,448 @@ func (d *SourceControlDB) CalculatePRsReviewedGraph(ctx context.Context, organiz
 				{
 					Key:   metricLabel,
 					Value: result.PRsReviewedCount,
+				},
+			},
+		})
+	}
+
+	return dataPoints, nil
+}
+
+// CalculateLOCAdded calculates the lines of code added metric
+func (d *SourceControlDB) CalculateLOCAdded(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error) {
+	selectStatement := ""
+	switch metricOperation {
+	case metrictypes.MetricOperationCount:
+		selectStatement = "COALESCE(SUM(CAST(pr.metadata->>'additions' AS BIGINT)), 0)"
+	default:
+		return nil, fmt.Errorf("invalid metric operation for LOC added: %s", metricOperation)
+	}
+
+	query := `
+		SELECT ` + selectStatement + ` as loc_added_count
+		FROM pull_requests pr
+		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		WHERE sca.organization_id = ?
+		AND pr.created_at >= ?
+		AND pr.created_at <= ?
+		AND pr.merged_at IS NOT NULL
+		AND pr.status = 'closed'
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate)
+
+	if len(sourceControlAccountIDs) > 0 {
+		query += " AND pr.source_control_account_id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	var count int64
+	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&count).Error; err != nil {
+		return nil, err
+	}
+
+	// Convert int64 to int
+	value := int(count)
+
+	return &value, nil
+}
+
+// CalculateLOCAddedGraph calculates the lines of code added metric for a graph
+func (d *SourceControlDB) CalculateLOCAddedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error) {
+	selectStatement := ""
+	switch metricOperation {
+	case metrictypes.MetricOperationCount:
+		selectStatement = "COALESCE(SUM(CAST(pr.metadata->>'additions' AS BIGINT)), 0)"
+	default:
+		return nil, fmt.Errorf("invalid metric operation for LOC added: %s", metricOperation)
+	}
+
+	// Map interval values to PostgreSQL DATE_TRUNC units
+	postgresInterval := interval
+	switch interval {
+	case "daily":
+		postgresInterval = "day"
+	case "weekly":
+		postgresInterval = "week"
+	case "monthly":
+		postgresInterval = "month"
+	}
+
+	query := `
+		SELECT 
+			DATE_TRUNC('` + postgresInterval + `', pr.merged_at) as date,
+			` + selectStatement + ` as loc_added_count
+		FROM pull_requests pr
+		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		WHERE sca.organization_id = ?
+		AND pr.created_at >= ?
+		AND pr.created_at <= ?
+		AND pr.merged_at IS NOT NULL
+		AND pr.status = 'closed'
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate)
+
+	if len(sourceControlAccountIDs) > 0 {
+		query += " AND pr.source_control_account_id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	// Add GROUP BY clause for the DATE_TRUNC grouping
+	query += " GROUP BY DATE_TRUNC('" + postgresInterval + "', pr.merged_at)"
+
+	// Add ORDER BY to ensure consistent results
+	query += " ORDER BY date"
+
+	var result struct {
+		Date          time.Time `json:"date"`
+		LOCAddedCount float64   `json:"loc_added_count"`
+	}
+
+	rows, err := d.db.WithContext(ctx).Raw(query, args...).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	dataPoints := []types.TimeSeriesEntry{}
+	for rows.Next() {
+		if err := rows.Scan(&result.Date, &result.LOCAddedCount); err != nil {
+			return nil, err
+		}
+		dataPoints = append(dataPoints, types.TimeSeriesEntry{
+			Date: result.Date.Format("2006-01-02"),
+			Data: []types.TimeSeriesDataPoint{
+				{
+					Key:   metricLabel,
+					Value: result.LOCAddedCount,
+				},
+			},
+		})
+	}
+
+	return dataPoints, nil
+}
+
+// CalculateLOCRemoved calculates the lines of code removed metric
+func (d *SourceControlDB) CalculateLOCRemoved(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error) {
+	selectStatement := ""
+	switch metricOperation {
+	case metrictypes.MetricOperationCount:
+		selectStatement = "COALESCE(SUM(CAST(pr.metadata->>'deletions' AS BIGINT)), 0)"
+	default:
+		return nil, fmt.Errorf("invalid metric operation for LOC removed: %s", metricOperation)
+	}
+
+	query := `
+		SELECT ` + selectStatement + ` as loc_removed_count
+		FROM pull_requests pr
+		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		WHERE sca.organization_id = ?
+		AND pr.created_at >= ?
+		AND pr.created_at <= ?
+		AND pr.merged_at IS NOT NULL
+		AND pr.status = 'closed'
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate)
+
+	if len(sourceControlAccountIDs) > 0 {
+		query += " AND pr.source_control_account_id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	var count int64
+	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&count).Error; err != nil {
+		return nil, err
+	}
+
+	// Convert int64 to int
+	value := int(count)
+
+	return &value, nil
+}
+
+// CalculateLOCRemovedGraph calculates the lines of code removed metric for a graph
+func (d *SourceControlDB) CalculateLOCRemovedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error) {
+	selectStatement := ""
+	switch metricOperation {
+	case metrictypes.MetricOperationCount:
+		selectStatement = "COALESCE(SUM(CAST(pr.metadata->>'deletions' AS BIGINT)), 0)"
+	default:
+		return nil, fmt.Errorf("invalid metric operation for LOC removed: %s", metricOperation)
+	}
+
+	// Map interval values to PostgreSQL DATE_TRUNC units
+	postgresInterval := interval
+	switch interval {
+	case "daily":
+		postgresInterval = "day"
+	case "weekly":
+		postgresInterval = "week"
+	case "monthly":
+		postgresInterval = "month"
+	}
+
+	query := `
+		SELECT 
+			DATE_TRUNC('` + postgresInterval + `', pr.merged_at) as date,
+			` + selectStatement + ` as loc_removed_count
+		FROM pull_requests pr
+		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		WHERE sca.organization_id = ?
+		AND pr.created_at >= ?
+		AND pr.created_at <= ?
+		AND pr.merged_at IS NOT NULL
+		AND pr.status = 'closed'
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate)
+
+	if len(sourceControlAccountIDs) > 0 {
+		query += " AND pr.source_control_account_id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	// Add GROUP BY clause for the DATE_TRUNC grouping
+	query += " GROUP BY DATE_TRUNC('" + postgresInterval + "', pr.merged_at)"
+
+	// Add ORDER BY to ensure consistent results
+	query += " ORDER BY date"
+
+	var result struct {
+		Date            time.Time `json:"date"`
+		LOCRemovedCount float64   `json:"loc_removed_count"`
+	}
+
+	rows, err := d.db.WithContext(ctx).Raw(query, args...).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	dataPoints := []types.TimeSeriesEntry{}
+	for rows.Next() {
+		if err := rows.Scan(&result.Date, &result.LOCRemovedCount); err != nil {
+			return nil, err
+		}
+		dataPoints = append(dataPoints, types.TimeSeriesEntry{
+			Date: result.Date.Format("2006-01-02"),
+			Data: []types.TimeSeriesDataPoint{
+				{
+					Key:   metricLabel,
+					Value: result.LOCRemovedCount,
+				},
+			},
+		})
+	}
+
+	return dataPoints, nil
+}
+
+// CalculatePRReviewComplexity calculates the PR review complexity metric
+func (d *SourceControlDB) CalculatePRReviewComplexity(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*float64, error) {
+	selectStatement := ""
+	switch metricOperation {
+	case metrictypes.MetricOperationAverage:
+		selectStatement = "AVG(pr.additions + pr.deletions)"
+	default:
+		return nil, fmt.Errorf("invalid metric operation for PR review complexity: %s", metricOperation)
+	}
+
+	// First, let's debug by checking what PRs exist
+	debugQuery := `
+		SELECT COUNT(*) as total_prs
+		FROM pull_requests pr
+		WHERE pr.created_at >= ?
+		AND pr.created_at <= ?
+		AND pr.merged_at IS NOT NULL
+		AND pr.status = 'closed'
+	`
+
+	var debugArgs []any
+	debugArgs = append(debugArgs, startDate, endDate)
+
+	var totalPRs int64
+	if err := d.db.WithContext(ctx).Raw(debugQuery, debugArgs...).Scan(&totalPRs).Error; err != nil {
+		return nil, fmt.Errorf("debug query failed: %w", err)
+	}
+
+	fmt.Printf("DEBUG - Total PRs in date range: %d\n", totalPRs)
+
+	// Let's also check what source control accounts we're looking for
+	fmt.Printf("DEBUG - Looking for reviews from source control accounts: %v\n", sourceControlAccountIDs)
+
+	// Simple test: just count PRs with any comments
+	simpleTestQuery := `
+		SELECT COUNT(*) as total_commented_prs
+		FROM pull_requests pr
+		WHERE pr.created_at >= ?
+		AND pr.created_at <= ?
+		AND pr.merged_at IS NOT NULL
+		AND pr.status = 'closed'
+		AND EXISTS (
+			SELECT 1 FROM pr_comments pc 
+			WHERE pc.pr_id = pr.id 
+		)
+	`
+
+	var simpleArgs []any
+	simpleArgs = append(simpleArgs, startDate, endDate)
+
+	var totalCommentedPRs int64
+	if err := d.db.WithContext(ctx).Raw(simpleTestQuery, simpleArgs...).Scan(&totalCommentedPRs).Error; err != nil {
+		return nil, fmt.Errorf("simple test query failed: %w", err)
+	}
+
+	fmt.Printf("DEBUG - PRs with any comments: %d\n", totalCommentedPRs)
+
+	// Very simple test: just count PRs commented on by the member
+	verySimpleQuery := `
+		SELECT COUNT(*) as member_commented_prs
+		FROM pull_requests pr
+		WHERE pr.created_at >= ?
+		AND pr.created_at <= ?
+		AND pr.merged_at IS NOT NULL
+		AND pr.status = 'closed'
+		AND EXISTS (
+			SELECT 1 FROM pr_comments pc 
+			JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+			WHERE pc.pr_id = pr.id 
+			AND sca.organization_id = ?
+			AND sca.id IN ?
+		)
+	`
+
+	var verySimpleArgs []any
+	verySimpleArgs = append(verySimpleArgs, startDate, endDate, organizationID, sourceControlAccountIDs)
+
+	var memberCommentedPRs int64
+	if err := d.db.WithContext(ctx).Raw(verySimpleQuery, verySimpleArgs...).Scan(&memberCommentedPRs).Error; err != nil {
+		return nil, fmt.Errorf("very simple test query failed: %w", err)
+	}
+
+	fmt.Printf("DEBUG - PRs commented on by member: %d\n", memberCommentedPRs)
+
+	// Now run the actual query - temporarily simplified for debugging
+	query := `
+		SELECT ` + selectStatement + ` as avg_review_complexity
+		FROM pull_requests pr
+		WHERE pr.created_at >= ?
+		AND pr.created_at <= ?
+		AND pr.merged_at IS NOT NULL
+		AND pr.status = 'closed'
+		AND EXISTS (
+			SELECT 1 FROM pr_comments pc 
+			JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+			WHERE pc.pr_id = pr.id 
+			AND sca.organization_id = ?
+			AND sca.id IN ?
+		)
+		-- Temporarily commented out for debugging
+		-- AND pr.source_control_account_id NOT IN (
+		-- 	SELECT sca.id FROM source_control_accounts sca 
+		-- 	WHERE sca.organization_id = ?
+		-- )
+	`
+
+	var args []any
+	args = append(args, startDate, endDate, organizationID, sourceControlAccountIDs)
+	// args = append(args, startDate, endDate, organizationID, sourceControlAccountIDs, organizationID)
+
+	var result struct {
+		AvgReviewComplexity *float64 `json:"avg_review_complexity"`
+	}
+
+	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&result).Error; err != nil {
+		return nil, err
+	}
+
+	// If no results found, return 0
+	value := 0.0
+	if result.AvgReviewComplexity != nil {
+		value = *result.AvgReviewComplexity
+	}
+
+	fmt.Printf("DEBUG - Final result: %f\n", value)
+	return &value, nil
+}
+
+// CalculatePRReviewComplexityGraph calculates the PR review complexity metric for a graph
+func (d *SourceControlDB) CalculatePRReviewComplexityGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error) {
+	selectStatement := ""
+	switch metricOperation {
+	case metrictypes.MetricOperationAverage:
+		selectStatement = "AVG(pr.additions + pr.deletions)"
+	default:
+		return nil, fmt.Errorf("invalid metric operation for PR review complexity: %s", metricOperation)
+	}
+
+	// Map interval values to PostgreSQL DATE_TRUNC units
+	postgresInterval := interval
+	switch interval {
+	case "daily":
+		postgresInterval = "day"
+	case "weekly":
+		postgresInterval = "week"
+	case "monthly":
+		postgresInterval = "month"
+	}
+
+	query := `
+		SELECT 
+			DATE_TRUNC('` + postgresInterval + `', pr.created_at) as date,
+			` + selectStatement + ` as avg_review_complexity
+		FROM pull_requests pr
+		WHERE pr.created_at >= ?
+		AND pr.created_at <= ?
+		AND pr.merged_at IS NOT NULL
+		AND pr.status = 'closed'
+		AND EXISTS (
+			SELECT 1 FROM pr_comments pc 
+			JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+			WHERE pc.pr_id = pr.id 
+			AND sca.organization_id = ?
+			AND sca.id IN ?
+		)
+		AND pr.source_control_account_id NOT IN (
+			SELECT sca.id FROM source_control_accounts sca 
+			WHERE sca.organization_id = ?
+		)
+		GROUP BY DATE_TRUNC('` + postgresInterval + `', pr.created_at)
+		ORDER BY date
+	`
+
+	var args []any
+	args = append(args, startDate, endDate, organizationID, sourceControlAccountIDs, organizationID)
+
+	var result struct {
+		Date                time.Time `json:"date"`
+		AvgReviewComplexity float64   `json:"avg_review_complexity"`
+	}
+
+	rows, err := d.db.WithContext(ctx).Raw(query, args...).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	dataPoints := []types.TimeSeriesEntry{}
+	for rows.Next() {
+		if err := rows.Scan(&result.Date, &result.AvgReviewComplexity); err != nil {
+			return nil, err
+		}
+		dataPoints = append(dataPoints, types.TimeSeriesEntry{
+			Date: result.Date.Format("2006-01-02"),
+			Data: []types.TimeSeriesDataPoint{
+				{
+					Key:   metricLabel,
+					Value: result.AvgReviewComplexity,
 				},
 			},
 		})

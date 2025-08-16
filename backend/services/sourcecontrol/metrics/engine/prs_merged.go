@@ -44,10 +44,13 @@ func (r *PRsMergedRule) Calculate(ctx context.Context, params types.MetricRulePa
 	}
 
 	snapshotMetric := types.SnapshotMetric{
-		Label:      r.Name,
-		Unit:       r.Unit,
-		Value:      float64(*prsMergedValue),
-		PeersValue: float64(*peersPRsMergedValue),
+		Label:          r.Name,
+		Description:    r.Description,
+		Unit:           r.Unit,
+		Value:          float64(*prsMergedValue),
+		PeersValue:     float64(*peersPRsMergedValue),
+		IconIdentifier: r.IconIdentifier,
+		IconColor:      r.IconColor,
 	}
 
 	// Calculate PRs merged graph value
