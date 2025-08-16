@@ -403,6 +403,6 @@ func (h *SourceControlHandler) RegisterRoutes(api *gin.RouterGroup) {
 	members := api.Group("/organizations/:id/members")
 	{
 		members.GET("/:memberId/sourcecontrol/activity", h.GetMemberActivity)
-		members.GET("/:memberId/sourcecontrol/metrics", h.GetMemberMetrics)
+		// members.GET("/:memberId/sourcecontrol/metrics", h.GetMemberMetrics)
 	}
 }

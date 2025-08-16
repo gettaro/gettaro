@@ -2,37 +2,43 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 
 	"ems.dev/backend/libraries/errors"
 	memberdb "ems.dev/backend/services/member/database"
 	"ems.dev/backend/services/member/types"
 	sourcecontrolapi "ems.dev/backend/services/sourcecontrol/api"
-	servicetypes "ems.dev/backend/services/sourcecontrol/types"
+	sourcecontroltypes "ems.dev/backend/services/sourcecontrol/types"
+	titleapi "ems.dev/backend/services/title/api"
 	userapi "ems.dev/backend/services/user/api"
 	usertypes "ems.dev/backend/services/user/types"
+	"gorm.io/datatypes"
 )
 
 // MemberAPI defines the interface for member operations
 type MemberAPI interface {
 	AddOrganizationMember(ctx context.Context, titleID string, sourceControlAccountID string, member *types.OrganizationMember) error
 	RemoveOrganizationMember(ctx context.Context, orgID string, userID string) error
-	GetOrganizationMembers(ctx context.Context, orgID string) ([]types.OrganizationMember, error)
+	GetOrganizationMembers(ctx context.Context, orgID string, params *types.OrganizationMemberParams) ([]types.OrganizationMember, error)
 	GetOrganizationMemberByID(ctx context.Context, memberID string) (*types.OrganizationMember, error)
 	IsOrganizationOwner(ctx context.Context, orgID string, userID string) (bool, error)
 	UpdateOrganizationMember(ctx context.Context, orgID string, memberID string, titleID string, sourceControlAccountID string, username string) error
+	CalculateSourceControlMemberMetrics(ctx context.Context, organizationID string, memberID string, params sourcecontroltypes.MemberMetricsParams) (*sourcecontroltypes.MetricsResponse, error)
 }
 
 type Api struct {
 	db               memberdb.DB
 	userApi          userapi.UserAPI
 	sourceControlApi sourcecontrolapi.SourceControlAPI
+	titleApi         titleapi.TitleAPI
 }
 
-func NewApi(memberDb memberdb.DB, userApi userapi.UserAPI, sourceControlApi sourcecontrolapi.SourceControlAPI) *Api {
+func NewApi(memberDb memberdb.DB, userApi userapi.UserAPI, sourceControlApi sourcecontrolapi.SourceControlAPI, titleApi titleapi.TitleAPI) *Api {
 	return &Api{
 		db:               memberDb,
 		userApi:          userApi,
 		sourceControlApi: sourceControlApi,
+		titleApi:         titleApi,
 	}
 }
 
@@ -103,8 +109,8 @@ func (a *Api) RemoveOrganizationMember(ctx context.Context, orgID string, userID
 }
 
 // GetOrganizationMembers returns all members of an organization
-func (a *Api) GetOrganizationMembers(ctx context.Context, orgID string) ([]types.OrganizationMember, error) {
-	return a.db.GetOrganizationMembers(orgID)
+func (a *Api) GetOrganizationMembers(ctx context.Context, orgID string, params *types.OrganizationMemberParams) ([]types.OrganizationMember, error) {
+	return a.db.GetOrganizationMembers(orgID, params)
 }
 
 // GetOrganizationMemberByID retrieves a member by their ID
@@ -152,7 +158,7 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, member
 
 	// First, remove the member_id from any existing source control accounts for this member
 	// This ensures we don't have multiple accounts pointing to the same member
-	existingAccounts, err := a.sourceControlApi.GetSourceControlAccounts(ctx, &servicetypes.SourceControlAccountParams{
+	existingAccounts, err := a.sourceControlApi.GetSourceControlAccounts(ctx, &sourcecontroltypes.SourceControlAccountParams{
 		OrganizationID: orgID,
 	})
 	if err != nil {
@@ -178,4 +184,75 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, member
 	}
 
 	return nil
+}
+
+// CalculateSourceControlMemberMetrics retrieves source control metrics for a specific member
+func (a *Api) CalculateSourceControlMemberMetrics(ctx context.Context, organizationID string, memberID string, params sourcecontroltypes.MemberMetricsParams) (*sourcecontroltypes.MetricsResponse, error) {
+	sourceControlAccounts, err := a.sourceControlApi.GetSourceControlAccounts(ctx, &sourcecontroltypes.SourceControlAccountParams{
+		OrganizationID: organizationID,
+		MemberIDs:      []string{memberID},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	sourceControlAccountIDs := []string{}
+	for _, account := range sourceControlAccounts {
+		sourceControlAccountIDs = append(sourceControlAccountIDs, account.ID)
+	}
+
+	member, err := a.GetOrganizationMemberByID(ctx, memberID)
+	if err != nil {
+		return nil, err
+	}
+
+	orgMembers, err := a.GetOrganizationMembers(ctx, organizationID, &types.OrganizationMemberParams{
+		TitleIDs: []string{*member.TitleID},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	peerMemberIDs := []string{}
+	for _, orgMember := range orgMembers {
+		peerMemberIDs = append(peerMemberIDs, orgMember.ID)
+	}
+
+	peerSourceControlAccounts, err := a.sourceControlApi.GetSourceControlAccounts(ctx, &sourcecontroltypes.SourceControlAccountParams{
+		OrganizationID: organizationID,
+		MemberIDs:      peerMemberIDs,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	peerSourceControlAccountIDs := []string{}
+	for _, account := range peerSourceControlAccounts {
+		peerSourceControlAccountIDs = append(peerSourceControlAccountIDs, account.ID)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	// Create the metric params with the source control account IDs
+	metricParamsMap := map[string]interface{}{
+		"organizationId":               organizationID,
+		"sourceControlAccountIDs":      sourceControlAccountIDs,
+		"peersSourceControlAccountIDs": peerSourceControlAccountIDs,
+	}
+
+	// Marshal to JSON bytes
+	metricParamsJSON, err := json.Marshal(metricParamsMap)
+	if err != nil {
+		return nil, err
+	}
+
+	metricParams := sourcecontroltypes.MetricRuleParams{
+		MetricParams: datatypes.JSON(metricParamsJSON),
+		StartDate:    params.StartDate,
+		EndDate:      params.EndDate,
+		Interval:     params.Interval,
+	}
+
+	return a.sourceControlApi.CalculateMetrics(ctx, metricParams)
 }

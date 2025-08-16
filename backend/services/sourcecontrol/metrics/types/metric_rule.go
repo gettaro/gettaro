@@ -1,6 +1,10 @@
 package types
 
-import "ems.dev/backend/services/sourcecontrol/types"
+import (
+	"context"
+
+	"ems.dev/backend/services/sourcecontrol/types"
+)
 
 type MetricOperation string
 
@@ -23,7 +27,13 @@ const (
 	MetricDimensionLOCRemoved        MetricDimension = "LOC_REMOVED"
 )
 
+type MetricRule interface {
+	Category() string
+	Calculate(ctx context.Context, params types.MetricRuleParams) (*types.SnapshotMetric, *types.GraphMetric, error)
+}
+
 type BaseMetricRule struct {
+	ID        string          `json:"id"`
 	Name      string          `json:"name"`
 	Category  string          `json:"category"`
 	Unit      types.Unit      `json:"unit"`

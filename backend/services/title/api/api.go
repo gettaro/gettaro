@@ -21,11 +21,11 @@ type TitleAPI interface {
 
 // Api implements the TitleAPI interface
 type Api struct {
-	db *database.TitleDBImpl
+	db *database.DB
 }
 
 // NewApi creates a new TitleAPI instance
-func NewApi(db *database.TitleDBImpl) *Api {
+func NewApi(db *database.DB) *Api {
 	return &Api{
 		db: db,
 	}

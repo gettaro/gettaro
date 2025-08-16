@@ -11,7 +11,7 @@ import (
 type DB interface {
 	AddOrganizationMember(member *types.OrganizationMember) error
 	RemoveOrganizationMember(orgID string, userID string) error
-	GetOrganizationMembers(orgID string) ([]types.OrganizationMember, error)
+	GetOrganizationMembers(orgID string, params *types.OrganizationMemberParams) ([]types.OrganizationMember, error)
 	GetOrganizationMember(orgID string, userID string) (*types.OrganizationMember, error)
 	GetOrganizationMemberByID(ctx context.Context, memberID string) (*types.OrganizationMember, error)
 	IsOrganizationOwner(orgID string, userID string) (bool, error)
@@ -50,13 +50,49 @@ func (d *MemberDB) RemoveOrganizationMember(orgID string, userID string) error {
 }
 
 // GetOrganizationMembers returns all members of an organization
-func (d *MemberDB) GetOrganizationMembers(orgID string) ([]types.OrganizationMember, error) {
+func (d *MemberDB) GetOrganizationMembers(orgID string, params *types.OrganizationMemberParams) ([]types.OrganizationMember, error) {
 	var members []types.OrganizationMember
-	err := d.db.Raw(`
+
+	query := `
 		SELECT om.*
 		FROM organization_members om
 		WHERE om.organization_id = ?
-	`, orgID).Scan(&members).Error
+	`
+
+	var args []interface{}
+	args = append(args, orgID)
+
+	if len(params.TitleIDs) > 0 {
+		query += " AND om.title_id IN ("
+		for i := range params.TitleIDs {
+			if i > 0 {
+				query += ","
+			}
+			query += "?"
+		}
+		query += ")"
+		// Convert []string to []interface{}
+		for _, id := range params.TitleIDs {
+			args = append(args, id)
+		}
+	}
+
+	if len(params.IDs) > 0 {
+		query += " AND om.id IN ("
+		for i := range params.IDs {
+			if i > 0 {
+				query += ","
+			}
+			query += "?"
+		}
+		query += ")"
+		// Convert []string to []interface{}
+		for _, id := range params.IDs {
+			args = append(args, id)
+		}
+	}
+
+	err := d.db.Raw(query, args...).Scan(&members).Error
 	return members, err
 }
 

@@ -18,6 +18,11 @@ type OrganizationMember struct {
 	UpdatedAt      time.Time `json:"updatedAt"`
 }
 
+type OrganizationMemberParams struct {
+	TitleIDs []string `json:"titleIds"`
+	IDs      []string `json:"ids"`
+}
+
 // AddMemberRequest represents the request to add a member to an organization
 type AddMemberRequest struct {
 	Email                  string `json:"email"`

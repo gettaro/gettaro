@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"ems.dev/backend/services/sourcecontrol/database"
+	"ems.dev/backend/services/sourcecontrol/metrics"
 	"ems.dev/backend/services/sourcecontrol/types"
 )
 
@@ -28,16 +29,21 @@ type SourceControlAPI interface {
 	GetMemberActivity(ctx context.Context, params *types.MemberActivityParams) ([]*types.MemberActivity, error)
 
 	// GetMemberMetrics retrieves source control metrics for a specific member
-	GetMemberMetrics(ctx context.Context, params *types.MemberMetricsParams) (*types.MemberMetricsResponse, error)
+	GetMemberMetrics(ctx context.Context, params *types.MemberMetricsParams) (*types.MetricsResponse, error)
+
+	// CalculateMetrics calculates source control metrics
+	CalculateMetrics(ctx context.Context, params types.MetricRuleParams) (*types.MetricsResponse, error)
 }
 
 type Api struct {
-	db database.DB
+	db            database.DB
+	metricsEngine *metrics.Engine
 }
 
 func NewAPI(db database.DB) SourceControlAPI {
 	return &Api{
-		db: db,
+		db:            db,
+		metricsEngine: metrics.NewEngine(db),
 	}
 }
 
@@ -92,6 +98,11 @@ func (a *Api) GetMemberActivity(ctx context.Context, params *types.MemberActivit
 }
 
 // GetMemberMetrics retrieves source control metrics for a specific member
-func (a *Api) GetMemberMetrics(ctx context.Context, params *types.MemberMetricsParams) (*types.MemberMetricsResponse, error) {
+func (a *Api) GetMemberMetrics(ctx context.Context, params *types.MemberMetricsParams) (*types.MetricsResponse, error) {
 	return a.db.GetMemberMetrics(ctx, params)
+}
+
+// CalculateMetrics calculates source control metrics
+func (a *Api) CalculateMetrics(ctx context.Context, params types.MetricRuleParams) (*types.MetricsResponse, error) {
+	return a.metricsEngine.CalculateMetrics(ctx, params)
 }

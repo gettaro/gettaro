@@ -32,7 +32,7 @@ type DB interface {
 	GetMemberActivity(ctx context.Context, params *types.MemberActivityParams) ([]*types.MemberActivity, error)
 
 	// GetMemberMetrics retrieves source control metrics for a specific member
-	GetMemberMetrics(ctx context.Context, params *types.MemberMetricsParams) (*types.MemberMetricsResponse, error)
+	GetMemberMetrics(ctx context.Context, params *types.MemberMetricsParams) (*types.MetricsResponse, error)
 
 	// Calculate time to merge metrics
 	CalculateTimeToMerge(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
@@ -68,6 +68,11 @@ func (d *SourceControlDB) GetSourceControlAccounts(ctx context.Context, params *
 	// Filter by organization ID if provided
 	if params.OrganizationID != "" {
 		query = query.Where("organization_id = ?", params.OrganizationID)
+	}
+
+	// Filter by member IDs if provided
+	if len(params.MemberIDs) > 0 {
+		query = query.Where("member_id IN ?", params.MemberIDs)
 	}
 
 	if err := query.Find(&accounts).Error; err != nil {
@@ -260,7 +265,7 @@ func (d *SourceControlDB) GetMemberActivity(ctx context.Context, params *types.M
 }
 
 // GetMemberMetrics retrieves source control metrics for a specific member
-func (d *SourceControlDB) GetMemberMetrics(ctx context.Context, params *types.MemberMetricsParams) (*types.MemberMetricsResponse, error) {
+func (d *SourceControlDB) GetMemberMetrics(ctx context.Context, params *types.MemberMetricsParams) (*types.MetricsResponse, error) {
 	// Build date filter conditions
 	var dateFilter string
 	var args []interface{}
@@ -307,7 +312,7 @@ func (d *SourceControlDB) GetMemberMetrics(ctx context.Context, params *types.Me
 	// Calculate graph metrics
 	graphMetrics := d.calculateGraphMetrics(activities, peerMetrics, params.Interval)
 
-	return &types.MemberMetricsResponse{
+	return &types.MetricsResponse{
 		SnapshotMetrics: snapshotMetrics,
 		GraphMetrics:    graphMetrics,
 	}, nil
@@ -488,7 +493,7 @@ func (d *SourceControlDB) getPeerCommentMetrics(ctx context.Context, orgID, titl
 }
 
 // calculateSnapshotMetrics calculates the snapshot metrics for the member
-func (d *SourceControlDB) calculateSnapshotMetrics(activities []*types.MemberActivity, peerMetrics map[string]float64) []types.SnapshotCategory {
+func (d *SourceControlDB) calculateSnapshotMetrics(activities []*types.MemberActivity, peerMetrics map[string]float64) []*types.SnapshotCategory {
 	// Calculate member metrics
 	memberMetrics := make(map[string]float64)
 
@@ -608,11 +613,11 @@ func (d *SourceControlDB) calculateSnapshotMetrics(activities []*types.MemberAct
 		},
 	}
 
-	return []types.SnapshotCategory{activityCategory, efficiencyCategory, collaborationCategory}
+	return []*types.SnapshotCategory{&activityCategory, &efficiencyCategory, &collaborationCategory}
 }
 
 // calculateGraphMetrics calculates the graph metrics for time series visualization
-func (d *SourceControlDB) calculateGraphMetrics(activities []*types.MemberActivity, peerMetrics map[string]float64, interval string) []types.GraphCategory {
+func (d *SourceControlDB) calculateGraphMetrics(activities []*types.MemberActivity, peerMetrics map[string]float64, interval string) []*types.GraphCategory {
 	// For now, return a simple structure - this can be enhanced with actual time series data
 	activityGraph := types.GraphCategory{
 		Category: "Activity",
@@ -638,7 +643,7 @@ func (d *SourceControlDB) calculateGraphMetrics(activities []*types.MemberActivi
 		},
 	}
 
-	return []types.GraphCategory{activityGraph}
+	return []*types.GraphCategory{&activityGraph}
 }
 
 // GetPullRequestComments retrieves all comments for a specific pull request
@@ -679,7 +684,8 @@ func (d *SourceControlDB) CalculateTimeToMerge(ctx context.Context, organization
 	query := `
 		SELECT ` + selectStatement + ` as time_to_merge_seconds
 		FROM pull_requests pr
-		WHERE pr.organization_id = ?
+		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		WHERE sca.organization_id = ?
 		AND pr.created_at >= ?
 		AND pr.created_at <= ?
 		AND pr.merged_at IS NOT NULL
@@ -721,12 +727,24 @@ func (d *SourceControlDB) CalculateTimeToMergeGraph(ctx context.Context, organiz
 		selectStatement = "AVG(EXTRACT(EPOCH FROM (pr.merged_at - pr.created_at)))"
 	}
 
+	// Map interval values to PostgreSQL DATE_TRUNC units
+	postgresInterval := interval
+	switch interval {
+	case "daily":
+		postgresInterval = "day"
+	case "weekly":
+		postgresInterval = "week"
+	case "monthly":
+		postgresInterval = "month"
+	}
+
 	query := `
 		SELECT 
-			DATE_TRUNC('` + interval + `', pr.merged_at) as date,
+			DATE_TRUNC('` + postgresInterval + `', pr.merged_at) as date,
 			` + selectStatement + ` as time_to_merge_seconds
 		FROM pull_requests pr
-		WHERE pr.organization_id = ?
+		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		WHERE sca.organization_id = ?
 		AND pr.created_at >= ?
 		AND pr.created_at <= ?
 		AND pr.merged_at IS NOT NULL
@@ -741,9 +759,15 @@ func (d *SourceControlDB) CalculateTimeToMergeGraph(ctx context.Context, organiz
 		args = append(args, sourceControlAccountIDs)
 	}
 
+	// Add GROUP BY clause for the DATE_TRUNC grouping
+	query += " GROUP BY DATE_TRUNC('" + postgresInterval + "', pr.merged_at)"
+
+	// Add ORDER BY to ensure consistent results
+	query += " ORDER BY date"
+
 	var result struct {
 		Date             time.Time `json:"date"`
-		TimeToMergeValue float64   `json:"time_to_merge_value"`
+		TimeToMergeValue float64   `json:"time_to_merge_seconds"`
 	}
 
 	rows, err := d.db.WithContext(ctx).Raw(query, args...).Rows()

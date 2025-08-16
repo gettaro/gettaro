@@ -73,6 +73,7 @@ type SourceControlAccountParams struct {
 	SourceControlAccountIDs []string `json:"sourceControlAccountIds"`
 	OrganizationID          string   `json:"organizationId"`
 	Usernames               []string `json:"usernames"`
+	MemberIDs               []string `json:"memberIds"`
 }
 
 // MemberActivity represents a single activity item in the timeline
@@ -117,6 +118,7 @@ type MetricRuleParams struct {
 // SnapshotMetric represents a single metric in the snapshot
 type SnapshotMetric struct {
 	Label      string  `json:"label"`
+	Category   string  `json:"category"`
 	Value      float64 `json:"value"`
 	PeersValue float64 `json:"peersValue"`
 	Unit       Unit    `json:"unit"` // "count", "time", "loc", etc.
@@ -151,6 +153,7 @@ const (
 // GraphMetric represents a single metric in the graph data
 type GraphMetric struct {
 	Label      string            `json:"label"`
+	Category   string            `json:"category"`
 	Unit       Unit              `json:"unit"`
 	TimeSeries []TimeSeriesEntry `json:"timeSeries"`
 }
@@ -161,8 +164,8 @@ type GraphCategory struct {
 	Metrics  []GraphMetric `json:"metrics"`
 }
 
-// MemberMetricsResponse represents the response for getting member metrics
-type MemberMetricsResponse struct {
-	SnapshotMetrics []SnapshotCategory `json:"snapshotMetrics"`
-	GraphMetrics    []GraphCategory    `json:"graphMetrics"`
+// MetricsResponse represents the response for getting member metrics
+type MetricsResponse struct {
+	SnapshotMetrics []*SnapshotCategory `json:"snapshotMetrics"`
+	GraphMetrics    []*GraphCategory    `json:"graphMetrics"`
 }

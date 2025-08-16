@@ -63,7 +63,7 @@ func main() {
 	orgDb := orgdb.NewOrganizationDB(database.DB)
 	orgApi := orgapi.NewApi(orgDb, userApi, titleApi, sourcecontrolApi)
 	memberDb := memberdb.NewMemberDB(database.DB)
-	memberApi := memberapi.NewApi(memberDb, userApi, sourcecontrolApi)
+	memberApi := memberapi.NewApi(memberDb, userApi, sourcecontrolApi, titleApi)
 	teamDb := teamdb.NewTeamDB(database.DB)
 	teamApi := teamapi.NewApi(teamDb, orgApi)
 
