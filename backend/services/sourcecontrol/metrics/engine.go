@@ -34,6 +34,14 @@ func NewEngine(sourceControlDB database.DB) *Engine {
 				Dimension: metrictypes.MetricDimensionMergedPRs,
 				Operation: metrictypes.MetricOperationCount,
 			}, sourceControlDB),
+			engine.NewPRsReviewedRule(metrictypes.BaseMetricRule{
+				ID:        "prs_reviewed_count",
+				Name:      "PRs Reviewed",
+				Unit:      types.UnitCount,
+				Category:  "Collaboration",
+				Dimension: metrictypes.MetricDimensionReviwedPRs,
+				Operation: metrictypes.MetricOperationCount,
+			}, sourceControlDB),
 		},
 		sourceControlDB: sourceControlDB,
 	}
