@@ -37,6 +37,10 @@ type DB interface {
 	// Calculate time to merge metrics
 	CalculateTimeToMerge(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
 	CalculateTimeToMergeGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
+
+	// Calculate PRs merged metrics
+	CalculatePRsMerged(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
+	CalculatePRsMergedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
 }
 
 type SourceControlDB struct {
@@ -787,6 +791,124 @@ func (d *SourceControlDB) CalculateTimeToMergeGraph(ctx context.Context, organiz
 				{
 					Key:   metricLabel,
 					Value: result.TimeToMergeValue,
+				},
+			},
+		})
+	}
+
+	return dataPoints, nil
+}
+
+// CalculatePRsMerged calculates the PRs merged metric
+func (d *SourceControlDB) CalculatePRsMerged(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error) {
+	selectStatement := ""
+	switch metricOperation {
+	case metrictypes.MetricOperationCount:
+		selectStatement = "COUNT(*)"
+	default:
+		return nil, fmt.Errorf("invalid metric operation for PRs merged: %s", metricOperation)
+	}
+
+	query := `
+		SELECT ` + selectStatement + ` as prs_merged_count
+		FROM pull_requests pr
+		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		WHERE sca.organization_id = ?
+		AND pr.created_at >= ?
+		AND pr.created_at <= ?
+		AND pr.merged_at IS NOT NULL
+		AND pr.status = 'closed'
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate)
+
+	if len(sourceControlAccountIDs) > 0 {
+		query += " AND pr.source_control_account_id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	var count int64
+	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&count).Error; err != nil {
+		return nil, err
+	}
+
+	// Convert int64 to int
+	value := int(count)
+
+	return &value, nil
+}
+
+// CalculatePRsMergedGraph calculates the PRs merged metric for a graph
+func (d *SourceControlDB) CalculatePRsMergedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error) {
+	selectStatement := ""
+	switch metricOperation {
+	case metrictypes.MetricOperationCount:
+		selectStatement = "COUNT(*)"
+	default:
+		return nil, fmt.Errorf("invalid metric operation for PRs merged: %s", metricOperation)
+	}
+
+	// Map interval values to PostgreSQL DATE_TRUNC units
+	postgresInterval := interval
+	switch interval {
+	case "daily":
+		postgresInterval = "day"
+	case "weekly":
+		postgresInterval = "week"
+	case "monthly":
+		postgresInterval = "month"
+	}
+
+	query := `
+		SELECT 
+			DATE_TRUNC('` + postgresInterval + `', pr.merged_at) as date,
+			` + selectStatement + ` as prs_merged_count
+		FROM pull_requests pr
+		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		WHERE sca.organization_id = ?
+		AND pr.created_at >= ?
+		AND pr.created_at <= ?
+		AND pr.merged_at IS NOT NULL
+		AND pr.status = 'closed'
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate)
+
+	if len(sourceControlAccountIDs) > 0 {
+		query += " AND pr.source_control_account_id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	// Add GROUP BY clause for the DATE_TRUNC grouping
+	query += " GROUP BY DATE_TRUNC('" + postgresInterval + "', pr.merged_at)"
+
+	// Add ORDER BY to ensure consistent results
+	query += " ORDER BY date"
+
+	var result struct {
+		Date           time.Time `json:"date"`
+		PRsMergedCount float64   `json:"prs_merged_count"`
+	}
+
+	rows, err := d.db.WithContext(ctx).Raw(query, args...).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	dataPoints := []types.TimeSeriesEntry{}
+	for rows.Next() {
+		if err := rows.Scan(&result.Date, &result.PRsMergedCount); err != nil {
+			return nil, err
+		}
+		dataPoints = append(dataPoints, types.TimeSeriesEntry{
+			Date: result.Date.Format("2006-01-02"),
+			Data: []types.TimeSeriesDataPoint{
+				{
+					Key:   metricLabel,
+					Value: result.PRsMergedCount,
 				},
 			},
 		})

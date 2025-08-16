@@ -26,6 +26,14 @@ func NewEngine(sourceControlDB database.DB) *Engine {
 				Dimension: metrictypes.MetricDimensionTimeToMerge,
 				Operation: metrictypes.MetricOperationMedian,
 			}, sourceControlDB),
+			engine.NewPRsMergedRule(metrictypes.BaseMetricRule{
+				ID:        "prs_merged_count",
+				Name:      "PRs Merged",
+				Unit:      types.UnitCount,
+				Category:  "Activity",
+				Dimension: metrictypes.MetricDimensionMergedPRs,
+				Operation: metrictypes.MetricOperationCount,
+			}, sourceControlDB),
 		},
 		sourceControlDB: sourceControlDB,
 	}
