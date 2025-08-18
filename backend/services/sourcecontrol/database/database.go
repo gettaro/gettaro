@@ -55,6 +55,14 @@ type DB interface {
 	// Calculate PR Review Complexity metrics
 	CalculatePRReviewComplexity(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*float64, error)
 	CalculatePRReviewComplexityGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
+
+	// Calculate peer metrics (median across peers)
+	CalculatePeerLOCAdded(ctx context.Context, organizationID string, excludeSourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
+	CalculatePeerLOCRemoved(ctx context.Context, organizationID string, excludeSourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
+	CalculatePeerPRsMerged(ctx context.Context, organizationID string, excludeSourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
+	CalculatePeerPRsReviewed(ctx context.Context, organizationID string, excludeSourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
+	CalculatePeerTimeToMerge(ctx context.Context, organizationID string, excludeSourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
+	CalculatePeerPRReviewComplexity(ctx context.Context, organizationID string, excludeSourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
 }
 
 type SourceControlDB struct {
@@ -1481,4 +1489,208 @@ func (d *SourceControlDB) CalculatePRReviewComplexityGraph(ctx context.Context, 
 	}
 
 	return dataPoints, nil
+}
+
+// CalculatePeerLOCAdded calculates the median LOC added across peers (excluding the current member)
+func (d *SourceControlDB) CalculatePeerLOCAdded(ctx context.Context, organizationID string, excludeSourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
+	query := `
+		SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_total) as peer_loc_added
+		FROM (
+			SELECT sca.member_id, COALESCE(SUM(CAST(pr.metadata->>'additions' AS BIGINT)), 0) as member_total
+			FROM pull_requests pr
+			JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+			WHERE sca.organization_id = ?
+			AND pr.created_at >= ?
+			AND pr.created_at <= ?
+			AND pr.merged_at IS NOT NULL
+			AND pr.status = 'closed'
+			AND sca.id NOT IN ?
+			GROUP BY sca.member_id
+		) member_totals
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate, excludeSourceControlAccountIDs)
+
+	var result *float64
+	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&result).Error; err != nil {
+		return nil, err
+	}
+
+	value := 0.0
+	if result != nil {
+		value = *result
+	}
+
+	return &value, nil
+}
+
+// CalculatePeerLOCRemoved calculates the median LOC removed across peers (excluding the current member)
+func (d *SourceControlDB) CalculatePeerLOCRemoved(ctx context.Context, organizationID string, excludeSourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
+	query := `
+		SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_total) as peer_loc_removed
+		FROM (
+			SELECT sca.member_id, COALESCE(SUM(CAST(pr.metadata->>'deletions' AS BIGINT)), 0) as member_total
+			FROM pull_requests pr
+			JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+			WHERE sca.organization_id = ?
+			AND pr.created_at >= ?
+			AND pr.created_at <= ?
+			AND pr.merged_at IS NOT NULL
+			AND pr.status = 'closed'
+			AND sca.id NOT IN ?
+			GROUP BY sca.member_id
+		) member_totals
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate, excludeSourceControlAccountIDs)
+
+	var result *float64
+	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&result).Error; err != nil {
+		return nil, err
+	}
+
+	value := 0.0
+	if result != nil {
+		value = *result
+	}
+
+	return &value, nil
+}
+
+// CalculatePeerPRsMerged calculates the median PRs merged across peers (excluding the current member)
+func (d *SourceControlDB) CalculatePeerPRsMerged(ctx context.Context, organizationID string, excludeSourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
+	query := `
+		SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_total) as peer_prs_merged
+		FROM (
+			SELECT sca.member_id, COUNT(*) as member_total
+			FROM pull_requests pr
+			JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+			WHERE sca.organization_id = ?
+			AND pr.created_at >= ?
+			AND pr.created_at <= ?
+			AND pr.merged_at IS NOT NULL
+			AND pr.status = 'closed'
+			AND sca.id NOT IN ?
+			GROUP BY sca.member_id
+		) member_totals
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate, excludeSourceControlAccountIDs)
+
+	var result *float64
+	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&result).Error; err != nil {
+		return nil, err
+	}
+
+	value := 0.0
+	if result != nil {
+		value = *result
+	}
+
+	return &value, nil
+}
+
+// CalculatePeerPRsReviewed calculates the median PRs reviewed across peers (excluding the current member)
+func (d *SourceControlDB) CalculatePeerPRsReviewed(ctx context.Context, organizationID string, excludeSourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
+	query := `
+		SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_total) as peer_prs_reviewed
+		FROM (
+			SELECT sca.member_id, COUNT(DISTINCT pr.id) as member_total
+			FROM pull_requests pr
+			JOIN pr_comments pc ON pc.pr_id = pr.id
+			JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+			WHERE sca.organization_id = ?
+			AND pr.created_at >= ?
+			AND pr.created_at <= ?
+			AND pc.type = 'REVIEW'
+			AND sca.id NOT IN ?
+			GROUP BY sca.member_id
+		) member_totals
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate, excludeSourceControlAccountIDs)
+
+	var result *float64
+	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&result).Error; err != nil {
+		return nil, err
+	}
+
+	value := 0.0
+	if result != nil {
+		value = *result
+	}
+
+	return &value, nil
+}
+
+// CalculatePeerTimeToMerge calculates the median time to merge across peers (excluding the current member)
+func (d *SourceControlDB) CalculatePeerTimeToMerge(ctx context.Context, organizationID string, excludeSourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
+	query := `
+		SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_avg) as peer_time_to_merge
+		FROM (
+			SELECT sca.member_id, AVG(EXTRACT(EPOCH FROM (pr.merged_at - pr.created_at))) as member_avg
+			FROM pull_requests pr
+			JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+			WHERE sca.organization_id = ?
+			AND pr.created_at >= ?
+			AND pr.created_at <= ?
+			AND pr.merged_at IS NOT NULL
+			AND pr.status = 'closed'
+			AND sca.id NOT IN ?
+			GROUP BY sca.member_id
+		) member_averages
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate, excludeSourceControlAccountIDs)
+
+	var result *float64
+	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&result).Error; err != nil {
+		return nil, err
+	}
+
+	value := 0.0
+	if result != nil {
+		value = *result
+	}
+
+	return &value, nil
+}
+
+// CalculatePeerPRReviewComplexity calculates the median PR review complexity across peers (excluding the current member)
+func (d *SourceControlDB) CalculatePeerPRReviewComplexity(ctx context.Context, organizationID string, excludeSourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
+	query := `
+		SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_avg) as peer_pr_review_complexity
+		FROM (
+			SELECT sca.member_id, AVG(pr.additions + pr.deletions) as member_avg
+			FROM pull_requests pr
+			JOIN pr_comments pc ON pc.pr_id = pr.id
+			JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+			WHERE sca.organization_id = ?
+			AND pr.created_at >= ?
+			AND pr.created_at <= ?
+			AND pc.type = 'REVIEW'
+			AND sca.id NOT IN ?
+			GROUP BY sca.member_id
+		) member_averages
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate, excludeSourceControlAccountIDs)
+
+	var result *float64
+	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&result).Error; err != nil {
+		return nil, err
+	}
+
+	value := 0.0
+	if result != nil {
+		value = *result
+	}
+
+	return &value, nil
 }

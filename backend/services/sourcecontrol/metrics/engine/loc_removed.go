@@ -38,7 +38,7 @@ func (r *LOCRemovedRule) Calculate(ctx context.Context, params types.MetricRuleP
 	}
 
 	// Calculate LOC removed peers value
-	peersLOCRemovedValue, err := r.sourceControlDB.CalculateLOCRemoved(ctx, *organizationID, peersSourceControlAccountIDs, *startDate, *endDate, r.Operation)
+	peersLOCRemovedValue, err := r.sourceControlDB.CalculatePeerLOCRemoved(ctx, *organizationID, peersSourceControlAccountIDs, *startDate, *endDate)
 	if err != nil {
 		return nil, nil, err
 	}

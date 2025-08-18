@@ -49,13 +49,12 @@ func (r *PRReviewComplexityRule) Calculate(ctx context.Context, params types.Met
 	}
 
 	// Calculate PR review complexity for peers (other members in the organization)
-	peersPRReviewComplexityValue, err := r.sourceControlDB.CalculatePRReviewComplexity(
+	peersPRReviewComplexityValue, err := r.sourceControlDB.CalculatePeerPRReviewComplexity(
 		ctx,
 		*organizationID,
 		peersSourceControlAccountIDs,
 		*startDate,
 		*endDate,
-		r.Operation,
 	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to calculate peers PR review complexity: %w", err)

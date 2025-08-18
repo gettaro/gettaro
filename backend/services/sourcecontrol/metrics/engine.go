@@ -21,7 +21,7 @@ func NewEngine(sourceControlDB database.DB) *Engine {
 			engine.NewPRsMergedRule(metrictypes.BaseMetricRule{
 				ID:             "prs_merged_count",
 				Name:           "PRs Merged",
-				Description:    "Total number of pull requests that were successfully merged. This metric counts PRs with status 'closed' and merged_at timestamp.",
+				Description:    "Total number of pull requests that were successfully merged. This metric counts PRs with status 'closed' and merged_at timestamp. Peer comparison shows the median PRs merged across other organization members.",
 				Unit:           types.UnitCount,
 				Category:       "Activity",
 				Dimension:      metrictypes.MetricDimensionMergedPRs,
@@ -32,7 +32,7 @@ func NewEngine(sourceControlDB database.DB) *Engine {
 			engine.NewLOCAddedRule(metrictypes.BaseMetricRule{
 				ID:             "loc_added_count",
 				Name:           "Lines of Code Added",
-				Description:    "Total lines of code added across all merged pull requests. Extracted from PR metadata additions field.",
+				Description:    "Total lines of code added across all merged pull requests. Extracted from PR metadata additions field. Peer comparison shows the median LOC added across other organization members.",
 				Unit:           types.UnitCount,
 				Category:       "Activity",
 				Dimension:      metrictypes.MetricDimensionLOCAdded,
@@ -43,7 +43,7 @@ func NewEngine(sourceControlDB database.DB) *Engine {
 			engine.NewLOCRemovedRule(metrictypes.BaseMetricRule{
 				ID:             "loc_removed_count",
 				Name:           "Lines of Code Removed",
-				Description:    "Total lines of code removed across all merged pull requests. Extracted from PR metadata deletions field.",
+				Description:    "Total lines of code removed across all merged pull requests. Extracted from PR metadata deletions field. Peer comparison shows the median LOC removed across other organization members.",
 				Unit:           types.UnitCount,
 				Category:       "Activity",
 				Dimension:      metrictypes.MetricDimensionLOCRemoved,
@@ -54,7 +54,7 @@ func NewEngine(sourceControlDB database.DB) *Engine {
 			engine.NewPRsReviewedRule(metrictypes.BaseMetricRule{
 				ID:             "prs_reviewed_count",
 				Name:           "PRs Reviewed",
-				Description:    "Total number of unique pull requests that the member has reviewed. This metric counts PRs authored by others that the member has provided review comments on, regardless of whether the PR author is mapped to a member in the system.",
+				Description:    "Total number of unique pull requests that the member has reviewed. This metric counts PRs authored by others that the member has provided review comments on, regardless of whether the PR author is mapped to a member in the system. Peer comparison shows the median PRs reviewed across other organization members.",
 				Unit:           types.UnitCount,
 				Category:       "Collaboration",
 				Dimension:      metrictypes.MetricDimensionReviwedPRs,
@@ -65,7 +65,7 @@ func NewEngine(sourceControlDB database.DB) *Engine {
 			engine.NewTimeToMergeRule(metrictypes.BaseMetricRule{
 				ID:             "median_time_to_merge",
 				Name:           "Median time to merge",
-				Description:    "Median time between PR creation and merge completion. Calculated as the difference between merged_at and created_at timestamps.",
+				Description:    "Median time between PR creation and merge completion. Calculated as the difference between merged_at and created_at timestamps. Peer comparison shows the median time to merge across other organization members.",
 				Unit:           types.UnitSeconds,
 				Category:       "Efficiency",
 				Dimension:      metrictypes.MetricDimensionTimeToMerge,
@@ -76,7 +76,7 @@ func NewEngine(sourceControlDB database.DB) *Engine {
 			engine.NewPRReviewComplexityRule(metrictypes.BaseMetricRule{
 				ID:             "avg_pr_review_loc",
 				Name:           "Average PR Review LoC",
-				Description:    "Average Lines of Code (LoC) in PRs reviewed by the member, calculated as the average of (lines added + lines removed) across all reviewed PRs. Excludes PRs authored by any member in the organization.",
+				Description:    "Average Lines of Code (LoC) in PRs reviewed by the member, calculated as the average of (lines added + lines removed) across all reviewed PRs. Excludes PRs authored by any member in the organization. Peer comparison shows the median PR review complexity across other organization members.",
 				Unit:           types.UnitCount,
 				Category:       "Collaboration",
 				Dimension:      metrictypes.MetricDimensionPRReviewComplexity,
