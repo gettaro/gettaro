@@ -30,6 +30,7 @@ type DB interface {
 	// Member Activity
 	GetMemberActivity(ctx context.Context, params *types.MemberActivityParams) ([]*types.MemberActivity, error)
 	GetMemberPullRequests(ctx context.Context, params *types.MemberPullRequestParams) ([]*types.PullRequest, error)
+	GetMemberPullRequestReviews(ctx context.Context, params *types.MemberPullRequestReviewsParams) ([]*types.MemberActivity, error)
 
 	// Calculate time to merge metrics
 	CalculateTimeToMerge(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
@@ -320,6 +321,63 @@ func (d *SourceControlDB) GetMemberPullRequests(ctx context.Context, params *typ
 		result[i] = &prs[i]
 	}
 	return result, nil
+}
+
+// GetMemberPullRequestReviews retrieves pull request reviews for a specific member
+func (d *SourceControlDB) GetMemberPullRequestReviews(ctx context.Context, params *types.MemberPullRequestReviewsParams) ([]*types.MemberActivity, error) {
+	var activities []*types.MemberActivity
+
+	// Build date filter conditions for comments
+	var commentDateFilter string
+	var args []interface{}
+	args = append(args, params.MemberID)
+
+	if params.StartDate != nil {
+		commentDateFilter += " AND pc.created_at >= ?"
+		args = append(args, params.StartDate)
+	}
+	if params.EndDate != nil {
+		commentDateFilter += " AND pc.created_at <= ?"
+		args = append(args, params.EndDate)
+	}
+
+	// Get comments and reviews by the member on other people's PRs
+	commentQuery := `
+		SELECT 
+			pc.id,
+			CASE 
+				WHEN pc.type = 'REVIEW' THEN 'pr_review'
+				ELSE 'pr_comment'
+			END as type,
+			pc.body as description,
+			pr.url as url,
+			pr.repository_name as repository,
+			pc.created_at,
+			'{}'::jsonb as metadata,
+			sca.username as author_username,
+			pr.title as pr_title,
+			pr_author.username as pr_author_username,
+			NULL as pr_metrics
+		FROM pr_comments pc
+		JOIN pull_requests pr ON pc.pr_id = pr.id
+		JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+		JOIN source_control_accounts pr_author ON pr.source_control_account_id = pr_author.id
+		WHERE sca.member_id = ? 
+		AND sca.id != pr.source_control_account_id` + commentDateFilter + `
+		ORDER BY pc.created_at DESC
+	`
+
+	var comments []types.MemberActivity
+	if err := d.db.WithContext(ctx).Raw(commentQuery, args...).Scan(&comments).Error; err != nil {
+		return nil, err
+	}
+
+	// Convert to pointers
+	for i := range comments {
+		activities = append(activities, &comments[i])
+	}
+
+	return activities, nil
 }
 
 // GetPullRequestComments retrieves all comments for a specific pull request

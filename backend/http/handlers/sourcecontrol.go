@@ -389,6 +389,117 @@ func (h *SourceControlHandler) GetMemberPullRequests(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// GetMemberPullRequestReviews handles retrieving pull request reviews for a specific member
+// Params:
+// - c: The Gin context containing request and response
+// Path Parameters:
+// - id: Organization ID
+// - memberId: Member ID to get pull request reviews for
+// Query Parameters:
+// - startDate: Optional start date in format "2006-01-02" to filter reviews by
+// - endDate: Optional end date in format "2006-01-02" to filter reviews by
+// Returns:
+// - 200: Success response with list of pull request reviews
+// - 400: Bad request if organization ID or member ID is missing
+// - 401: Unauthorized if user is not authenticated
+// - 403: Forbidden if user does not have access to the organization
+// - 500: Internal server error if service layer fails
+// Side Effects:
+// - Makes a database query to fetch member pull request reviews
+// - Performs organization membership check
+// Errors:
+// - ErrMissingOrganizationID: When organization ID is missing from the request
+// - ErrInvalidDateFormat: When startDate or endDate has invalid format
+// - ErrDatabaseQuery: When database query fails
+// - ErrUnauthorized: When user is not authenticated
+// - ErrForbidden: When user does not have access to the organization
+func (h *SourceControlHandler) GetMemberPullRequestReviews(c *gin.Context) {
+	orgID, err := utils.GetOrganizationIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if user has access to the organization
+	if !utils.CheckOrganizationMembership(c, h.orgApi, &orgID) {
+		return
+	}
+
+	memberID := c.Param("memberId")
+	if memberID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "member ID is required"})
+		return
+	}
+
+	var query sourcecontrol.GetMemberPullRequestReviewsQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Parse dates if provided
+	var startDate, endDate *time.Time
+	if query.StartDate != "" {
+		parsed, err := time.Parse("2006-01-02", query.StartDate)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid startDate format, expected YYYY-MM-DD"})
+			return
+		}
+		startDate = &parsed
+	}
+	if query.EndDate != "" {
+		parsed, err := time.Parse("2006-01-02", query.EndDate)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid endDate format, expected YYYY-MM-DD"})
+			return
+		}
+		endDate = &parsed
+	}
+
+	// Get member pull request reviews from service
+	reviews, err := h.scApi.GetMemberPullRequestReviews(c.Request.Context(), &servicetypes.MemberPullRequestReviewsParams{
+		MemberID:  memberID,
+		StartDate: startDate,
+		EndDate:   endDate,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Convert service types to HTTP types
+	response := sourcecontrol.GetMemberPullRequestReviewsResponse{
+		Reviews: make([]sourcecontrol.MemberActivity, len(reviews)),
+	}
+
+	for i, review := range reviews {
+		// Convert metadata from datatypes.JSON to map[string]interface{}
+		var metadata map[string]interface{}
+		if review.Metadata != nil {
+			if err := json.Unmarshal(review.Metadata, &metadata); err != nil {
+				metadata = make(map[string]interface{})
+			}
+		}
+
+		response.Reviews[i] = sourcecontrol.MemberActivity{
+			ID:               review.ID,
+			Type:             review.Type,
+			Title:            review.Title,
+			Description:      review.Description,
+			URL:              review.URL,
+			Repository:       review.Repository,
+			CreatedAt:        review.CreatedAt,
+			Metadata:         metadata,
+			AuthorUsername:   review.AuthorUsername,
+			PRTitle:          review.PRTitle,
+			PRAuthorUsername: review.PRAuthorUsername,
+			PRMetrics:        review.PRMetrics,
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 // RegisterRoutes registers all source control-related routes
 func (h *SourceControlHandler) RegisterRoutes(api *gin.RouterGroup) {
 	sourceControl := api.Group("/organizations/:id")
@@ -402,5 +513,6 @@ func (h *SourceControlHandler) RegisterRoutes(api *gin.RouterGroup) {
 	{
 		members.GET("/:memberId/sourcecontrol/activity", h.GetMemberActivity)
 		members.GET("/:memberId/pull-requests", h.GetMemberPullRequests)
+		members.GET("/:memberId/pull-request-reviews", h.GetMemberPullRequestReviews)
 	}
 }

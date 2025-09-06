@@ -28,6 +28,7 @@ type SourceControlAPI interface {
 	// Member Activity
 	GetMemberActivity(ctx context.Context, params *types.MemberActivityParams) ([]*types.MemberActivity, error)
 	GetMemberPullRequests(ctx context.Context, params *types.MemberPullRequestParams) ([]*types.PullRequest, error)
+	GetMemberPullRequestReviews(ctx context.Context, params *types.MemberPullRequestReviewsParams) ([]*types.MemberActivity, error)
 
 	// CalculateMetrics calculates source control metrics
 	CalculateMetrics(ctx context.Context, params types.MetricRuleParams) (*types.MetricsResponse, error)
@@ -106,6 +107,19 @@ func (a *Api) GetMemberActivity(ctx context.Context, params *types.MemberActivit
 // - Makes a database query to fetch member pull requests
 func (a *Api) GetMemberPullRequests(ctx context.Context, params *types.MemberPullRequestParams) ([]*types.PullRequest, error) {
 	return a.db.GetMemberPullRequests(ctx, params)
+}
+
+// GetMemberPullRequestReviews handles the retrieval of pull request reviews for a specific member.
+// Params:
+// - ctx: The context for the request, used for cancellation and timeouts
+// - params: The parameters containing member ID and optional date range filters
+// Returns:
+// - []*types.MemberActivity: A list of pull request reviews by the member, ordered by created_at descending
+// - error: If any error occurs during the retrieval
+// Side Effects:
+// - Makes a database query to fetch member pull request reviews
+func (a *Api) GetMemberPullRequestReviews(ctx context.Context, params *types.MemberPullRequestReviewsParams) ([]*types.MemberActivity, error) {
+	return a.db.GetMemberPullRequestReviews(ctx, params)
 }
 
 // CalculateMetrics calculates source control metrics

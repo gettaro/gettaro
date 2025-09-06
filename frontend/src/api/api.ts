@@ -3,7 +3,7 @@ import { OrganizationConflictError } from './errors/organizations'
 import { CreateIntegrationConfigRequest, IntegrationConfig, UpdateIntegrationConfigRequest } from '../types/integration'
 import { Title, CreateTitleRequest, UpdateTitleRequest } from '../types/title'
 import { Member, AddMemberRequest, UpdateMemberRequest } from '../types/member'
-import { SourceControlAccount, PullRequest, GetMemberPullRequestsParams } from '../types/sourcecontrol'
+import { SourceControlAccount, PullRequest, GetMemberPullRequestsParams, GetMemberPullRequestReviewsParams } from '../types/sourcecontrol'
 import { GetMemberActivityParams, MemberActivity } from '../types/memberActivity'
 import { GetMemberMetricsParams, GetMemberMetricsResponse } from '../types/memberMetrics'
 
@@ -349,6 +349,34 @@ export default class Api {
 
     const data = await response.json()
     return data.pull_requests
+  }
+
+  // Member Pull Request Reviews API functions
+  static async getMemberPullRequestReviews(organizationId: string, memberId: string, params: GetMemberPullRequestReviewsParams): Promise<MemberActivity[]> {
+    const token = this.accessToken
+    const queryParams = new URLSearchParams()
+    
+    if (params.startDate) {
+      queryParams.append('startDate', params.startDate)
+    }
+    if (params.endDate) {
+      queryParams.append('endDate', params.endDate)
+    }
+
+    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/pull-request-reviews?${queryParams}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to get member pull request reviews: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    return data.reviews
   }
 }
 

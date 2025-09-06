@@ -4,7 +4,7 @@ import { useOrganizationStore } from '../stores/organization'
 import { Member } from '../types/member'
 import { GetMemberMetricsResponse, GetMemberMetricsParams } from '../types/memberMetrics'
 import { Title } from '../types/title'
-import { SourceControlAccount, PullRequest, GetMemberPullRequestsParams } from '../types/sourcecontrol'
+import { SourceControlAccount, PullRequest, GetMemberPullRequestsParams, GetMemberPullRequestReviewsParams } from '../types/sourcecontrol'
 import { MemberActivity, GetMemberActivityParams } from '../types/memberActivity'
 import Api from '../api/api'
 import { formatMetricValue, formatTimeMetric } from '../utils/formatMetrics'
@@ -41,6 +41,8 @@ export default function MemberProfilePage() {
   const [metricsLoading, setMetricsLoading] = useState(false)
   const [pullRequests, setPullRequests] = useState<PullRequest[]>([])
   const [pullRequestsLoading, setPullRequestsLoading] = useState(false)
+  const [pullRequestReviews, setPullRequestReviews] = useState<MemberActivity[]>([])
+  const [pullRequestReviewsLoading, setPullRequestReviewsLoading] = useState(false)
 
   useEffect(() => {
     if (currentOrganization && memberId) {
@@ -54,6 +56,7 @@ export default function MemberProfilePage() {
       loadActivities()
       loadMetrics()
       loadPullRequests()
+      loadPullRequestReviews()
     }
   }, [activeTab, currentOrganization?.id, memberId])
 
@@ -63,6 +66,7 @@ export default function MemberProfilePage() {
       loadActivities()
       loadMetrics()
       loadPullRequests()
+      loadPullRequestReviews()
     }
   }, [dateParams, activeTab, currentOrganization?.id, memberId])
 
@@ -133,6 +137,28 @@ export default function MemberProfilePage() {
       setError('Failed to load pull requests')
     } finally {
       setPullRequestsLoading(false)
+    }
+  }
+
+  const loadPullRequestReviews = async () => {
+    if (!currentOrganization?.id || !memberId) return
+
+    try {
+      setPullRequestReviewsLoading(true)
+      setError(null)
+      
+      const params: GetMemberPullRequestReviewsParams = {
+        startDate: dateParams.startDate,
+        endDate: dateParams.endDate,
+      }
+      
+      const reviews = await Api.getMemberPullRequestReviews(currentOrganization.id, memberId, params)
+      setPullRequestReviews(reviews)
+    } catch (err) {
+      console.error('Error loading pull request reviews:', err)
+      setError('Failed to load pull request reviews')
+    } finally {
+      setPullRequestReviewsLoading(false)
     }
   }
 
@@ -806,7 +832,11 @@ export default function MemberProfilePage() {
               </div>
               {expandedTables.has('pr-reviews') && (
                 <div className="divide-y divide-border">
-                  {activities.filter(a => a.type === 'pr_review').length === 0 ? (
+                  {pullRequestReviewsLoading ? (
+                    <div className="p-6 text-center">
+                      <div className="text-muted-foreground">Loading PR reviews...</div>
+                    </div>
+                  ) : pullRequestReviews.length === 0 ? (
                     <div className="p-6 text-center">
                       <div className="text-muted-foreground">
                         No PR reviews found for the selected date range.
@@ -814,20 +844,18 @@ export default function MemberProfilePage() {
                     </div>
                   ) : (
                     <div className="h-96 overflow-y-auto">
-                      {activities
-                        .filter(a => a.type === 'pr_review')
-                        .map((activity) => (
-                          <div key={activity.id} className="p-6">
+                      {pullRequestReviews.map((review) => (
+                          <div key={review.id} className="p-6">
                             <div className="flex items-start space-x-4">
                               <div className="flex-shrink-0 mt-1">
-                                {getActivityIcon(activity.type)}
+                                {getActivityIcon(review.type)}
                               </div>
                               <div className="flex-1 min-w-0">
-                                {renderActivityContent(activity)}
+                                {renderActivityContent(review)}
                                 
                                 <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-3">
                                   <span>
-                                    {new Date(activity.createdAt).toLocaleDateString('en-US', {
+                                    {new Date(review.createdAt).toLocaleDateString('en-US', {
                                       year: 'numeric',
                                       month: 'long',
                                       day: 'numeric',
@@ -835,9 +863,9 @@ export default function MemberProfilePage() {
                                       minute: '2-digit'
                                     })}
                                   </span>
-                                  {activity.url && (
+                                  {review.url && (
                                     <a
-                                      href={activity.url}
+                                      href={review.url}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="text-primary hover:text-primary/80 transition-colors"

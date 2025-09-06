@@ -52,3 +52,12 @@ type GetMemberPullRequestsQuery struct {
 type GetMemberPullRequestsResponse struct {
 	PullRequests []PullRequest `json:"pull_requests"`
 }
+
+type GetMemberPullRequestReviewsQuery struct {
+	StartDate string `form:"startDate" binding:"omitempty,datetime=2006-01-02"`
+	EndDate   string `form:"endDate" binding:"omitempty,datetime=2006-01-02"`
+}
+
+type GetMemberPullRequestReviewsResponse struct {
+	Reviews []MemberActivity `json:"reviews"`
+}

@@ -26,4 +26,9 @@ export interface PullRequest {
 export interface GetMemberPullRequestsParams {
   startDate?: string
   endDate?: string
+}
+
+export interface GetMemberPullRequestReviewsParams {
+  startDate?: string
+  endDate?: string
 } 
