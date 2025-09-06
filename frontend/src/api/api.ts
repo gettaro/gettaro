@@ -4,7 +4,6 @@ import { CreateIntegrationConfigRequest, IntegrationConfig, UpdateIntegrationCon
 import { Title, CreateTitleRequest, UpdateTitleRequest } from '../types/title'
 import { Member, AddMemberRequest, UpdateMemberRequest } from '../types/member'
 import { SourceControlAccount, PullRequest, GetMemberPullRequestsParams, GetMemberPullRequestReviewsParams } from '../types/sourcecontrol'
-import { GetMemberActivityParams, MemberActivity } from '../types/memberActivity'
 import { GetMemberMetricsParams, GetMemberMetricsResponse } from '../types/memberMetrics'
 
 export default class Api {
@@ -259,33 +258,6 @@ export default class Api {
     await this.delete(`/organizations/${organizationId}/members/${memberId}`)
   }
 
-  // Member Activity API functions
-  static async getMemberActivity(organizationId: string, memberId: string, params: GetMemberActivityParams): Promise<MemberActivity[]> {
-    const token = this.accessToken
-    const queryParams = new URLSearchParams()
-    
-    if (params.startDate) {
-      queryParams.append('startDate', params.startDate)
-    }
-    if (params.endDate) {
-      queryParams.append('endDate', params.endDate)
-    }
-
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/sourcecontrol/activity?${queryParams}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error(`Failed to get member activity: ${response.statusText}`)
-    }
-
-    const data = await response.json()
-    return data.activities
-  }
 
   // Get member source control metrics
   static async getMemberMetrics(organizationId: string, memberId: string, params: GetMemberMetricsParams): Promise<GetMemberMetricsResponse> {

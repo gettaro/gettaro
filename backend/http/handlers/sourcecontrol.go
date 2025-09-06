@@ -172,120 +172,6 @@ func (h *SourceControlHandler) ListOrganizationSourceControlAccounts(c *gin.Cont
 	c.JSON(http.StatusOK, response)
 }
 
-// GetMemberActivity handles retrieving source control activity timeline for a specific member
-// Params:
-// - c: The Gin context containing request and response
-// Path Parameters:
-// - id: Organization ID
-// - memberId: Member ID to get activity for
-// Query Parameters:
-// - startDate: Optional start date in format "2006-01-02" to filter activities by
-// - endDate: Optional end date in format "2006-01-02" to filter activities by
-// Returns:
-// - 200: Success response with timeline of activities
-// - 400: Bad request if organization ID or member ID is missing
-// - 401: Unauthorized if user is not authenticated
-// - 403: Forbidden if user does not have access to the organization
-// - 500: Internal server error if service layer fails
-// Side Effects:
-// - Makes a database query to fetch member activities
-// - Performs organization membership check
-// Errors:
-// - ErrMissingOrganizationID: When organization ID is missing from the request
-// - ErrInvalidDateFormat: When startDate or endDate has invalid format
-// - ErrDatabaseQuery: When database query fails
-// - ErrUnauthorized: When user is not authenticated
-// - ErrForbidden: When user does not have access to the organization
-func (h *SourceControlHandler) GetMemberActivity(c *gin.Context) {
-	orgID, err := utils.GetOrganizationIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Check if user has access to the organization
-	if !utils.CheckOrganizationMembership(c, h.orgApi, &orgID) {
-		return
-	}
-
-	memberID := c.Param("memberId")
-	if memberID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "member ID is required"})
-		return
-	}
-
-	var query sourcecontrol.GetMemberActivityRequest
-	if err := c.ShouldBindQuery(&query); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Parse dates if provided
-	var startDate, endDate *time.Time
-	if query.StartDate != "" {
-		parsed, err := time.Parse("2006-01-02", query.StartDate)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid startDate format, expected YYYY-MM-DD"})
-			return
-		}
-		startDate = &parsed
-	}
-	if query.EndDate != "" {
-		parsed, err := time.Parse("2006-01-02", query.EndDate)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid endDate format, expected YYYY-MM-DD"})
-			return
-		}
-		endDate = &parsed
-	}
-
-	// Get member activity from service
-	activities, err := h.scApi.GetMemberActivity(c.Request.Context(), &servicetypes.MemberActivityParams{
-		MemberID:  memberID,
-		StartDate: startDate,
-		EndDate:   endDate,
-	})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Convert service types to HTTP types
-	response := sourcecontrol.GetMemberActivityResponse{
-		Activities: make([]sourcecontrol.MemberActivity, len(activities)),
-	}
-
-	for i, activity := range activities {
-		// Convert metadata from datatypes.JSON to map[string]interface{}
-		var metadata map[string]interface{}
-		if activity.Metadata != nil {
-			if err := json.Unmarshal(activity.Metadata, &metadata); err != nil {
-				metadata = make(map[string]interface{})
-			}
-		}
-
-		// Use the author username from the database layer for all activity types
-		authorUsername := activity.AuthorUsername
-
-		response.Activities[i] = sourcecontrol.MemberActivity{
-			ID:               activity.ID,
-			Type:             activity.Type,
-			Title:            activity.Title,
-			Description:      activity.Description,
-			URL:              activity.URL,
-			Repository:       activity.Repository,
-			CreatedAt:        activity.CreatedAt,
-			Metadata:         metadata,
-			AuthorUsername:   authorUsername,
-			PRTitle:          activity.PRTitle,
-			PRAuthorUsername: activity.PRAuthorUsername,
-			PRMetrics:        activity.PRMetrics,
-		}
-	}
-
-	c.JSON(http.StatusOK, response)
-}
-
 // GetMemberPullRequests handles retrieving pull requests for a specific member
 // Params:
 // - c: The Gin context containing request and response
@@ -511,7 +397,6 @@ func (h *SourceControlHandler) RegisterRoutes(api *gin.RouterGroup) {
 	// Member-specific routes
 	members := api.Group("/organizations/:id/members")
 	{
-		members.GET("/:memberId/sourcecontrol/activity", h.GetMemberActivity)
 		members.GET("/:memberId/pull-requests", h.GetMemberPullRequests)
 		members.GET("/:memberId/pull-request-reviews", h.GetMemberPullRequestReviews)
 	}

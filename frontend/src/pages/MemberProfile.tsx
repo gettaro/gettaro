@@ -5,7 +5,7 @@ import { Member } from '../types/member'
 import { GetMemberMetricsResponse, GetMemberMetricsParams } from '../types/memberMetrics'
 import { Title } from '../types/title'
 import { SourceControlAccount, PullRequest, GetMemberPullRequestsParams, GetMemberPullRequestReviewsParams } from '../types/sourcecontrol'
-import { MemberActivity, GetMemberActivityParams } from '../types/memberActivity'
+import { MemberActivity, GetMemberActivityParams } from '../types/sourcecontrol'
 import Api from '../api/api'
 import { formatMetricValue, formatTimeMetric } from '../utils/formatMetrics'
 import MetricIcon from '../components/MetricIcon'
@@ -659,7 +659,7 @@ export default function MemberProfilePage() {
               <div className="p-6 border-b border-border">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-foreground">Recent Pull Requests</h3>
+                    <h3 className="text-lg font-semibold text-foreground">Pull Requests</h3>
                     <p className="text-sm text-muted-foreground mt-1">
                       Pull requests created in the selected date range
                     </p>
@@ -759,7 +759,7 @@ export default function MemberProfilePage() {
               <div className="p-6 border-b border-border">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-foreground">Recent PR Reviews (1 Month)</h3>
+                    <h3 className="text-lg font-semibold text-foreground">Pull Request Reviews</h3>
                     <p className="text-sm text-muted-foreground mt-1">
                       Pull request reviews submitted in the selected date range
                     </p>

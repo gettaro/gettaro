@@ -92,13 +92,6 @@ type MemberActivity struct {
 	PRMetrics        datatypes.JSON `json:"prMetrics,omitempty"`        // Added PRMetrics
 }
 
-// MemberActivityParams represents the parameters for getting member activity
-type MemberActivityParams struct {
-	MemberID  string     `json:"memberId"`
-	StartDate *time.Time `json:"startDate,omitempty"`
-	EndDate   *time.Time `json:"endDate,omitempty"`
-}
-
 // MemberPullRequestParams represents the parameters for getting member pull requests
 type MemberPullRequestParams struct {
 	MemberID  string     `json:"memberId"`
