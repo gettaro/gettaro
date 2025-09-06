@@ -68,7 +68,7 @@ func (r *TimeToMergeRule) Calculate(ctx context.Context, params types.MetricRule
 	return &snapshotMetric, &graphMetric, nil
 }
 
-func (r *TimeToMergeRule) Category() string {
+func (r *TimeToMergeRule) Category() types.MetricRuleCategory {
 	return r.BaseMetricRule.Category
 }
 

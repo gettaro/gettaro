@@ -615,8 +615,8 @@ export default function MemberProfilePage() {
               ) : metrics ? (
                 <div className="space-y-8">
                   {metrics.snapshotMetrics.map((category) => (
-                    <div key={category.category} className="space-y-4">
-                      <h4 className="text-md font-semibold text-foreground">{category.category}</h4>
+                    <div key={category.category.name} className="space-y-4">
+                      <h4 className="text-md font-semibold text-foreground">{category.category.name}</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {category.metrics.map((metric) => (
                           <div key={metric.label} className="text-center p-4 bg-muted/30 rounded-lg border border-border">

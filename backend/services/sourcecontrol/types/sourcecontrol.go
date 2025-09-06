@@ -136,8 +136,8 @@ type SnapshotMetric struct {
 
 // SnapshotCategory represents a category of metrics in the snapshot
 type SnapshotCategory struct {
-	Category string           `json:"category"`
-	Metrics  []SnapshotMetric `json:"metrics"`
+	Category MetricRuleCategory `json:"category"`
+	Metrics  []SnapshotMetric   `json:"metrics"`
 }
 
 // TimeSeriesDataPoint represents a single data point in a time series
@@ -170,12 +170,18 @@ type GraphMetric struct {
 
 // GraphCategory represents a category of metrics in the graph data
 type GraphCategory struct {
-	Category string        `json:"category"`
-	Metrics  []GraphMetric `json:"metrics"`
+	Category MetricRuleCategory `json:"category"`
+	Metrics  []GraphMetric      `json:"metrics"`
 }
 
 // MetricsResponse represents the response for getting member metrics
 type MetricsResponse struct {
 	SnapshotMetrics []*SnapshotCategory `json:"snapshotMetrics"`
 	GraphMetrics    []*GraphCategory    `json:"graphMetrics"`
+}
+
+// MetricRuleCategory represents a category of metric rules
+type MetricRuleCategory struct {
+	Name     string `json:"name"`
+	Priority int    `json:"priority"`
 }

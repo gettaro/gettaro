@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"sort"
 
 	"ems.dev/backend/services/sourcecontrol/database"
 	"ems.dev/backend/services/sourcecontrol/metrics/engine"
@@ -20,6 +21,21 @@ type Engine struct {
 
 func NewEngine(sourceControlDB database.DB) *Engine {
 	// TODO: Eventually I'll have a get engine for organization and remove this. No need to inject it from main.go for now.
+	categories := map[string]types.MetricRuleCategory{
+		"Activity": {
+			Name:     "Activity",
+			Priority: 1,
+		},
+		"Collaboration": {
+			Name:     "Collaboration",
+			Priority: 2,
+		},
+		"Efficiency": {
+			Name:     "Efficiency",
+			Priority: 3,
+		},
+	}
+
 	return &Engine{
 		Metrics: []metrictypes.MetricRule{
 			engine.NewPRsMergedRule(metrictypes.BaseMetricRule{
@@ -27,7 +43,7 @@ func NewEngine(sourceControlDB database.DB) *Engine {
 				Name:           "PRs Merged",
 				Description:    "Total number of pull requests that were successfully merged. This metric counts PRs with status 'closed' and merged_at timestamp. Peer comparison shows the median PRs merged across other organization members.",
 				Unit:           types.UnitCount,
-				Category:       "Activity",
+				Category:       categories["Activity"],
 				Dimension:      metrictypes.MetricDimensionMergedPRs,
 				Operation:      metrictypes.MetricOperationCount,
 				IconIdentifier: "git-merge",
@@ -38,7 +54,7 @@ func NewEngine(sourceControlDB database.DB) *Engine {
 				Name:           "Lines of Code Added",
 				Description:    "Total lines of code added across all merged pull requests. Extracted from PR metadata additions field. Peer comparison shows the median LOC added across other organization members.",
 				Unit:           types.UnitCount,
-				Category:       "Activity",
+				Category:       categories["Activity"],
 				Dimension:      metrictypes.MetricDimensionLOCAdded,
 				Operation:      metrictypes.MetricOperationCount,
 				IconIdentifier: "plus-circle",
@@ -49,7 +65,7 @@ func NewEngine(sourceControlDB database.DB) *Engine {
 				Name:           "Lines of Code Removed",
 				Description:    "Total lines of code removed across all merged pull requests. Extracted from PR metadata deletions field. Peer comparison shows the median LOC removed across other organization members.",
 				Unit:           types.UnitCount,
-				Category:       "Activity",
+				Category:       categories["Activity"],
 				Dimension:      metrictypes.MetricDimensionLOCRemoved,
 				Operation:      metrictypes.MetricOperationCount,
 				IconIdentifier: "minus-circle",
@@ -60,7 +76,7 @@ func NewEngine(sourceControlDB database.DB) *Engine {
 				Name:           "PRs Reviewed",
 				Description:    "Total number of unique pull requests that the member has reviewed. This metric counts PRs authored by others that the member has provided review comments on, regardless of whether the PR author is mapped to a member in the system. Peer comparison shows the median PRs reviewed across other organization members.",
 				Unit:           types.UnitCount,
-				Category:       "Collaboration",
+				Category:       categories["Collaboration"],
 				Dimension:      metrictypes.MetricDimensionReviwedPRs,
 				Operation:      metrictypes.MetricOperationCount,
 				IconIdentifier: "eye",
@@ -71,7 +87,7 @@ func NewEngine(sourceControlDB database.DB) *Engine {
 				Name:           "Median time to merge",
 				Description:    "Median time between PR creation and merge completion. Calculated as the difference between merged_at and created_at timestamps. Peer comparison shows the median time to merge across other organization members.",
 				Unit:           types.UnitSeconds,
-				Category:       "Efficiency",
+				Category:       categories["Efficiency"],
 				Dimension:      metrictypes.MetricDimensionTimeToMerge,
 				Operation:      metrictypes.MetricOperationMedian,
 				IconIdentifier: "clock",
@@ -82,7 +98,7 @@ func NewEngine(sourceControlDB database.DB) *Engine {
 				Name:           "Average PR Review LoC",
 				Description:    "Average Lines of Code (LoC) in PRs reviewed by the member, calculated as the average of (lines added + lines removed) across all reviewed PRs. Excludes PRs authored by any member in the organization. Peer comparison shows the median PR review complexity across other organization members.",
 				Unit:           types.UnitCount,
-				Category:       "Collaboration",
+				Category:       categories["Collaboration"],
 				Dimension:      metrictypes.MetricDimensionPRReviewComplexity,
 				Operation:      metrictypes.MetricOperationAverage,
 				IconIdentifier: "bar-chart-3",
@@ -107,22 +123,22 @@ func (e *Engine) CalculateMetrics(ctx context.Context, params types.MetricRulePa
 		category := rule.Category()
 
 		// Group snapshot metrics by category
-		if snapshotCategoriesMap[category] == nil {
-			snapshotCategoriesMap[category] = &types.SnapshotCategory{
+		if snapshotCategoriesMap[category.Name] == nil {
+			snapshotCategoriesMap[category.Name] = &types.SnapshotCategory{
 				Category: category,
 				Metrics:  []types.SnapshotMetric{},
 			}
 		}
-		snapshotCategoriesMap[category].Metrics = append(snapshotCategoriesMap[category].Metrics, *snapshotMetric)
+		snapshotCategoriesMap[category.Name].Metrics = append(snapshotCategoriesMap[category.Name].Metrics, *snapshotMetric)
 
 		// Group graph metrics by category
-		if graphCategoriesMap[category] == nil {
-			graphCategoriesMap[category] = &types.GraphCategory{
+		if graphCategoriesMap[category.Name] == nil {
+			graphCategoriesMap[category.Name] = &types.GraphCategory{
 				Category: category,
 				Metrics:  []types.GraphMetric{},
 			}
 		}
-		graphCategoriesMap[category].Metrics = append(graphCategoriesMap[category].Metrics, *graphMetric)
+		graphCategoriesMap[category.Name].Metrics = append(graphCategoriesMap[category.Name].Metrics, *graphMetric)
 	}
 
 	// Convert maps to slices
@@ -136,6 +152,15 @@ func (e *Engine) CalculateMetrics(ctx context.Context, params types.MetricRulePa
 	for _, category := range graphCategoriesMap {
 		graphMetrics = append(graphMetrics, category)
 	}
+
+	// Sort categories by priority (ascending)
+	sort.Slice(snapshotMetrics, func(i, j int) bool {
+		return snapshotMetrics[i].Category.Priority < snapshotMetrics[j].Category.Priority
+	})
+
+	sort.Slice(graphMetrics, func(i, j int) bool {
+		return graphMetrics[i].Category.Priority < graphMetrics[j].Category.Priority
+	})
 
 	return &types.MetricsResponse{
 		SnapshotMetrics: snapshotMetrics,

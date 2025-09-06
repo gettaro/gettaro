@@ -181,6 +181,6 @@ func (r *PRReviewComplexityRule) extractParams(params types.MetricRuleParams) (*
 }
 
 // Category returns the category of the metric
-func (r *PRReviewComplexityRule) Category() string {
+func (r *PRReviewComplexityRule) Category() types.MetricRuleCategory {
 	return r.BaseMetricRule.Category
 }

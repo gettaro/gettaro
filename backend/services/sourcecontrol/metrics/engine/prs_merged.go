@@ -68,7 +68,7 @@ func (r *PRsMergedRule) Calculate(ctx context.Context, params types.MetricRulePa
 	return &snapshotMetric, &graphMetric, nil
 }
 
-func (r *PRsMergedRule) Category() string {
+func (r *PRsMergedRule) Category() types.MetricRuleCategory {
 	return r.BaseMetricRule.Category
 }
 

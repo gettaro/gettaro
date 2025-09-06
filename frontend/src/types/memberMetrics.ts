@@ -16,9 +16,15 @@ export interface SnapshotMetric {
   iconColor: string
 }
 
+// Metric rule category
+export interface MetricRuleCategory {
+  name: string
+  priority: number
+}
+
 // Category of snapshot metrics
 export interface SnapshotCategory {
-  category: string
+  category: MetricRuleCategory
   metrics: SnapshotMetric[]
 }
 
@@ -43,7 +49,7 @@ export interface GraphMetric {
 
 // Category of graph metrics
 export interface GraphCategory {
-  category: string
+  category: MetricRuleCategory
   metrics: GraphMetric[]
 }
 

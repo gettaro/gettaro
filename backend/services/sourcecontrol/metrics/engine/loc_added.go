@@ -68,7 +68,7 @@ func (r *LOCAddedRule) Calculate(ctx context.Context, params types.MetricRulePar
 	return &snapshotMetric, &graphMetric, nil
 }
 
-func (r *LOCAddedRule) Category() string {
+func (r *LOCAddedRule) Category() types.MetricRuleCategory {
 	return r.BaseMetricRule.Category
 }
 

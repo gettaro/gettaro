@@ -141,17 +141,17 @@ export default function Members() {
 
     memberMetrics.forEach(memberMetric => {
       memberMetric.snapshotMetrics.forEach(category => {
-        if (!categoryMap.has(category.category)) {
-          categoryMap.set(category.category, [])
+        if (!categoryMap.has(category.category.name)) {
+          categoryMap.set(category.category.name, [])
         }
 
         category.metrics.forEach(metric => {
-          const existingMetric = categoryMap.get(category.category)?.find(m => m.label === metric.label)
+          const existingMetric = categoryMap.get(category.category.name)?.find(m => m.label === metric.label)
           if (existingMetric) {
             existingMetric.value += metric.value
             existingMetric.peersValue += metric.peersValue
           } else {
-            categoryMap.get(category.category)?.push({
+            categoryMap.get(category.category.name)?.push({
               label: metric.label,
               description: metric.description || '',
               value: metric.value,
@@ -166,9 +166,12 @@ export default function Members() {
     })
 
     // Convert aggregated metrics back to the expected format
-    categoryMap.forEach((metrics, category) => {
+    categoryMap.forEach((metrics, categoryName) => {
       aggregated.snapshotMetrics.push({
-        category,
+        category: {
+          name: categoryName,
+          priority: 0 // Default priority since we don't have this info in aggregation
+        },
         metrics: metrics.map(metric => ({
           ...metric,
           peersValue: metric.peersValue / memberMetrics.length // Average peer value
@@ -495,8 +498,8 @@ export default function Members() {
               ) : metrics ? (
                 <div className="space-y-8">
                   {metrics.snapshotMetrics.map((category) => (
-                    <div key={category.category} className="space-y-4">
-                      <h3 className="text-lg font-semibold text-foreground">{category.category}</h3>
+                    <div key={category.category.name} className="space-y-4">
+                      <h3 className="text-lg font-semibold text-foreground">{category.category.name}</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {category.metrics.map((metric) => (
                           <div key={metric.label} className="bg-muted/30 rounded-lg border border-border p-4">

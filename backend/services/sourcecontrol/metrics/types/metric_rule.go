@@ -29,18 +29,18 @@ const (
 )
 
 type MetricRule interface {
-	Category() string
+	Category() types.MetricRuleCategory
 	Calculate(ctx context.Context, params types.MetricRuleParams) (*types.SnapshotMetric, *types.GraphMetric, error)
 }
 
 type BaseMetricRule struct {
-	ID             string          `json:"id"`
-	Name           string          `json:"name"`
-	Description    string          `json:"description"`
-	Category       string          `json:"category"`
-	Unit           types.Unit      `json:"unit"`
-	Dimension      MetricDimension `json:"dimension"`
-	Operation      MetricOperation `json:"operation"`
-	IconIdentifier string          `json:"iconIdentifier"`
-	IconColor      string          `json:"iconColor"`
+	ID             string                   `json:"id"`
+	Name           string                   `json:"name"`
+	Description    string                   `json:"description"`
+	Category       types.MetricRuleCategory `json:"category"`
+	Unit           types.Unit               `json:"unit"`
+	Dimension      MetricDimension          `json:"dimension"`
+	Operation      MetricOperation          `json:"operation"`
+	IconIdentifier string                   `json:"iconIdentifier"`
+	IconColor      string                   `json:"iconColor"`
 }
