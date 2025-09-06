@@ -84,9 +84,7 @@ export default function Members() {
     if (!currentOrganization) return
 
     try {
-      console.log('Loading source control accounts for organization:', currentOrganization.id)
       const accountsData = await Api.getOrganizationSourceControlAccounts(currentOrganization.id)
-      console.log('Source control accounts loaded:', accountsData)
       setSourceControlAccounts(accountsData)
     } catch (err) {
       console.error('Error loading source control accounts:', err)
@@ -350,22 +348,6 @@ export default function Members() {
             </div>
 
             <div className="divide-y divide-border">
-              {/* Debug info - remove this after testing */}
-              {sourceControlAccounts.length > 0 && (
-                <div className="p-4 bg-blue-50 border-l-4 border-blue-400">
-                  <p className="text-sm text-blue-800">
-                    <strong>Debug:</strong> Loaded {sourceControlAccounts.length} source control account(s)
-                  </p>
-                  <div className="mt-2 text-xs text-blue-700">
-                    {sourceControlAccounts.map(acc => (
-                      <div key={acc.id}>
-                        {acc.username} (Provider: {acc.providerName}) → Member ID: {acc.memberId}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
               {members.map((member) => {
                 // Find source control account once for efficiency
                 const sourceControlAccount = sourceControlAccounts.find(acc => acc.memberId === member.id)
@@ -440,46 +422,6 @@ export default function Members() {
                               />
                             </svg>
                           </button>
-                          <a
-                            href={`/members/${member.id}/profile`}
-                            className="text-green-500 hover:text-green-700 transition-colors"
-                            title="View profile"
-                          >
-                            <svg
-                              className="w-5 h-5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                              />
-                            </svg>
-                          </a>
-                          <a
-                            href={`/members/${member.id}/activity`}
-                            className="text-blue-500 hover:text-blue-700 transition-colors"
-                            title="View activity"
-                          >
-                            <svg
-                              className="w-5 h-5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                              />
-                            </svg>
-                          </a>
                           <button 
                             onClick={() => handleDeleteMember(member)}
                             className="text-red-500 hover:text-red-700 transition-colors"
@@ -502,7 +444,6 @@ export default function Members() {
                           </button>
                         </>
                       )}
-                      {/* Profile and Activity buttons for all members (including owners) */}
                       <a
                         href={`/members/${member.id}/profile`}
                         className="text-green-500 hover:text-green-700 transition-colors"
@@ -699,14 +640,11 @@ export default function Members() {
                   >
                     <option value="">Select a source control account</option>
                     {sourceControlAccounts.length > 0 ? (
-                      sourceControlAccounts.map((account) => {
-                        console.log('Account:', account);
-                        return (
-                          <option key={account.id} value={account.id}>
-                            {account.username} {account.providerName ? `(${account.providerName})` : ''}
-                          </option>
-                        );
-                      })
+                      sourceControlAccounts.map((account) => (
+                        <option key={account.id} value={account.id}>
+                          {account.username} {account.providerName ? `(${account.providerName})` : ''}
+                        </option>
+                      ))
                     ) : (
                       <option value="" disabled>No source control accounts available</option>
                     )}
