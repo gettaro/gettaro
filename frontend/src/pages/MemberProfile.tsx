@@ -4,7 +4,7 @@ import { useOrganizationStore } from '../stores/organization'
 import { Member } from '../types/member'
 import { GetMemberMetricsResponse, GetMemberMetricsParams } from '../types/memberMetrics'
 import { Title } from '../types/title'
-import { SourceControlAccount } from '../types/sourcecontrol'
+import { SourceControlAccount, PullRequest, GetMemberPullRequestsParams } from '../types/sourcecontrol'
 import { MemberActivity, GetMemberActivityParams } from '../types/memberActivity'
 import Api from '../api/api'
 import { formatMetricValue, formatTimeMetric } from '../utils/formatMetrics'
@@ -39,6 +39,8 @@ export default function MemberProfilePage() {
   const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set())
   const [metrics, setMetrics] = useState<GetMemberMetricsResponse | null>(null)
   const [metricsLoading, setMetricsLoading] = useState(false)
+  const [pullRequests, setPullRequests] = useState<PullRequest[]>([])
+  const [pullRequestsLoading, setPullRequestsLoading] = useState(false)
 
   useEffect(() => {
     if (currentOrganization && memberId) {
@@ -51,6 +53,7 @@ export default function MemberProfilePage() {
     if (activeTab === 'source-control-metrics' && currentOrganization?.id && memberId) {
       loadActivities()
       loadMetrics()
+      loadPullRequests()
     }
   }, [activeTab, currentOrganization?.id, memberId])
 
@@ -59,6 +62,7 @@ export default function MemberProfilePage() {
     if (activeTab === 'source-control-metrics' && currentOrganization?.id && memberId && (dateParams.startDate || dateParams.endDate)) {
       loadActivities()
       loadMetrics()
+      loadPullRequests()
     }
   }, [dateParams, activeTab, currentOrganization?.id, memberId])
 
@@ -107,6 +111,28 @@ export default function MemberProfilePage() {
       setError('Failed to load metrics')
     } finally {
       setMetricsLoading(false)
+    }
+  }
+
+  const loadPullRequests = async () => {
+    if (!currentOrganization?.id || !memberId) return
+
+    try {
+      setPullRequestsLoading(true)
+      setError(null)
+      
+      const params: GetMemberPullRequestsParams = {
+        startDate: dateParams.startDate,
+        endDate: dateParams.endDate,
+      }
+      
+      const prs = await Api.getMemberPullRequests(currentOrganization.id, memberId, params)
+      setPullRequests(prs)
+    } catch (err) {
+      console.error('Error loading pull requests:', err)
+      setError('Failed to load pull requests')
+    } finally {
+      setPullRequestsLoading(false)
     }
   }
 
@@ -168,6 +194,99 @@ export default function MemberProfilePage() {
           </svg>
         )
     }
+  }
+
+  const renderPullRequestContent = (pr: PullRequest) => {
+    return (
+      <div>
+        <h3 className="text-lg font-medium text-foreground mb-3">
+          {pr.title}
+        </h3>
+        
+        {/* PR Statistics */}
+        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-3">
+          {/* PR Status */}
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            pr.status === 'open' 
+              ? 'bg-green-100 text-green-800' 
+              : pr.status === 'closed' && pr.merged_at
+              ? 'bg-green-100 text-green-800'
+              : pr.status === 'closed'
+              ? 'bg-red-100 text-red-800'
+              : 'bg-gray-100 text-gray-800'
+          }`}>
+            {pr.status === 'open' ? 'Open' : 
+             pr.status === 'closed' && pr.merged_at ? 'Merged' :
+             pr.status === 'closed' ? 'Closed' : 
+             pr.status}
+          </span>
+          
+          <span className="flex items-center space-x-1">
+            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            <span>+{pr.additions}</span>
+          </span>
+          
+          <span className="flex items-center space-x-1">
+            <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+            </svg>
+            <span>-{pr.deletions}</span>
+          </span>
+          
+          <span className="flex items-center space-x-1">
+            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <span>{pr.comments} comments</span>
+          </span>
+          
+          <span className="flex items-center space-x-1">
+            <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <span>{pr.review_comments} review comments</span>
+          </span>
+          
+          <span className="flex items-center space-x-1">
+            <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>{pr.changed_files} files</span>
+          </span>
+        </div>
+        
+        {/* Expandable PR Description */}
+        {pr.description && (
+          <div className="mb-3">
+            <button
+              onClick={() => toggleExpanded(`${pr.id}-description`)}
+              className="flex items-center space-x-2 text-sm text-primary hover:text-primary/80 transition-colors"
+            >
+              <svg 
+                className={`w-4 h-4 transition-transform ${expandedItems.has(`${pr.id}-description`) ? 'rotate-90' : ''}`}
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              <span>
+                {expandedItems.has(`${pr.id}-description`) ? 'Hide description' : 'Show description'}
+              </span>
+            </button>
+            {expandedItems.has(`${pr.id}-description`) && (
+              <div className="mt-2 p-3 bg-muted/30 rounded-md border border-border">
+                <p className="text-muted-foreground text-sm whitespace-pre-wrap">
+                  {pr.description}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
   }
 
   const renderActivityContent = (activity: MemberActivity) => {
@@ -562,32 +681,43 @@ export default function MemberProfilePage() {
               <div className="p-6 border-b border-border">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-foreground">Recent Pull Requests (1 Month)</h3>
+                    <h3 className="text-lg font-semibold text-foreground">Recent Pull Requests</h3>
                     <p className="text-sm text-muted-foreground mt-1">
                       Pull requests created in the selected date range
                     </p>
                   </div>
-                  <button
-                    onClick={() => toggleTableExpanded('pull-requests')}
-                    className="flex items-center space-x-2 text-sm text-primary hover:text-primary/80 transition-colors"
-                  >
-                    <svg 
-                      className={`w-4 h-4 transition-transform ${expandedTables.has('pull-requests') ? 'rotate-90' : ''}`}
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
+                  <div className="flex items-center space-x-4">
+                    {pullRequestsLoading && (
+                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Loading...</span>
+                      </div>
+                    )}
+                    <button
+                      onClick={() => toggleTableExpanded('pull-requests')}
+                      className="flex items-center space-x-2 text-sm text-primary hover:text-primary/80 transition-colors"
                     >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                    <span>
-                      {expandedTables.has('pull-requests') ? 'Collapse' : 'Expand'}
-                    </span>
-                  </button>
+                      <svg 
+                        className={`w-4 h-4 transition-transform ${expandedTables.has('pull-requests') ? 'rotate-90' : ''}`}
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                      <span>
+                        {expandedTables.has('pull-requests') ? 'Collapse' : 'Expand'}
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </div>
               {expandedTables.has('pull-requests') && (
                 <div className="divide-y divide-border">
-                  {activities.filter(a => a.type === 'pull_request').length === 0 ? (
+                  {pullRequests.length === 0 ? (
                     <div className="p-6 text-center">
                       <div className="text-muted-foreground">
                         No pull requests found for the selected date range.
@@ -595,42 +725,51 @@ export default function MemberProfilePage() {
                     </div>
                   ) : (
                     <div className="h-96 overflow-y-auto">
-                      {activities
-                        .filter(a => a.type === 'pull_request')
-                        .map((activity) => (
-                          <div key={activity.id} className="p-6">
-                            <div className="flex items-start space-x-4">
-                              <div className="flex-shrink-0 mt-1">
-                                {getActivityIcon(activity.type)}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                {renderActivityContent(activity)}
-                                
-                                <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-3">
-                                  <span>
-                                    {new Date(activity.createdAt).toLocaleDateString('en-US', {
+                      {pullRequests.map((pr) => (
+                        <div key={pr.id} className="p-6">
+                          <div className="flex items-start space-x-4">
+                            <div className="flex-shrink-0 mt-1">
+                              <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                              </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              {renderPullRequestContent(pr)}
+                              
+                              <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-3">
+                                <span>
+                                  {new Date(pr.created_at).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                                {pr.merged_at && (
+                                  <span className="text-green-600">
+                                    Merged {new Date(pr.merged_at).toLocaleDateString('en-US', {
                                       year: 'numeric',
                                       month: 'long',
-                                      day: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit'
+                                      day: 'numeric'
                                     })}
                                   </span>
-                                  {activity.url && (
-                                    <a
-                                      href={activity.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-primary hover:text-primary/80 transition-colors"
-                                    >
-                                      View on GitHub →
-                                    </a>
-                                  )}
-                                </div>
+                                )}
+                                {pr.url && (
+                                  <a
+                                    href={pr.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary hover:text-primary/80 transition-colors"
+                                  >
+                                    View on GitHub →
+                                  </a>
+                                )}
                               </div>
                             </div>
                           </div>
-                        ))}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

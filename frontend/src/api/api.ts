@@ -3,7 +3,7 @@ import { OrganizationConflictError } from './errors/organizations'
 import { CreateIntegrationConfigRequest, IntegrationConfig, UpdateIntegrationConfigRequest } from '../types/integration'
 import { Title, CreateTitleRequest, UpdateTitleRequest } from '../types/title'
 import { Member, AddMemberRequest, UpdateMemberRequest } from '../types/member'
-import { SourceControlAccount } from '../types/sourcecontrol'
+import { SourceControlAccount, PullRequest, GetMemberPullRequestsParams } from '../types/sourcecontrol'
 import { GetMemberActivityParams, MemberActivity } from '../types/memberActivity'
 import { GetMemberMetricsParams, GetMemberMetricsResponse } from '../types/memberMetrics'
 
@@ -321,6 +321,34 @@ export default class Api {
   static async getOrganizationSourceControlAccounts(organizationId: string): Promise<SourceControlAccount[]> {
     const response = await this.get(`/organizations/${organizationId}/source-control-accounts`)
     return response.source_control_accounts
+  }
+
+  // Member Pull Requests API functions
+  static async getMemberPullRequests(organizationId: string, memberId: string, params: GetMemberPullRequestsParams): Promise<PullRequest[]> {
+    const token = this.accessToken
+    const queryParams = new URLSearchParams()
+    
+    if (params.startDate) {
+      queryParams.append('startDate', params.startDate)
+    }
+    if (params.endDate) {
+      queryParams.append('endDate', params.endDate)
+    }
+
+    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/pull-requests?${queryParams}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to get member pull requests: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    return data.pull_requests
   }
 }
 

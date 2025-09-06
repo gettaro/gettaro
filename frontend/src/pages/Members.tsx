@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import Api from '../api/api'
 import { Member, AddMemberRequest, UpdateMemberRequest } from '../types/member'
 import { Title } from '../types/title'
-import { SourceControlAccount } from '../types/sourcecontrol'
+import { SourceControlAccount, PullRequest, GetMemberPullRequestsParams } from '../types/sourcecontrol'
 import { GetMemberMetricsResponse, SnapshotMetric } from '../types/memberMetrics'
 import { useOrganizationStore } from '../stores/organization'
 import { formatMetricValue } from '../utils/formatMetrics'
@@ -23,6 +23,10 @@ export default function Members() {
   const [activeTab, setActiveTab] = useState<'members' | 'metrics'>('members')
   const [metrics, setMetrics] = useState<GetMemberMetricsResponse | null>(null)
   const [metricsLoading, setMetricsLoading] = useState(false)
+  const [selectedMemberForPRs, setSelectedMemberForPRs] = useState<Member | null>(null)
+  const [pullRequests, setPullRequests] = useState<PullRequest[]>([])
+  const [pullRequestsLoading, setPullRequestsLoading] = useState(false)
+  const [isPullRequestsModalOpen, setIsPullRequestsModalOpen] = useState(false)
   const [formData, setFormData] = useState<AddMemberRequest>({
     email: '',
     username: '',
@@ -126,6 +130,29 @@ export default function Members() {
       setError('Failed to load metrics')
     } finally {
       setMetricsLoading(false)
+    }
+  }
+
+  const loadMemberPullRequests = async (member: Member) => {
+    if (!currentOrganization) return
+
+    try {
+      setPullRequestsLoading(true)
+      setError(null)
+      setSelectedMemberForPRs(member)
+
+      const params: GetMemberPullRequestsParams = {
+        startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days ago
+        endDate: new Date().toISOString().split('T')[0], // today
+      }
+
+      const prs = await Api.getMemberPullRequests(currentOrganization.id, member.id, params)
+      setPullRequests(prs)
+    } catch (err) {
+      console.error('Error loading member pull requests:', err)
+      setError('Failed to load pull requests')
+    } finally {
+      setPullRequestsLoading(false)
     }
   }
 
@@ -258,6 +285,11 @@ export default function Members() {
     return isOwner 
       ? `${baseClasses} bg-red-100 text-red-800`
       : `${baseClasses} bg-gray-100 text-gray-800`
+  }
+
+  const handleViewPullRequests = (member: Member) => {
+    setActiveTab('pull-requests')
+    loadMemberPullRequests(member)
   }
 
   if (!currentOrganization) {
