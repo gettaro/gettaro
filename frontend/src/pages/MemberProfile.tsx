@@ -33,8 +33,6 @@ export default function MemberProfilePage() {
       endDate: endDate.toISOString().split('T')[0]
     }
   })
-  const [activities, setActivities] = useState<MemberActivity[]>([])
-  const [activitiesLoading, setActivitiesLoading] = useState(false)
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
   const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set())
   const [metrics, setMetrics] = useState<GetMemberMetricsResponse | null>(null)
@@ -50,25 +48,12 @@ export default function MemberProfilePage() {
     }
   }, [currentOrganization, memberId])
 
-  // Load activities when Code Contributions tab is selected
+  // Load data when Code Contributions tab is selected or date parameters change
   useEffect(() => {
     if (activeTab === 'source-control-metrics' && currentOrganization?.id && memberId) {
-      loadActivities()
-      loadMetrics()
-      loadPullRequests()
-      loadPullRequestReviews()
+      loadCodeContributionsData()
     }
-  }, [activeTab, currentOrganization?.id, memberId])
-
-  // Reload activities when date parameters change
-  useEffect(() => {
-    if (activeTab === 'source-control-metrics' && currentOrganization?.id && memberId && (dateParams.startDate || dateParams.endDate)) {
-      loadActivities()
-      loadMetrics()
-      loadPullRequests()
-      loadPullRequestReviews()
-    }
-  }, [dateParams, activeTab, currentOrganization?.id, memberId])
+  }, [activeTab, currentOrganization?.id, memberId, dateParams.startDate, dateParams.endDate])
 
   const initializePage = async () => {
     try {
@@ -79,85 +64,52 @@ export default function MemberProfilePage() {
     }
   }
 
-  const loadActivities = async () => {
+
+  const loadCodeContributionsData = async () => {
     if (!currentOrganization?.id || !memberId) return
 
-    try {
-      setActivitiesLoading(true)
-      setError(null)
-      const activitiesData = await Api.getMemberActivity(currentOrganization.id, memberId, dateParams)
-      setActivities(activitiesData)
-    } catch (err) {
-      console.error('Error loading activities:', err)
-      setError('Failed to load activities')
-    } finally {
-      setActivitiesLoading(false)
-    }
-  }
-
-  const loadMetrics = async () => {
-    if (!currentOrganization?.id || !memberId) return
+    // Set all loading states to true
+    setMetricsLoading(true)
+    setPullRequestsLoading(true)
+    setPullRequestReviewsLoading(true)
+    setError(null)
 
     try {
-      setMetricsLoading(true)
-      setError(null)
-      
+      // Prepare common parameters
       const metricsParams: GetMemberMetricsParams = {
         startDate: dateParams.startDate,
         endDate: dateParams.endDate,
         interval: 'monthly'
       }
       
-      const metricsData = await Api.getMemberMetrics(currentOrganization.id, memberId, metricsParams)
+      const prParams: GetMemberPullRequestsParams = {
+        startDate: dateParams.startDate,
+        endDate: dateParams.endDate,
+      }
+      
+      const reviewsParams: GetMemberPullRequestReviewsParams = {
+        startDate: dateParams.startDate,
+        endDate: dateParams.endDate,
+      }
+
+      // Make all API calls in parallel for better performance
+      const [metricsData, prs, reviews] = await Promise.all([
+        Api.getMemberMetrics(currentOrganization.id, memberId, metricsParams),
+        Api.getMemberPullRequests(currentOrganization.id, memberId, prParams),
+        Api.getMemberPullRequestReviews(currentOrganization.id, memberId, reviewsParams)
+      ])
+
+      // Update all states
       setMetrics(metricsData)
-    } catch (err) {
-      console.error('Error loading metrics:', err)
-      setError('Failed to load metrics')
-    } finally {
-      setMetricsLoading(false)
-    }
-  }
-
-  const loadPullRequests = async () => {
-    if (!currentOrganization?.id || !memberId) return
-
-    try {
-      setPullRequestsLoading(true)
-      setError(null)
-      
-      const params: GetMemberPullRequestsParams = {
-        startDate: dateParams.startDate,
-        endDate: dateParams.endDate,
-      }
-      
-      const prs = await Api.getMemberPullRequests(currentOrganization.id, memberId, params)
       setPullRequests(prs)
-    } catch (err) {
-      console.error('Error loading pull requests:', err)
-      setError('Failed to load pull requests')
-    } finally {
-      setPullRequestsLoading(false)
-    }
-  }
-
-  const loadPullRequestReviews = async () => {
-    if (!currentOrganization?.id || !memberId) return
-
-    try {
-      setPullRequestReviewsLoading(true)
-      setError(null)
-      
-      const params: GetMemberPullRequestReviewsParams = {
-        startDate: dateParams.startDate,
-        endDate: dateParams.endDate,
-      }
-      
-      const reviews = await Api.getMemberPullRequestReviews(currentOrganization.id, memberId, params)
       setPullRequestReviews(reviews)
     } catch (err) {
-      console.error('Error loading pull request reviews:', err)
-      setError('Failed to load pull request reviews')
+      console.error('Error loading code contributions data:', err)
+      setError('Failed to load code contributions data')
     } finally {
+      // Set all loading states to false
+      setMetricsLoading(false)
+      setPullRequestsLoading(false)
       setPullRequestReviewsLoading(false)
     }
   }
@@ -610,7 +562,7 @@ export default function MemberProfilePage() {
             <div className="bg-card border border-border rounded-lg p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-foreground">Filter by Date Range</h3>
-                {activitiesLoading && (
+                {(metricsLoading || pullRequestsLoading || pullRequestReviewsLoading) && (
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                     <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
