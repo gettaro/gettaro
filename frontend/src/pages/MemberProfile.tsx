@@ -188,7 +188,7 @@ export default function MemberProfilePage() {
             pr.status === 'open' 
               ? 'bg-green-100 text-green-800' 
               : pr.status === 'closed' && pr.merged_at
-              ? 'bg-green-100 text-green-800'
+              ? 'bg-purple-100 text-purple-800'
               : pr.status === 'closed'
               ? 'bg-red-100 text-red-800'
               : 'bg-gray-100 text-gray-800'
@@ -233,6 +233,30 @@ export default function MemberProfilePage() {
             </svg>
             <span>{pr.changed_files} files</span>
           </span>
+          
+          {pr.merged_at && (
+            <span className="flex items-center space-x-1">
+              <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{(() => {
+                const created = new Date(pr.created_at)
+                const merged = new Date(pr.merged_at)
+                const diffMs = merged.getTime() - created.getTime()
+                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+                const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+                
+                if (diffDays > 0) {
+                  return `${diffDays}d ${diffHours}h`
+                } else if (diffHours > 0) {
+                  return `${diffHours}h`
+                } else {
+                  const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
+                  return `${diffMinutes}m`
+                }
+              })()} to merge</span>
+            </span>
+          )}
         </div>
         
         {/* Expandable PR Description */}
@@ -726,10 +750,12 @@ export default function MemberProfilePage() {
                                 </span>
                                 {pr.merged_at && (
                                   <span className="text-green-600">
-                                    Merged {new Date(pr.merged_at).toLocaleDateString('en-US', {
+                                    Merged {new Date(pr.merged_at).toLocaleString('en-US', {
                                       year: 'numeric',
                                       month: 'long',
-                                      day: 'numeric'
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
                                     })}
                                   </span>
                                 )}
