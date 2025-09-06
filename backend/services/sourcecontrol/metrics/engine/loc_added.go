@@ -38,7 +38,7 @@ func (r *LOCAddedRule) Calculate(ctx context.Context, params types.MetricRulePar
 	}
 
 	// Calculate LOC added peers value
-	peersLOCAddedValue, err := r.sourceControlDB.CalculatePeerLOCAdded(ctx, *organizationID, peersSourceControlAccountIDs, *startDate, *endDate)
+	peersLOCAddedValue, err := r.sourceControlDB.CalculateLOCAddedForAccounts(ctx, *organizationID, peersSourceControlAccountIDs, *startDate, *endDate)
 	if err != nil {
 		return nil, nil, err
 	}

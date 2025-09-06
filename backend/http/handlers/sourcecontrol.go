@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"ems.dev/backend/http/types/sourcecontrol"
-	types "ems.dev/backend/http/types/sourcecontrol"
 	"ems.dev/backend/http/utils"
 	organizationapi "ems.dev/backend/services/organization/api"
 	sourcecontrolapi "ems.dev/backend/services/sourcecontrol/api"
@@ -63,7 +62,7 @@ func (h *SourceControlHandler) ListOrganizationPullRequests(c *gin.Context) {
 		return
 	}
 
-	var query types.ListOrganizationPullRequestsQuery
+	var query sourcecontrol.ListOrganizationPullRequestsQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -101,8 +100,8 @@ func (h *SourceControlHandler) ListOrganizationPullRequests(c *gin.Context) {
 		return
 	}
 
-	response := types.ListOrganizationPullRequestsResponse{
-		PullRequests: make([]types.PullRequest, len(prs)),
+	response := sourcecontrol.ListOrganizationPullRequestsResponse{
+		PullRequests: make([]sourcecontrol.PullRequest, len(prs)),
 	}
 
 	for i, pr := range prs {
@@ -163,14 +162,12 @@ func (h *SourceControlHandler) ListOrganizationSourceControlAccounts(c *gin.Cont
 		return
 	}
 
-	response := types.ListOrganizationSourceControlAccountsResponse{
+	response := sourcecontrol.ListOrganizationSourceControlAccountsResponse{
 		SourceControlAccounts: make([]servicetypes.SourceControlAccount, len(accounts)),
 	}
 
 	// Copy accounts to response
-	for i, account := range accounts {
-		response.SourceControlAccounts[i] = account
-	}
+	copy(response.SourceControlAccounts, accounts)
 
 	c.JSON(http.StatusOK, response)
 }
@@ -217,7 +214,7 @@ func (h *SourceControlHandler) GetMemberActivity(c *gin.Context) {
 		return
 	}
 
-	var query types.GetMemberActivityRequest
+	var query sourcecontrol.GetMemberActivityRequest
 	if err := c.ShouldBindQuery(&query); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -254,8 +251,8 @@ func (h *SourceControlHandler) GetMemberActivity(c *gin.Context) {
 	}
 
 	// Convert service types to HTTP types
-	response := types.GetMemberActivityResponse{
-		Activities: make([]types.MemberActivity, len(activities)),
+	response := sourcecontrol.GetMemberActivityResponse{
+		Activities: make([]sourcecontrol.MemberActivity, len(activities)),
 	}
 
 	for i, activity := range activities {
@@ -270,7 +267,7 @@ func (h *SourceControlHandler) GetMemberActivity(c *gin.Context) {
 		// Use the author username from the database layer for all activity types
 		authorUsername := activity.AuthorUsername
 
-		response.Activities[i] = types.MemberActivity{
+		response.Activities[i] = sourcecontrol.MemberActivity{
 			ID:               activity.ID,
 			Type:             activity.Type,
 			Title:            activity.Title,
@@ -289,6 +286,109 @@ func (h *SourceControlHandler) GetMemberActivity(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// GetMemberPullRequests handles retrieving pull requests for a specific member
+// Params:
+// - c: The Gin context containing request and response
+// Path Parameters:
+// - id: Organization ID
+// - memberId: Member ID to get pull requests for
+// Query Parameters:
+// - startDate: Optional start date in format "2006-01-02" to filter pull requests by
+// - endDate: Optional end date in format "2006-01-02" to filter pull requests by
+// Returns:
+// - 200: Success response with list of pull requests
+// - 400: Bad request if organization ID or member ID is missing
+// - 401: Unauthorized if user is not authenticated
+// - 403: Forbidden if user does not have access to the organization
+// - 500: Internal server error if service layer fails
+// Side Effects:
+// - Makes a database query to fetch member pull requests
+// - Performs organization membership check
+// Errors:
+// - ErrMissingOrganizationID: When organization ID is missing from the request
+// - ErrInvalidDateFormat: When startDate or endDate has invalid format
+// - ErrDatabaseQuery: When database query fails
+// - ErrUnauthorized: When user is not authenticated
+// - ErrForbidden: When user does not have access to the organization
+func (h *SourceControlHandler) GetMemberPullRequests(c *gin.Context) {
+	orgID, err := utils.GetOrganizationIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if user has access to the organization
+	if !utils.CheckOrganizationMembership(c, h.orgApi, &orgID) {
+		return
+	}
+
+	memberID := c.Param("memberId")
+	if memberID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "member ID is required"})
+		return
+	}
+
+	var query sourcecontrol.GetMemberPullRequestsQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Parse dates if provided
+	var startDate, endDate *time.Time
+	if query.StartDate != "" {
+		parsed, err := time.Parse("2006-01-02", query.StartDate)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid startDate format, expected YYYY-MM-DD"})
+			return
+		}
+		startDate = &parsed
+	}
+	if query.EndDate != "" {
+		parsed, err := time.Parse("2006-01-02", query.EndDate)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid endDate format, expected YYYY-MM-DD"})
+			return
+		}
+		endDate = &parsed
+	}
+
+	// Get member pull requests from service
+	prs, err := h.scApi.GetMemberPullRequests(c.Request.Context(), &servicetypes.MemberPullRequestParams{
+		MemberID:  memberID,
+		StartDate: startDate,
+		EndDate:   endDate,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Convert service types to HTTP types
+	response := sourcecontrol.GetMemberPullRequestsResponse{
+		PullRequests: make([]sourcecontrol.PullRequest, len(prs)),
+	}
+
+	for i, pr := range prs {
+		response.PullRequests[i] = sourcecontrol.PullRequest{
+			ID:             pr.ID,
+			Title:          pr.Title,
+			Description:    pr.Description,
+			URL:            pr.URL,
+			Status:         pr.Status,
+			CreatedAt:      pr.CreatedAt,
+			MergedAt:       pr.MergedAt,
+			Comments:       pr.Comments,
+			ReviewComments: pr.ReviewComments,
+			Additions:      pr.Additions,
+			Deletions:      pr.Deletions,
+			ChangedFiles:   pr.ChangedFiles,
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 // RegisterRoutes registers all source control-related routes
 func (h *SourceControlHandler) RegisterRoutes(api *gin.RouterGroup) {
 	sourceControl := api.Group("/organizations/:id")
@@ -301,5 +401,6 @@ func (h *SourceControlHandler) RegisterRoutes(api *gin.RouterGroup) {
 	members := api.Group("/organizations/:id/members")
 	{
 		members.GET("/:memberId/sourcecontrol/activity", h.GetMemberActivity)
+		members.GET("/:memberId/pull-requests", h.GetMemberPullRequests)
 	}
 }

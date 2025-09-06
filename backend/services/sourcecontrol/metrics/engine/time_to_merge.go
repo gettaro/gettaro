@@ -38,7 +38,7 @@ func (r *TimeToMergeRule) Calculate(ctx context.Context, params types.MetricRule
 	}
 
 	// Calculate time to merge peers value
-	peersTimeToMergeValue, err := r.sourceControlDB.CalculatePeerTimeToMerge(ctx, *organizationID, peersSourceControlAccountIDs, *startDate, *endDate)
+	peersTimeToMergeValue, err := r.sourceControlDB.CalculateTimeToMergeForAccounts(ctx, *organizationID, peersSourceControlAccountIDs, *startDate, *endDate)
 	if err != nil {
 		return nil, nil, err
 	}

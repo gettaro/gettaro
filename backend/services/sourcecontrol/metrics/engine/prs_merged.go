@@ -38,7 +38,7 @@ func (r *PRsMergedRule) Calculate(ctx context.Context, params types.MetricRulePa
 	}
 
 	// Calculate PRs merged peers value
-	peersPRsMergedValue, err := r.sourceControlDB.CalculatePeerPRsMerged(ctx, *organizationID, peersSourceControlAccountIDs, *startDate, *endDate)
+	peersPRsMergedValue, err := r.sourceControlDB.CalculatePRsMergedForAccounts(ctx, *organizationID, peersSourceControlAccountIDs, *startDate, *endDate)
 	if err != nil {
 		return nil, nil, err
 	}

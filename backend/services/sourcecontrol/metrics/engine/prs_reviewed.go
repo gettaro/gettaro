@@ -38,7 +38,7 @@ func (r *PRsReviewedRule) Calculate(ctx context.Context, params types.MetricRule
 	}
 
 	// Calculate PRs reviewed peers value
-	peersPRsReviewedValue, err := r.sourceControlDB.CalculatePeerPRsReviewed(ctx, *organizationID, peersSourceControlAccountIDs, *startDate, *endDate)
+	peersPRsReviewedValue, err := r.sourceControlDB.CalculatePRsReviewedForAccounts(ctx, *organizationID, peersSourceControlAccountIDs, *startDate, *endDate)
 	if err != nil {
 		return nil, nil, err
 	}

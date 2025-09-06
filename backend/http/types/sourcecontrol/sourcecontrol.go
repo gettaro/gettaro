@@ -43,3 +43,12 @@ type ListOrganizationPullRequestsMetricsQuery struct {
 type ListOrganizationSourceControlAccountsResponse struct {
 	SourceControlAccounts []sourcecontroltypes.SourceControlAccount `json:"source_control_accounts"`
 }
+
+type GetMemberPullRequestsQuery struct {
+	StartDate string `form:"startDate" binding:"omitempty,datetime=2006-01-02"`
+	EndDate   string `form:"endDate" binding:"omitempty,datetime=2006-01-02"`
+}
+
+type GetMemberPullRequestsResponse struct {
+	PullRequests []PullRequest `json:"pull_requests"`
+}

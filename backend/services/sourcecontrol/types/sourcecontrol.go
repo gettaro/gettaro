@@ -99,6 +99,13 @@ type MemberActivityParams struct {
 	EndDate   *time.Time `json:"endDate,omitempty"`
 }
 
+// MemberPullRequestParams represents the parameters for getting member pull requests
+type MemberPullRequestParams struct {
+	MemberID  string     `json:"memberId"`
+	StartDate *time.Time `json:"startDate,omitempty"`
+	EndDate   *time.Time `json:"endDate,omitempty"`
+}
+
 // MemberMetricsParams represents the parameters for getting member metrics
 type MemberMetricsParams struct {
 	MemberID  string     `json:"memberId"`

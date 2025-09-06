@@ -29,6 +29,7 @@ type DB interface {
 
 	// Member Activity
 	GetMemberActivity(ctx context.Context, params *types.MemberActivityParams) ([]*types.MemberActivity, error)
+	GetMemberPullRequests(ctx context.Context, params *types.MemberPullRequestParams) ([]*types.PullRequest, error)
 
 	// Calculate time to merge metrics
 	CalculateTimeToMerge(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
@@ -53,12 +54,12 @@ type DB interface {
 	CalculatePRReviewComplexityGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
 
 	// Calculate peer metrics (median across peers)
-	CalculatePeerLOCAdded(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
-	CalculatePeerLOCRemoved(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
-	CalculatePeerPRsMerged(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
-	CalculatePeerPRsReviewed(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
-	CalculatePeerTimeToMerge(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
-	CalculatePeerPRReviewComplexity(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
+	CalculateLOCAddedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
+	CalculateLOCRemovedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
+	CalculatePRsMergedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
+	CalculatePRsReviewedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
+	CalculateTimeToMergeForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
+	CalculatePRReviewComplexityForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
 }
 
 type SourceControlDB struct {
@@ -284,6 +285,41 @@ func (d *SourceControlDB) GetMemberActivity(ctx context.Context, params *types.M
 	}
 
 	return activities, nil
+}
+
+// GetMemberPullRequests retrieves pull requests for a specific member
+func (d *SourceControlDB) GetMemberPullRequests(ctx context.Context, params *types.MemberPullRequestParams) ([]*types.PullRequest, error) {
+	var prs []types.PullRequest
+	query := d.db.WithContext(ctx).Model(&types.PullRequest{})
+
+	// Join with source_control_accounts to filter by member_id
+	query = query.Joins(`
+		JOIN source_control_accounts sca ON pull_requests.source_control_account_id = sca.id
+	`)
+
+	// Filter by member ID
+	query = query.Where("sca.member_id = ?", params.MemberID)
+
+	// Add date range filters if provided
+	if params.StartDate != nil {
+		query = query.Where("pull_requests.created_at >= ?", params.StartDate)
+	}
+	if params.EndDate != nil {
+		query = query.Where("pull_requests.created_at <= ?", params.EndDate)
+	}
+
+	// Order by created_at descending
+	query = query.Order("pull_requests.created_at DESC")
+
+	if err := query.Find(&prs).Error; err != nil {
+		return nil, err
+	}
+
+	result := make([]*types.PullRequest, len(prs))
+	for i := range prs {
+		result[i] = &prs[i]
+	}
+	return result, nil
 }
 
 // GetPullRequestComments retrieves all comments for a specific pull request
@@ -1105,8 +1141,8 @@ func (d *SourceControlDB) CalculatePRReviewComplexityGraph(ctx context.Context, 
 	return dataPoints, nil
 }
 
-// CalculatePeerLOCAdded calculates the median LOC added across peers
-func (d *SourceControlDB) CalculatePeerLOCAdded(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
+// CalculateLOCAddedForAccounts calculates the median LOC added across accounts
+func (d *SourceControlDB) CalculateLOCAddedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
 	query := `
 		SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_total) as peer_loc_added
 		FROM (
@@ -1139,8 +1175,8 @@ func (d *SourceControlDB) CalculatePeerLOCAdded(ctx context.Context, organizatio
 	return &value, nil
 }
 
-// CalculatePeerLOCRemoved calculates the median LOC removed across peers
-func (d *SourceControlDB) CalculatePeerLOCRemoved(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
+// CalculateLOCRemovedForAccounts calculates the median LOC removed across accounts
+func (d *SourceControlDB) CalculateLOCRemovedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
 	query := `
 		SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_total) as peer_loc_removed
 		FROM (
@@ -1173,8 +1209,8 @@ func (d *SourceControlDB) CalculatePeerLOCRemoved(ctx context.Context, organizat
 	return &value, nil
 }
 
-// CalculatePeerPRsMerged calculates the median PRs merged across peers
-func (d *SourceControlDB) CalculatePeerPRsMerged(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
+// CalculatePRsMergedForAccounts calculates the median PRs merged across accounts
+func (d *SourceControlDB) CalculatePRsMergedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
 	query := `
 		SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_total) as peer_prs_merged
 		FROM (
@@ -1207,8 +1243,8 @@ func (d *SourceControlDB) CalculatePeerPRsMerged(ctx context.Context, organizati
 	return &value, nil
 }
 
-// CalculatePeerPRsReviewed calculates the median PRs reviewed across peers
-func (d *SourceControlDB) CalculatePeerPRsReviewed(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
+// CalculatePRsReviewedForAccounts calculates the median PRs reviewed across accounts
+func (d *SourceControlDB) CalculatePRsReviewedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
 	query := `
 		SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_total) as peer_prs_reviewed
 		FROM (
@@ -1240,8 +1276,8 @@ func (d *SourceControlDB) CalculatePeerPRsReviewed(ctx context.Context, organiza
 	return &value, nil
 }
 
-// CalculatePeerTimeToMerge calculates the median time to merge across peers
-func (d *SourceControlDB) CalculatePeerTimeToMerge(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
+// CalculateTimeToMergeForAccounts calculates the median time to merge across accounts
+func (d *SourceControlDB) CalculateTimeToMergeForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
 	query := `
 		SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_avg) as peer_time_to_merge
 		FROM (
@@ -1274,8 +1310,8 @@ func (d *SourceControlDB) CalculatePeerTimeToMerge(ctx context.Context, organiza
 	return &value, nil
 }
 
-// CalculatePeerPRReviewComplexity calculates the median PR review complexity across peers
-func (d *SourceControlDB) CalculatePeerPRReviewComplexity(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
+// CalculatePRReviewComplexityForAccounts calculates the median PR review complexity across accounts
+func (d *SourceControlDB) CalculatePRReviewComplexityForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
 	query := `
 		SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_avg) as peer_pr_review_complexity
 		FROM (
