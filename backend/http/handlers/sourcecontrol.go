@@ -289,113 +289,6 @@ func (h *SourceControlHandler) GetMemberActivity(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// GetMemberMetrics retrieves source control metrics for a specific member
-func (h *SourceControlHandler) GetMemberMetrics(c *gin.Context) {
-	orgID, err := utils.GetOrganizationIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Check if user has access to the organization
-	if !utils.CheckOrganizationMembership(c, h.orgApi, &orgID) {
-		return
-	}
-
-	memberID := c.Param("memberId")
-	if memberID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "member ID is required"})
-		return
-	}
-
-	var query types.GetMemberMetricsRequest
-	if err := c.ShouldBindQuery(&query); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Parse dates if provided
-	var startDate, endDate *time.Time
-	if query.StartDate != "" {
-		parsed, err := time.Parse("2006-01-02", query.StartDate)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid startDate format, expected YYYY-MM-DD"})
-			return
-		}
-		startDate = &parsed
-	}
-	if query.EndDate != "" {
-		parsed, err := time.Parse("2006-01-02", query.EndDate)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid endDate format, expected YYYY-MM-DD"})
-			return
-		}
-		endDate = &parsed
-	}
-
-	// Get member metrics from service
-	metrics, err := h.scApi.GetMemberMetrics(c.Request.Context(), &servicetypes.MemberMetricsParams{
-		MemberID:  memberID,
-		StartDate: startDate,
-		EndDate:   endDate,
-		Interval:  query.Interval,
-	})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Convert service types to HTTP types
-	response := types.GetMemberMetricsResponse{
-		SnapshotMetrics: make([]types.SnapshotCategory, len(metrics.SnapshotMetrics)),
-		GraphMetrics:    make([]types.GraphCategory, len(metrics.GraphMetrics)),
-	}
-
-	// Convert snapshot metrics
-	for i, category := range metrics.SnapshotMetrics {
-		response.SnapshotMetrics[i] = types.SnapshotCategory{
-			Category: category.Category,
-			Metrics:  make([]types.SnapshotMetric, len(category.Metrics)),
-		}
-		for j, metric := range category.Metrics {
-			response.SnapshotMetrics[i].Metrics[j] = types.SnapshotMetric{
-				Label:      metric.Label,
-				Value:      metric.Value,
-				PeersValue: metric.PeersValue,
-				Unit:       metric.Unit,
-			}
-		}
-	}
-
-	// Convert graph metrics
-	for i, category := range metrics.GraphMetrics {
-		response.GraphMetrics[i] = types.GraphCategory{
-			Category: category.Category,
-			Metrics:  make([]types.GraphMetric, len(category.Metrics)),
-		}
-		for j, metric := range category.Metrics {
-			response.GraphMetrics[i].Metrics[j] = types.GraphMetric{
-				Label:      metric.Label,
-				TimeSeries: make([]types.TimeSeriesEntry, len(metric.TimeSeries)),
-			}
-			for k, entry := range metric.TimeSeries {
-				response.GraphMetrics[i].Metrics[j].TimeSeries[k] = types.TimeSeriesEntry{
-					Date: entry.Date,
-					Data: make([]types.TimeSeriesDataPoint, len(entry.Data)),
-				}
-				for l, point := range entry.Data {
-					response.GraphMetrics[i].Metrics[j].TimeSeries[k].Data[l] = types.TimeSeriesDataPoint{
-						Key:   point.Key,
-						Value: point.Value,
-					}
-				}
-			}
-		}
-	}
-
-	c.JSON(http.StatusOK, response)
-}
-
 // RegisterRoutes registers all source control-related routes
 func (h *SourceControlHandler) RegisterRoutes(api *gin.RouterGroup) {
 	sourceControl := api.Group("/organizations/:id")
@@ -408,6 +301,5 @@ func (h *SourceControlHandler) RegisterRoutes(api *gin.RouterGroup) {
 	members := api.Group("/organizations/:id/members")
 	{
 		members.GET("/:memberId/sourcecontrol/activity", h.GetMemberActivity)
-		// members.GET("/:memberId/sourcecontrol/metrics", h.GetMemberMetrics)
 	}
 }

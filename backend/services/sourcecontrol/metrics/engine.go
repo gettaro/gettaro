@@ -9,6 +9,10 @@ import (
 	"ems.dev/backend/services/sourcecontrol/types"
 )
 
+type MetricsEngine interface {
+	CalculateMetrics(ctx context.Context, params types.MetricRuleParams) (*types.MetricsResponse, error)
+}
+
 type Engine struct {
 	Metrics         []metrictypes.MetricRule `json:"metrics"`
 	sourceControlDB database.DB
