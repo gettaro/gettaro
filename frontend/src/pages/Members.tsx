@@ -27,12 +27,14 @@ export default function Members() {
     email: '',
     username: '',
     titleId: '',
-    sourceControlAccountId: ''
+    sourceControlAccountId: '',
+    managerId: undefined
   })
   const [updateFormData, setUpdateFormData] = useState<UpdateMemberRequest>({
     username: '',
     titleId: '',
-    sourceControlAccountId: ''
+    sourceControlAccountId: '',
+    managerId: undefined
   })
 
   useEffect(() => {
@@ -194,7 +196,8 @@ export default function Members() {
         email: '',
         username: '',
         titleId: '',
-        sourceControlAccountId: ''
+        sourceControlAccountId: '',
+        managerId: undefined
       })
       setIsAddModalOpen(false)
       await loadMembers() // Reload the list
@@ -217,7 +220,8 @@ export default function Members() {
       setUpdateFormData({
         username: '',
         titleId: '',
-        sourceControlAccountId: ''
+        sourceControlAccountId: '',
+        managerId: undefined
       })
       setSelectedMember(null)
       setIsUpdateModalOpen(false)
@@ -235,7 +239,8 @@ export default function Members() {
     setUpdateFormData({
       username: member.username,
       titleId: member.titleId || '', // Pre-populate with current title
-      sourceControlAccountId: sourceControlAccounts.find(acc => acc.memberId === member.id)?.id || '' // Pre-populate with current source control account
+      sourceControlAccountId: sourceControlAccounts.find(acc => acc.memberId === member.id)?.id || '', // Pre-populate with current source control account
+      managerId: undefined // TODO: Get current manager from member data
     })
     setIsUpdateModalOpen(true)
   }
@@ -607,7 +612,7 @@ export default function Members() {
                     <option value="">Select a title</option>
                     {titles.map((title) => (
                       <option key={title.id} value={title.id}>
-                        {title.name}
+                        {title.name}{title.isManager ? ' (Manager)' : ''}
                       </option>
                     ))}
                   </select>
@@ -641,6 +646,30 @@ export default function Members() {
                   )}
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Manager (Optional)
+                  </label>
+                  <select
+                    value={formData.managerId || ''}
+                    onChange={(e) => setFormData({ ...formData, managerId: e.target.value || undefined })}
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="">No manager</option>
+                    {members
+                      .filter(member => {
+                        // Only show members with manager titles as potential managers
+                        const memberTitle = titles.find(t => t.id === member.titleId)
+                        return memberTitle?.isManager
+                      })
+                      .map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.username}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
                 <div className="flex space-x-3 pt-4">
                   <button
                     type="button"
@@ -672,7 +701,7 @@ export default function Members() {
                   onClick={() => {
                     setIsUpdateModalOpen(false)
                     setSelectedMember(null)
-                    setUpdateFormData({ username: '', titleId: '', sourceControlAccountId: '' })
+                    setUpdateFormData({ username: '', titleId: '', sourceControlAccountId: '', managerId: undefined })
                   }}
                   className="text-muted-foreground hover:text-foreground"
                 >
@@ -725,7 +754,7 @@ export default function Members() {
                     <option value="">Select a title</option>
                     {titles.map((title) => (
                       <option key={title.id} value={title.id}>
-                        {title.name}
+                        {title.name}{title.isManager ? ' (Manager)' : ''}
                       </option>
                     ))}
                   </select>
@@ -759,13 +788,38 @@ export default function Members() {
                   )}
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Manager (Optional)
+                  </label>
+                  <select
+                    value={updateFormData.managerId || ''}
+                    onChange={(e) => setUpdateFormData({ ...updateFormData, managerId: e.target.value || undefined })}
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="">No manager</option>
+                    {members
+                      .filter(member => {
+                        // Only show members with manager titles as potential managers
+                        // Also exclude the current member being edited
+                        const memberTitle = titles.find(t => t.id === member.titleId)
+                        return memberTitle?.isManager && member.id !== selectedMember?.id
+                      })
+                      .map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.username}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
                 <div className="flex space-x-3 pt-4">
                   <button
                     type="button"
                     onClick={() => {
                       setIsUpdateModalOpen(false)
                       setSelectedMember(null)
-                      setUpdateFormData({ username: '', titleId: '', sourceControlAccountId: '' })
+                      setUpdateFormData({ username: '', titleId: '', sourceControlAccountId: '', managerId: undefined })
                     }}
                     className="flex-1 px-4 py-2 border border-border rounded-md text-foreground hover:bg-muted transition-colors"
                   >

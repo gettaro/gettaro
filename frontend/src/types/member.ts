@@ -19,10 +19,12 @@ export interface AddMemberRequest {
   username: string
   titleId: string
   sourceControlAccountId: string
+  managerId?: string
 }
 
 export interface UpdateMemberRequest {
   username: string
   titleId: string
   sourceControlAccountId: string
+  managerId?: string
 } 

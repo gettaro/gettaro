@@ -62,6 +62,7 @@ func (s *Api) UpdateTitle(ctx context.Context, id string, request types.Title) (
 	}
 
 	title.Name = request.Name
+	title.IsManager = request.IsManager
 	err = s.db.UpdateTitle(*title)
 	if err != nil {
 		return nil, err

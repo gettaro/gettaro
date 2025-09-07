@@ -25,10 +25,19 @@ type OrganizationMemberParams struct {
 
 // AddMemberRequest represents the request to add a member to an organization
 type AddMemberRequest struct {
-	Email                  string `json:"email"`
-	Username               string `json:"username"`
-	TitleID                string `json:"titleId"`
-	SourceControlAccountID string `json:"sourceControlAccountId"`
+	Email                  string  `json:"email"`
+	Username               string  `json:"username"`
+	TitleID                string  `json:"titleId"`
+	SourceControlAccountID string  `json:"sourceControlAccountId"`
+	ManagerID              *string `json:"managerId,omitempty"`
+}
+
+// UpdateMemberRequest represents the request to update a member in an organization
+type UpdateMemberRequest struct {
+	Username               string  `json:"username"`
+	TitleID                string  `json:"titleId"`
+	SourceControlAccountID string  `json:"sourceControlAccountId"`
+	ManagerID              *string `json:"managerId,omitempty"`
 }
 
 // RemoveMemberRequest represents the request to remove a member from an organization

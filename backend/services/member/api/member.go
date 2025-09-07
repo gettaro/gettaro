@@ -17,12 +17,12 @@ import (
 
 // MemberAPI defines the interface for member operations
 type MemberAPI interface {
-	AddOrganizationMember(ctx context.Context, titleID string, sourceControlAccountID string, member *types.OrganizationMember) error
+	AddOrganizationMember(ctx context.Context, req types.AddMemberRequest, member *types.OrganizationMember) error
 	RemoveOrganizationMember(ctx context.Context, orgID string, userID string) error
 	GetOrganizationMembers(ctx context.Context, orgID string, params *types.OrganizationMemberParams) ([]types.OrganizationMember, error)
 	GetOrganizationMemberByID(ctx context.Context, memberID string) (*types.OrganizationMember, error)
 	IsOrganizationOwner(ctx context.Context, orgID string, userID string) (bool, error)
-	UpdateOrganizationMember(ctx context.Context, orgID string, memberID string, titleID string, sourceControlAccountID string, username string) error
+	UpdateOrganizationMember(ctx context.Context, orgID string, memberID string, req types.UpdateMemberRequest) error
 	CalculateSourceControlMemberMetrics(ctx context.Context, organizationID string, memberID string, params sourcecontroltypes.MemberMetricsParams) (*sourcecontroltypes.MetricsResponse, error)
 }
 
@@ -43,10 +43,10 @@ func NewApi(memberDb memberdb.DB, userApi userapi.UserAPI, sourceControlApi sour
 }
 
 // AddOrganizationMember adds a user as a member to an organization
-func (a *Api) AddOrganizationMember(ctx context.Context, titleID string, sourceControlAccountID string, member *types.OrganizationMember) error {
+func (a *Api) AddOrganizationMember(ctx context.Context, req types.AddMemberRequest, member *types.OrganizationMember) error {
 	// Note: Title validation will be handled by the database foreign key constraint
 	// Get the source control account
-	sourceControlAccount, err := a.sourceControlApi.GetSourceControlAccount(ctx, sourceControlAccountID)
+	sourceControlAccount, err := a.sourceControlApi.GetSourceControlAccount(ctx, req.SourceControlAccountID)
 	if err != nil {
 		return errors.NewNotFoundError("source control account not found")
 	}
@@ -78,7 +78,7 @@ func (a *Api) AddOrganizationMember(ctx context.Context, titleID string, sourceC
 	}
 
 	member.UserID = user.ID
-	member.TitleID = &titleID // Set the title ID directly
+	member.TitleID = &req.TitleID // Set the title ID directly
 
 	// Add user as member
 	err = a.db.AddOrganizationMember(member)
@@ -97,6 +97,12 @@ func (a *Api) AddOrganizationMember(ctx context.Context, titleID string, sourceC
 		err = a.sourceControlApi.UpdateSourceControlAccount(ctx, sourceControlAccount)
 		if err != nil {
 			return err
+		}
+
+		// Create manager relationship if specified
+		if req.ManagerID != nil && *req.ManagerID != "" {
+			// TODO: Add direct report relationship creation
+			// This would require the directs API to be available
 		}
 	}
 
@@ -124,7 +130,7 @@ func (a *Api) IsOrganizationOwner(ctx context.Context, orgID string, userID stri
 }
 
 // UpdateOrganizationMember updates a member's details in an organization
-func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, memberID string, titleID string, sourceControlAccountID string, username string) error {
+func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, memberID string, req types.UpdateMemberRequest) error {
 	// Check if the member exists by member ID
 	existingMember, err := a.db.GetOrganizationMemberByID(ctx, memberID)
 	if err != nil {
@@ -140,7 +146,7 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, member
 	}
 
 	// Verify the new source control account exists and belongs to the organization
-	newSourceControlAccount, err := a.sourceControlApi.GetSourceControlAccount(ctx, sourceControlAccountID)
+	newSourceControlAccount, err := a.sourceControlApi.GetSourceControlAccount(ctx, req.SourceControlAccountID)
 	if err != nil {
 		return errors.NewNotFoundError("source control account not found")
 	}
@@ -151,7 +157,7 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, member
 	}
 
 	// Update the username and title_id in the organization_members table
-	err = a.db.UpdateOrganizationMember(orgID, existingMember.UserID, username, &titleID)
+	err = a.db.UpdateOrganizationMember(orgID, existingMember.UserID, req.Username, &req.TitleID)
 	if err != nil {
 		return err
 	}
@@ -181,6 +187,12 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, member
 	err = a.sourceControlApi.UpdateSourceControlAccount(ctx, newSourceControlAccount)
 	if err != nil {
 		return err
+	}
+
+	// Update manager relationship if specified
+	if req.ManagerID != nil && *req.ManagerID != "" {
+		// TODO: Update direct report relationship
+		// This would require the directs API to be available
 	}
 
 	return nil

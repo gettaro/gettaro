@@ -89,7 +89,13 @@ func (h *MemberHandler) AddOrganizationMember(c *gin.Context) {
 		return
 	}
 
-	if err := h.memberApi.AddOrganizationMember(c.Request.Context(), req.TitleID, req.SourceControlAccountID, &membertypes.OrganizationMember{
+	if err := h.memberApi.AddOrganizationMember(c.Request.Context(), membertypes.AddMemberRequest{
+		Email:                  req.Email,
+		Username:               req.Username,
+		TitleID:                req.TitleID,
+		SourceControlAccountID: req.SourceControlAccountID,
+		ManagerID:              req.ManagerID,
+	}, &membertypes.OrganizationMember{
 		OrganizationID: orgID,
 		Email:          req.Email,
 		Username:       req.Username,
@@ -201,7 +207,12 @@ func (h *MemberHandler) UpdateOrganizationMember(c *gin.Context) {
 		return
 	}
 
-	if err := h.memberApi.UpdateOrganizationMember(c.Request.Context(), orgID, memberID, req.TitleID, req.SourceControlAccountID, req.Username); err != nil {
+	if err := h.memberApi.UpdateOrganizationMember(c.Request.Context(), orgID, memberID, membertypes.UpdateMemberRequest{
+		Username:               req.Username,
+		TitleID:                req.TitleID,
+		SourceControlAccountID: req.SourceControlAccountID,
+		ManagerID:              req.ManagerID,
+	}); err != nil {
 		utils.HandleError(c, err)
 		return
 	}

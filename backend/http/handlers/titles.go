@@ -63,6 +63,7 @@ func (h *TitleHandler) CreateTitle(c *gin.Context) {
 	title, err := h.titleApi.CreateTitle(c.Request.Context(), titletypes.Title{
 		Name:           req.Name,
 		OrganizationID: orgID,
+		IsManager:      req.IsManager,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -154,7 +155,8 @@ func (h *TitleHandler) UpdateTitle(c *gin.Context) {
 	}
 
 	title, err := h.titleApi.UpdateTitle(c.Request.Context(), titleID, titletypes.Title{
-		Name: req.Name,
+		Name:      req.Name,
+		IsManager: req.IsManager,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

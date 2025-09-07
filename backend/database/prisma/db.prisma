@@ -70,6 +70,7 @@ model Title {
   id             String   @id @default(uuid())
   name           String
   organizationId String
+  isManager      Boolean  @default(false)
 
   // Relations
   organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)

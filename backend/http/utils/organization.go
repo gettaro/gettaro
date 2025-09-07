@@ -86,3 +86,10 @@ func CheckOrganizationMembership(c *gin.Context, orgApi orgapi.OrganizationAPI, 
 	c.JSON(http.StatusForbidden, gin.H{"error": "user is not a member of this organization"})
 	return false
 }
+
+// ValidateOrganizationAccess checks if the authenticated user has access to the specified organization.
+// This is a convenience function that checks membership (not ownership).
+// Returns true if the user has access, false otherwise.
+func ValidateOrganizationAccess(c *gin.Context, orgApi orgapi.OrganizationAPI, orgID string) bool {
+	return CheckOrganizationMembership(c, orgApi, &orgID)
+}

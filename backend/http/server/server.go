@@ -4,6 +4,7 @@ import (
 	"os"
 
 	authapi "ems.dev/backend/services/auth/api"
+	directsapi "ems.dev/backend/services/directs/api"
 	integrationapi "ems.dev/backend/services/integration/api"
 	memberapi "ems.dev/backend/services/member/api"
 	orgapi "ems.dev/backend/services/organization/api"
@@ -26,9 +27,10 @@ type Server struct {
 	integrationApi   integrationapi.IntegrationAPI
 	sourcecontrolApi sourcecontrolapi.SourceControlAPI
 	memberApi        memberapi.MemberAPI
+	directsApi       directsapi.DirectReportsAPI
 }
 
-func New(db *gorm.DB, userApi userapi.UserAPI, orgApi orgapi.OrganizationAPI, teamApi teamapi.TeamAPI, titleApi titleapi.TitleAPI, authApi authapi.AuthAPI, integrationApi integrationapi.IntegrationAPI, sourcecontrolApi sourcecontrolapi.SourceControlAPI, memberApi memberapi.MemberAPI) *Server {
+func New(db *gorm.DB, userApi userapi.UserAPI, orgApi orgapi.OrganizationAPI, teamApi teamapi.TeamAPI, titleApi titleapi.TitleAPI, authApi authapi.AuthAPI, integrationApi integrationapi.IntegrationAPI, sourcecontrolApi sourcecontrolapi.SourceControlAPI, memberApi memberapi.MemberAPI, directsApi directsapi.DirectReportsAPI) *Server {
 	s := &Server{
 		router:           gin.Default(),
 		db:               db,
@@ -40,6 +42,7 @@ func New(db *gorm.DB, userApi userapi.UserAPI, orgApi orgapi.OrganizationAPI, te
 		integrationApi:   integrationApi,
 		sourcecontrolApi: sourcecontrolApi,
 		memberApi:        memberApi,
+		directsApi:       directsApi,
 	}
 
 	s.setupMiddleware()

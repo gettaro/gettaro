@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Api from '../api/api'
-import { Title, CreateTitleRequest } from '../types/title'
+import { Title, CreateTitleRequest, UpdateTitleRequest } from '../types/title'
 import { useOrganizationStore } from '../stores/organization'
 
 export default function Titles() {
@@ -10,7 +10,13 @@ export default function Titles() {
   const [error, setError] = useState<string | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [newTitleName, setNewTitleName] = useState('')
+  const [newTitleIsManager, setNewTitleIsManager] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editingTitle, setEditingTitle] = useState<Title | null>(null)
+  const [editTitleName, setEditTitleName] = useState('')
+  const [editTitleIsManager, setEditTitleIsManager] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
 
   useEffect(() => {
     if (currentOrganization) {
@@ -45,9 +51,13 @@ export default function Titles() {
     try {
       setIsCreating(true)
       setError(null)
-      const request: CreateTitleRequest = { name: newTitleName.trim() }
+      const request: CreateTitleRequest = { 
+        name: newTitleName.trim(),
+        isManager: newTitleIsManager
+      }
       await Api.createTitle(currentOrganization.id, request)
       setNewTitleName('')
+      setNewTitleIsManager(false)
       setIsCreateModalOpen(false)
       await loadTitles() // Reload the list
     } catch (err) {
@@ -68,6 +78,38 @@ export default function Titles() {
     } catch (err) {
       setError('Failed to delete title')
       console.error('Error deleting title:', err)
+    }
+  }
+
+  const handleEditTitle = (title: Title) => {
+    setEditingTitle(title)
+    setEditTitleName(title.name)
+    setEditTitleIsManager(title.isManager)
+    setIsEditModalOpen(true)
+  }
+
+  const handleUpdateTitle = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editTitleName.trim() || !currentOrganization || !editingTitle) return
+
+    try {
+      setIsUpdating(true)
+      setError(null)
+      const request: UpdateTitleRequest = { 
+        name: editTitleName.trim(),
+        isManager: editTitleIsManager
+      }
+      await Api.updateTitle(currentOrganization.id, editingTitle.id, request)
+      setEditTitleName('')
+      setEditTitleIsManager(false)
+      setEditingTitle(null)
+      setIsEditModalOpen(false)
+      await loadTitles() // Reload the list
+    } catch (err) {
+      setError('Failed to update title')
+      console.error('Error updating title:', err)
+    } finally {
+      setIsUpdating(false)
     }
   }
 
@@ -101,7 +143,7 @@ export default function Titles() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Titles</h1>
           <p className="text-muted-foreground">
-            Manage job titles within your organization.
+            Manage job titles within your organization. Manager roles can manage other team members and appear in organizational charts.
           </p>
         </div>
 
@@ -133,12 +175,49 @@ export default function Titles() {
               titles.map((title) => (
                 <div key={title.id} className="p-6 flex items-center justify-between">
                   <div>
-                    <h3 className="font-medium text-foreground">{title.name}</h3>
+                    <h3 className="font-medium text-foreground mb-2">{title.name}</h3>
+                    <div className="mb-2">
+                      {title.isManager ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                          <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                          </svg>
+                          Manager Role
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                          <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                          </svg>
+                          Individual Contributor
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground">
                       Created {new Date(title.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => handleEditTitle(title)}
+                      className="text-blue-600 hover:text-blue-800 transition-colors"
+                      title="Edit title"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
+                    </button>
                     <button
                       onClick={() => handleDeleteTitle(title.id)}
                       className="text-red-600 hover:text-red-800 transition-colors"
@@ -186,12 +265,26 @@ export default function Titles() {
                     required
                   />
                 </div>
+                <div className="mb-4">
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={newTitleIsManager}
+                      onChange={(e) => setNewTitleIsManager(e.target.checked)}
+                      className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
+                    />
+                    <span className="text-sm font-medium text-foreground">
+                      This is a manager role (can manage other team members)
+                    </span>
+                  </label>
+                </div>
                 <div className="flex justify-end space-x-3">
                   <button
                     type="button"
                     onClick={() => {
                       setIsCreateModalOpen(false)
                       setNewTitleName('')
+                      setNewTitleIsManager(false)
                     }}
                     className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors"
                     disabled={isCreating}
@@ -204,6 +297,66 @@ export default function Titles() {
                     disabled={isCreating || !newTitleName.trim()}
                   >
                     {isCreating ? 'Creating...' : 'Create Title'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Title Modal */}
+        {isEditModalOpen && editingTitle && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4">
+              <h3 className="text-lg font-semibold text-foreground mb-4">Edit Title</h3>
+              <form onSubmit={handleUpdateTitle}>
+                <div className="mb-4">
+                  <label htmlFor="editTitleName" className="block text-sm font-medium text-foreground mb-2">
+                    Title Name
+                  </label>
+                  <input
+                    type="text"
+                    id="editTitleName"
+                    value={editTitleName}
+                    onChange={(e) => setEditTitleName(e.target.value)}
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="e.g., Senior Software Engineer"
+                    required
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={editTitleIsManager}
+                      onChange={(e) => setEditTitleIsManager(e.target.checked)}
+                      className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
+                    />
+                    <span className="text-sm font-medium text-foreground">
+                      This is a manager role (can manage other team members)
+                    </span>
+                  </label>
+                </div>
+                <div className="flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditModalOpen(false)
+                      setEditTitleName('')
+                      setEditTitleIsManager(false)
+                      setEditingTitle(null)
+                    }}
+                    className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors"
+                    disabled={isUpdating}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors disabled:opacity-50"
+                    disabled={isUpdating || !editTitleName.trim()}
+                  >
+                    {isUpdating ? 'Updating...' : 'Update Title'}
                   </button>
                 </div>
               </form>

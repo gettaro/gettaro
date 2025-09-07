@@ -17,6 +17,8 @@ import (
 	"ems.dev/backend/libraries/github"
 	authapi "ems.dev/backend/services/auth/api"
 	authdb "ems.dev/backend/services/auth/database"
+	directsapi "ems.dev/backend/services/directs/api"
+	directsdb "ems.dev/backend/services/directs/database"
 	integrationapi "ems.dev/backend/services/integration/api"
 	integrationdb "ems.dev/backend/services/integration/database"
 	memberapi "ems.dev/backend/services/member/api"
@@ -66,6 +68,8 @@ func main() {
 	memberApi := memberapi.NewApi(memberDb, userApi, sourcecontrolApi, titleApi)
 	teamDb := teamdb.NewTeamDB(database.DB)
 	teamApi := teamapi.NewApi(teamDb, orgApi)
+	directsDb := directsdb.NewDirectReportsDB(database.DB)
+	directsApi := directsapi.NewDirectReportsAPI(directsDb)
 
 	// Initialize and start sync job scheduler
 	// Check if jobs are enabled
@@ -81,7 +85,7 @@ func main() {
 	}
 
 	// Initialize and run server
-	srv := server.New(database.DB, userApi, orgApi, teamApi, titleApi, authApi, integrationApi, sourcecontrolApi, memberApi)
+	srv := server.New(database.DB, userApi, orgApi, teamApi, titleApi, authApi, integrationApi, sourcecontrolApi, memberApi, directsApi)
 	if err := srv.Run(":8080"); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}

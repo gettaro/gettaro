@@ -3,7 +3,7 @@ import { OrganizationConflictError } from './errors/organizations'
 import { CreateIntegrationConfigRequest, IntegrationConfig, UpdateIntegrationConfigRequest } from '../types/integration'
 import { Title, CreateTitleRequest, UpdateTitleRequest } from '../types/title'
 import { Member, AddMemberRequest, UpdateMemberRequest } from '../types/member'
-import { SourceControlAccount, PullRequest, GetMemberPullRequestsParams, GetMemberPullRequestReviewsParams } from '../types/sourcecontrol'
+import { SourceControlAccount, PullRequest, GetMemberPullRequestsParams, GetMemberPullRequestReviewsParams, MemberActivity } from '../types/sourcecontrol'
 import { GetMemberMetricsParams, GetMemberMetricsResponse } from '../types/memberMetrics'
 
 export default class Api {
