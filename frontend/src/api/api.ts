@@ -4,6 +4,7 @@ import { CreateIntegrationConfigRequest, IntegrationConfig, UpdateIntegrationCon
 import { Title, CreateTitleRequest, UpdateTitleRequest } from '../types/title'
 import { Member, AddMemberRequest, UpdateMemberRequest } from '../types/member'
 import { SourceControlAccount, PullRequest, GetMemberPullRequestsParams, GetMemberPullRequestReviewsParams, MemberActivity } from '../types/sourcecontrol'
+import { GetManagerTreeResponse } from '../types/directs'
 import { GetMemberMetricsParams, GetMemberMetricsResponse } from '../types/memberMetrics'
 
 export default class Api {
@@ -349,6 +350,11 @@ export default class Api {
 
     const data = await response.json()
     return data.reviews
+  }
+
+  static async getManagerTree(organizationId: string, managerId: string): Promise<GetManagerTreeResponse> {
+    const response = await this.get(`/organizations/${organizationId}/managers/${managerId}/directs/tree`)
+    return response
   }
 }
 

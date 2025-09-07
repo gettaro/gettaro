@@ -7,6 +7,7 @@ import (
 	"ems.dev/backend/http/utils"
 	directsapi "ems.dev/backend/services/directs/api"
 	"ems.dev/backend/services/directs/types"
+	membertypes "ems.dev/backend/services/member/types"
 	orgapi "ems.dev/backend/services/organization/api"
 	"github.com/gin-gonic/gin"
 )
@@ -65,10 +66,10 @@ func (h *DirectsHandler) CreateDirectReport(c *gin.Context) {
 	}
 
 	params := types.CreateDirectReportParams{
-		ManagerID:      req.ManagerID,
-		ReportID:       req.ReportID,
-		OrganizationID: orgID,
-		Depth:          req.Depth,
+		ManagerMemberID: req.ManagerID,
+		ReportMemberID:  req.ReportID,
+		OrganizationID:  orgID,
+		Depth:           req.Depth,
 	}
 
 	directReport, err := h.directsApi.CreateDirectReport(c.Request.Context(), params)
@@ -99,10 +100,10 @@ func (h *DirectsHandler) ListDirectReports(c *gin.Context) {
 	}
 
 	params := types.DirectReportSearchParams{
-		OrganizationID: &orgID,
-		ManagerID:      query.ManagerID,
-		ReportID:       query.ReportID,
-		Depth:          query.Depth,
+		OrganizationID:  &orgID,
+		ManagerMemberID: query.ManagerID,
+		ReportMemberID:  query.ReportID,
+		Depth:           query.Depth,
 	}
 
 	directReports, err := h.directsApi.ListDirectReports(c.Request.Context(), params)
@@ -276,10 +277,10 @@ func (h *DirectsHandler) AddDirectReport(c *gin.Context) {
 	}
 
 	params := types.CreateDirectReportParams{
-		ManagerID:      managerID,
-		ReportID:       req.ReportID,
-		OrganizationID: orgID,
-		Depth:          req.Depth,
+		ManagerMemberID: managerID,
+		ReportMemberID:  req.ReportID,
+		OrganizationID:  orgID,
+		Depth:           req.Depth,
 	}
 
 	directReport, err := h.directsApi.CreateDirectReport(c.Request.Context(), params)
@@ -314,8 +315,8 @@ func (h *DirectsHandler) GetMemberManager(c *gin.Context) {
 	if directReport != nil {
 		response.Manager = &directshttptypes.DirectReportResponse{
 			ID:             directReport.ID,
-			ManagerID:      directReport.ManagerID,
-			ReportID:       directReport.ReportID,
+			ManagerID:      directReport.ManagerMemberID,
+			ReportID:       directReport.ReportMemberID,
 			OrganizationID: directReport.OrganizationID,
 			Depth:          directReport.Depth,
 			CreatedAt:      directReport.CreatedAt,
@@ -397,8 +398,8 @@ func (h *DirectsHandler) GetOrgChartFlat(c *gin.Context) {
 func (h *DirectsHandler) mapDirectReportToResponse(dr *types.DirectReport) directshttptypes.DirectReportResponse {
 	response := directshttptypes.DirectReportResponse{
 		ID:             dr.ID,
-		ManagerID:      dr.ManagerID,
-		ReportID:       dr.ReportID,
+		ManagerID:      dr.ManagerMemberID,
+		ReportID:       dr.ReportMemberID,
 		OrganizationID: dr.OrganizationID,
 		Depth:          dr.Depth,
 		CreatedAt:      dr.CreatedAt,
@@ -423,19 +424,19 @@ func (h *DirectsHandler) mapDirectReportsToResponse(drs []types.DirectReport) []
 	return responses
 }
 
-func (h *DirectsHandler) mapUserToResponse(user *types.User) *directshttptypes.UserResponse {
-	if user == nil || user.ID == "" {
+func (h *DirectsHandler) mapUserToResponse(member *membertypes.OrganizationMember) *directshttptypes.UserResponse {
+	if member == nil || member.ID == "" {
 		return nil
 	}
 
 	return &directshttptypes.UserResponse{
-		ID:        user.ID,
-		Email:     user.Email,
-		Name:      user.Name,
-		IsActive:  user.IsActive,
-		Status:    user.Status,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
+		ID:        member.ID,
+		Email:     member.Email,
+		Name:      member.Username, // Using username as name
+		IsActive:  true,            // Assuming active if member exists
+		Status:    nil,             // No status field in OrganizationMember
+		CreatedAt: member.CreatedAt,
+		UpdatedAt: member.UpdatedAt,
 	}
 }
 
@@ -443,7 +444,7 @@ func (h *DirectsHandler) mapOrgChartNodesToResponse(nodes []types.OrgChartNode) 
 	responses := make([]directshttptypes.OrgChartNodeResponse, len(nodes))
 	for i, node := range nodes {
 		responses[i] = directshttptypes.OrgChartNodeResponse{
-			User:          *h.mapUserToResponse(&node.User),
+			Member:        *h.mapUserToResponse(&node.Member),
 			DirectReports: h.mapOrgChartNodesToResponse(node.DirectReports),
 			Depth:         node.Depth,
 		}
@@ -455,7 +456,7 @@ func (h *DirectsHandler) mapManagementChainToResponse(chain []types.ManagementCh
 	responses := make([]directshttptypes.ManagementChainResponse, len(chain))
 	for i, mc := range chain {
 		responses[i] = directshttptypes.ManagementChainResponse{
-			User:    *h.mapUserToResponse(&mc.User),
+			Member:  *h.mapUserToResponse(&mc.Member),
 			Manager: h.mapUserToResponse(mc.Manager),
 			Depth:   mc.Depth,
 		}

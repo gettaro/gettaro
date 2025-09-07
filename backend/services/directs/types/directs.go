@@ -1,37 +1,41 @@
 package types
 
-import "time"
+import (
+	"time"
+	
+	membertypes "ems.dev/backend/services/member/types"
+)
 
 // DirectReport represents a manager-direct report relationship
 type DirectReport struct {
-	ID             string    `json:"id" gorm:"primaryKey"`
-	ManagerID      string    `json:"managerId" gorm:"not null"`
-	ReportID       string    `json:"reportId" gorm:"not null"`
-	OrganizationID string    `json:"organizationId" gorm:"not null"`
-	Depth          int       `json:"depth" gorm:"not null"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	ID                string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	ManagerMemberID   string    `json:"managerMemberId" gorm:"column:manager_member_id;not null"`
+	ReportMemberID    string    `json:"reportMemberId" gorm:"column:report_member_id;not null"`
+	OrganizationID    string    `json:"organizationId" gorm:"not null"`
+	Depth             int       `json:"depth" gorm:"not null"`
+	CreatedAt         time.Time `json:"createdAt"`
+	UpdatedAt         time.Time `json:"updatedAt"`
 
 	// Relations
-	Manager User `json:"manager,omitempty" gorm:"foreignKey:ManagerID;references:ID"`
-	Report  User `json:"report,omitempty" gorm:"foreignKey:ReportID;references:ID"`
+	Manager membertypes.OrganizationMember `json:"manager,omitempty" gorm:"foreignKey:ManagerMemberID;references:ID"`
+	Report  membertypes.OrganizationMember `json:"report,omitempty" gorm:"foreignKey:ReportMemberID;references:ID"`
 }
 
 // DirectReportSearchParams represents search parameters for direct reports
 type DirectReportSearchParams struct {
-	ID             *string `json:"id,omitempty"`
-	ManagerID      *string `json:"managerId,omitempty"`
-	ReportID       *string `json:"reportId,omitempty"`
-	OrganizationID *string `json:"organizationId,omitempty"`
-	Depth          *int    `json:"depth,omitempty"`
+	ID                *string `json:"id,omitempty"`
+	ManagerMemberID   *string `json:"managerMemberId,omitempty"`
+	ReportMemberID    *string `json:"reportMemberId,omitempty"`
+	OrganizationID    *string `json:"organizationId,omitempty"`
+	Depth             *int    `json:"depth,omitempty"`
 }
 
 // CreateDirectReportParams represents parameters for creating a direct report
 type CreateDirectReportParams struct {
-	ManagerID      string `json:"managerId" binding:"required"`
-	ReportID       string `json:"reportId" binding:"required"`
-	OrganizationID string `json:"organizationId" binding:"required"`
-	Depth          int    `json:"depth" binding:"required"`
+	ManagerMemberID   string `json:"managerMemberId" binding:"required"`
+	ReportMemberID    string `json:"reportMemberId" binding:"required"`
+	OrganizationID    string `json:"organizationId" binding:"required"`
+	Depth             int    `json:"depth" binding:"required"`
 }
 
 // UpdateDirectReportParams represents parameters for updating a direct report
@@ -41,25 +45,15 @@ type UpdateDirectReportParams struct {
 
 // OrgChartNode represents a node in the organizational chart
 type OrgChartNode struct {
-	User          User           `json:"user"`
-	DirectReports []OrgChartNode `json:"directReports,omitempty"`
-	Depth         int            `json:"depth"`
+	Member        membertypes.OrganizationMember `json:"member"`
+	DirectReports []OrgChartNode                 `json:"directReports,omitempty"`
+	Depth         int                            `json:"depth"`
 }
 
-// ManagementChain represents the management chain for a user
+// ManagementChain represents the management chain for a member
 type ManagementChain struct {
-	User    User  `json:"user"`
-	Manager *User `json:"manager,omitempty"`
-	Depth   int   `json:"depth"`
+	Member  membertypes.OrganizationMember  `json:"member"`
+	Manager *membertypes.OrganizationMember `json:"manager,omitempty"`
+	Depth   int                             `json:"depth"`
 }
 
-// User represents a user (imported from user service)
-type User struct {
-	ID        string    `json:"id"`
-	Email     string    `json:"email"`
-	Name      string    `json:"name"`
-	IsActive  bool      `json:"isActive"`
-	Status    *string   `json:"status,omitempty"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-}

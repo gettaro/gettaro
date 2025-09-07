@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 
 	"ems.dev/backend/libraries/errors"
+	directsapi "ems.dev/backend/services/directs/api"
+	directstypes "ems.dev/backend/services/directs/types"
 	memberdb "ems.dev/backend/services/member/database"
 	"ems.dev/backend/services/member/types"
 	sourcecontrolapi "ems.dev/backend/services/sourcecontrol/api"
@@ -31,14 +33,16 @@ type Api struct {
 	userApi          userapi.UserAPI
 	sourceControlApi sourcecontrolapi.SourceControlAPI
 	titleApi         titleapi.TitleAPI
+	directsApi       directsapi.DirectReportsAPI
 }
 
-func NewApi(memberDb memberdb.DB, userApi userapi.UserAPI, sourceControlApi sourcecontrolapi.SourceControlAPI, titleApi titleapi.TitleAPI) *Api {
+func NewApi(memberDb memberdb.DB, userApi userapi.UserAPI, sourceControlApi sourcecontrolapi.SourceControlAPI, titleApi titleapi.TitleAPI, directsApi directsapi.DirectReportsAPI) *Api {
 	return &Api{
 		db:               memberDb,
 		userApi:          userApi,
 		sourceControlApi: sourceControlApi,
 		titleApi:         titleApi,
+		directsApi:       directsApi,
 	}
 }
 
@@ -101,8 +105,27 @@ func (a *Api) AddOrganizationMember(ctx context.Context, req types.AddMemberRequ
 
 		// Create manager relationship if specified
 		if req.ManagerID != nil && *req.ManagerID != "" {
-			// TODO: Add direct report relationship creation
-			// This would require the directs API to be available
+			// Get the manager's member record
+			managerMember, err := a.db.GetOrganizationMemberByID(ctx, *req.ManagerID)
+			if err != nil {
+				return err
+			}
+			if managerMember == nil {
+				return errors.NewNotFoundError("manager not found")
+			}
+
+			// Create direct report relationship using member IDs
+			_, err = a.directsApi.CreateDirectReport(ctx, directstypes.CreateDirectReportParams{
+				ManagerMemberID: managerMember.ID,
+				ReportMemberID:  createdMember.ID,
+				OrganizationID:  member.OrganizationID,
+				Depth:           1, // Direct report
+			})
+			if err != nil {
+				// Log the error but don't fail the member creation
+				// The member is already created, just the manager relationship failed
+				return err
+			}
 		}
 	}
 
@@ -191,8 +214,65 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, member
 
 	// Update manager relationship if specified
 	if req.ManagerID != nil && *req.ManagerID != "" {
-		// TODO: Update direct report relationship
-		// This would require the directs API to be available
+		// Get the manager's member record
+		managerMember, err := a.db.GetOrganizationMemberByID(ctx, *req.ManagerID)
+		if err != nil {
+			return err
+		}
+		if managerMember == nil {
+			return errors.NewNotFoundError("manager not found")
+		}
+
+		// Check if there's an existing manager relationship using member ID
+		existingManager, err := a.directsApi.GetMemberManager(ctx, existingMember.ID, orgID)
+		if err != nil {
+			return err
+		}
+
+		if existingManager != nil {
+			// Check if the manager is actually changing
+			if existingManager.ManagerMemberID != managerMember.ID {
+				// Manager is changing, delete old relationship and create new one
+				err = a.directsApi.DeleteDirectReport(ctx, existingManager.ID)
+				if err != nil {
+					return err
+				}
+				// Create new relationship with new manager
+				_, err = a.directsApi.CreateDirectReport(ctx, directstypes.CreateDirectReportParams{
+					ManagerMemberID: managerMember.ID,
+					ReportMemberID:  existingMember.ID,
+					OrganizationID:  orgID,
+					Depth:           1, // Direct report
+				})
+				if err != nil {
+					return err
+				}
+			}
+			// If manager is the same, no action needed
+		} else {
+			// Create new manager relationship
+			_, err = a.directsApi.CreateDirectReport(ctx, directstypes.CreateDirectReportParams{
+				ManagerMemberID: managerMember.ID,
+				ReportMemberID:  existingMember.ID,
+				OrganizationID:  orgID,
+				Depth:           1, // Direct report
+			})
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		// Remove manager relationship if ManagerID is empty
+		existingManager, err := a.directsApi.GetMemberManager(ctx, existingMember.ID, orgID)
+		if err != nil {
+			return err
+		}
+		if existingManager != nil {
+			err = a.directsApi.DeleteDirectReport(ctx, existingManager.ID)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -241,10 +321,6 @@ func (a *Api) CalculateSourceControlMemberMetrics(ctx context.Context, organizat
 	peerSourceControlAccountIDs := []string{}
 	for _, account := range peerSourceControlAccounts {
 		peerSourceControlAccountIDs = append(peerSourceControlAccountIDs, account.ID)
-	}
-
-	if err != nil {
-		return nil, err
 	}
 	// Create the metric params with the source control account IDs
 	metricParamsMap := map[string]interface{}{

@@ -70,11 +70,11 @@ func (d *DirectReportsDB) ListDirectReports(ctx context.Context, params types.Di
 	if params.ID != nil {
 		query = query.Where("id = ?", *params.ID)
 	}
-	if params.ManagerID != nil {
-		query = query.Where("manager_id = ?", *params.ManagerID)
+	if params.ManagerMemberID != nil {
+		query = query.Where("manager_member_id = ?", *params.ManagerMemberID)
 	}
-	if params.ReportID != nil {
-		query = query.Where("report_id = ?", *params.ReportID)
+	if params.ReportMemberID != nil {
+		query = query.Where("report_member_id = ?", *params.ReportMemberID)
 	}
 	if params.OrganizationID != nil {
 		query = query.Where("organization_id = ?", *params.OrganizationID)
@@ -110,30 +110,30 @@ func (d *DirectReportsDB) DeleteDirectReport(ctx context.Context, id string) err
 }
 
 // GetManagerDirectReports retrieves all direct reports for a specific manager
-func (d *DirectReportsDB) GetManagerDirectReports(ctx context.Context, managerID, orgID string) ([]types.DirectReport, error) {
+func (d *DirectReportsDB) GetManagerDirectReports(ctx context.Context, managerMemberID, orgID string) ([]types.DirectReport, error) {
 	var directReports []types.DirectReport
 	err := d.db.WithContext(ctx).
 		Preload("Manager").
 		Preload("Report").
-		Where("manager_id = ? AND organization_id = ?", managerID, orgID).
+		Where("manager_member_id = ? AND organization_id = ?", managerMemberID, orgID).
 		Order("depth ASC").
 		Find(&directReports).Error
 	return directReports, err
 }
 
 // GetManagerTree retrieves the full management tree for a manager
-func (d *DirectReportsDB) GetManagerTree(ctx context.Context, managerID, orgID string) ([]types.OrgChartNode, error) {
+func (d *DirectReportsDB) GetManagerTree(ctx context.Context, managerMemberID, orgID string) ([]types.OrgChartNode, error) {
 	// Get all direct reports recursively
-	return d.buildOrgChartNode(ctx, managerID, orgID, 0)
+	return d.buildOrgChartNode(ctx, managerMemberID, orgID, 0)
 }
 
 // GetMemberManager retrieves the manager of a specific member
-func (d *DirectReportsDB) GetMemberManager(ctx context.Context, reportID, orgID string) (*types.DirectReport, error) {
+func (d *DirectReportsDB) GetMemberManager(ctx context.Context, reportMemberID, orgID string) (*types.DirectReport, error) {
 	var directReport types.DirectReport
 	err := d.db.WithContext(ctx).
 		Preload("Manager").
 		Preload("Report").
-		Where("report_id = ? AND organization_id = ?", reportID, orgID).
+		Where("report_member_id = ? AND organization_id = ?", reportMemberID, orgID).
 		First(&directReport).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -145,9 +145,9 @@ func (d *DirectReportsDB) GetMemberManager(ctx context.Context, reportID, orgID 
 }
 
 // GetMemberManagementChain retrieves the full management chain for a member
-func (d *DirectReportsDB) GetMemberManagementChain(ctx context.Context, reportID, orgID string) ([]types.ManagementChain, error) {
+func (d *DirectReportsDB) GetMemberManagementChain(ctx context.Context, reportMemberID, orgID string) ([]types.ManagementChain, error) {
 	var chain []types.ManagementChain
-	currentReportID := reportID
+	currentReportMemberID := reportMemberID
 	depth := 0
 
 	for {
@@ -155,7 +155,7 @@ func (d *DirectReportsDB) GetMemberManagementChain(ctx context.Context, reportID
 		err := d.db.WithContext(ctx).
 			Preload("Manager").
 			Preload("Report").
-			Where("report_id = ? AND organization_id = ?", currentReportID, orgID).
+			Where("report_member_id = ? AND organization_id = ?", currentReportMemberID, orgID).
 			First(&directReport).Error
 
 		if err != nil {
@@ -166,12 +166,12 @@ func (d *DirectReportsDB) GetMemberManagementChain(ctx context.Context, reportID
 		}
 
 		chain = append(chain, types.ManagementChain{
-			User:    directReport.Report,
+			Member:  directReport.Report,
 			Manager: &directReport.Manager,
 			Depth:   depth,
 		})
 
-		currentReportID = directReport.ManagerID
+		currentReportMemberID = directReport.ManagerMemberID
 		depth++
 
 		// Prevent infinite loops
@@ -201,22 +201,22 @@ func (d *DirectReportsDB) GetOrgChart(ctx context.Context, orgID string) ([]type
 	reportIDs := make(map[string]bool)
 
 	for _, dr := range topLevelManagers {
-		managerIDs[dr.ManagerID] = true
-		reportIDs[dr.ReportID] = true
+		managerIDs[dr.ManagerMemberID] = true
+		reportIDs[dr.ReportMemberID] = true
 	}
 
 	// Find top-level managers (managers who are not reports)
 	var topManagers []string
-	for managerID := range managerIDs {
-		if !reportIDs[managerID] {
-			topManagers = append(topManagers, managerID)
+	for managerMemberID := range managerIDs {
+		if !reportIDs[managerMemberID] {
+			topManagers = append(topManagers, managerMemberID)
 		}
 	}
 
 	// Build org chart for each top-level manager
 	var orgChart []types.OrgChartNode
-	for _, managerID := range topManagers {
-		node, err := d.buildOrgChartNode(ctx, managerID, orgID, 0)
+	for _, managerMemberID := range topManagers {
+		node, err := d.buildOrgChartNode(ctx, managerMemberID, orgID, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -233,15 +233,15 @@ func (d *DirectReportsDB) GetOrgChartFlat(ctx context.Context, orgID string) ([]
 		Preload("Manager").
 		Preload("Report").
 		Where("organization_id = ?", orgID).
-		Order("depth ASC, manager_id ASC").
+		Order("depth ASC, manager_member_id ASC").
 		Find(&directReports).Error
 	return directReports, err
 }
 
 // buildOrgChartNode recursively builds org chart nodes
-func (d *DirectReportsDB) buildOrgChartNode(ctx context.Context, managerID, orgID string, depth int) ([]types.OrgChartNode, error) {
+func (d *DirectReportsDB) buildOrgChartNode(ctx context.Context, managerMemberID, orgID string, depth int) ([]types.OrgChartNode, error) {
 	// Get direct reports for this manager
-	directReports, err := d.GetManagerDirectReports(ctx, managerID, orgID)
+	directReports, err := d.GetManagerDirectReports(ctx, managerMemberID, orgID)
 	if err != nil {
 		return nil, err
 	}
@@ -252,21 +252,14 @@ func (d *DirectReportsDB) buildOrgChartNode(ctx context.Context, managerID, orgI
 
 	var nodes []types.OrgChartNode
 	for _, dr := range directReports {
-		// Get user info for the report
-		var user types.User
-		err := d.db.WithContext(ctx).First(&user, "id = ?", dr.ReportID).Error
-		if err != nil {
-			return nil, err
-		}
-
-		// Recursively get direct reports for this user
-		subNodes, err := d.buildOrgChartNode(ctx, dr.ReportID, orgID, depth+1)
+		// Recursively get direct reports for this member
+		subNodes, err := d.buildOrgChartNode(ctx, dr.ReportMemberID, orgID, depth+1)
 		if err != nil {
 			return nil, err
 		}
 
 		nodes = append(nodes, types.OrgChartNode{
-			User:          user,
+			Member:        dr.Report,
 			DirectReports: subNodes,
 			Depth:         depth,
 		})

@@ -64,12 +64,12 @@ func main() {
 	titleApi := titleapi.NewApi(titleDb)
 	orgDb := orgdb.NewOrganizationDB(database.DB)
 	orgApi := orgapi.NewApi(orgDb, userApi, titleApi, sourcecontrolApi)
-	memberDb := memberdb.NewMemberDB(database.DB)
-	memberApi := memberapi.NewApi(memberDb, userApi, sourcecontrolApi, titleApi)
-	teamDb := teamdb.NewTeamDB(database.DB)
-	teamApi := teamapi.NewApi(teamDb, orgApi)
 	directsDb := directsdb.NewDirectReportsDB(database.DB)
 	directsApi := directsapi.NewDirectReportsAPI(directsDb)
+	memberDb := memberdb.NewMemberDB(database.DB)
+	memberApi := memberapi.NewApi(memberDb, userApi, sourcecontrolApi, titleApi, directsApi)
+	teamDb := teamdb.NewTeamDB(database.DB)
+	teamApi := teamapi.NewApi(teamDb, orgApi)
 
 	// Initialize and start sync job scheduler
 	// Check if jobs are enabled

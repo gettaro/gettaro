@@ -6,6 +6,7 @@ import { GetMemberMetricsResponse, GetMemberMetricsParams } from '../types/membe
 import { Title } from '../types/title'
 import { SourceControlAccount, PullRequest, GetMemberPullRequestsParams, GetMemberPullRequestReviewsParams } from '../types/sourcecontrol'
 import { MemberActivity, GetMemberActivityParams } from '../types/sourcecontrol'
+import { OrgChartNode } from '../types/directs'
 import Api from '../api/api'
 import { formatMetricValue, formatTimeMetric } from '../utils/formatMetrics'
 import MetricIcon from '../components/MetricIcon'
@@ -41,6 +42,8 @@ export default function MemberProfilePage() {
   const [pullRequestsLoading, setPullRequestsLoading] = useState(false)
   const [pullRequestReviews, setPullRequestReviews] = useState<MemberActivity[]>([])
   const [pullRequestReviewsLoading, setPullRequestReviewsLoading] = useState(false)
+  const [managementTree, setManagementTree] = useState<OrgChartNode[]>([])
+  const [managementTreeLoading, setManagementTreeLoading] = useState(false)
 
   useEffect(() => {
     if (currentOrganization && memberId) {
@@ -54,6 +57,13 @@ export default function MemberProfilePage() {
       loadCodeContributionsData()
     }
   }, [activeTab, currentOrganization?.id, memberId, dateParams.startDate, dateParams.endDate])
+
+  // Load management tree when member is loaded and is a manager
+  useEffect(() => {
+    if (member && title?.isManager && currentOrganization?.id && memberId) {
+      loadManagementTree()
+    }
+  }, [member, title, currentOrganization?.id, memberId])
 
   const initializePage = async () => {
     try {
@@ -111,6 +121,23 @@ export default function MemberProfilePage() {
       setMetricsLoading(false)
       setPullRequestsLoading(false)
       setPullRequestReviewsLoading(false)
+    }
+  }
+
+  const loadManagementTree = async () => {
+    if (!currentOrganization?.id || !memberId || !member) return
+
+    try {
+      setManagementTreeLoading(true)
+      setError(null)
+
+      const response = await Api.getManagerTree(currentOrganization.id, memberId)
+      setManagementTree(response.orgChart)
+    } catch (err) {
+      console.error('Error loading management tree:', err)
+      setError('Failed to load management tree')
+    } finally {
+      setManagementTreeLoading(false)
     }
   }
 
@@ -565,11 +592,84 @@ export default function MemberProfilePage() {
     }
   }
 
+  const renderManagementTreeNode = (node: OrgChartNode, depth: number = 0) => {
+    const indentClass = `ml-${depth * 4}`
+    
+    return (
+      <div key={node.member.id} className={`${indentClass} mb-2`}>
+        <div className="flex items-center space-x-3 p-3 bg-muted/30 rounded-lg border border-border">
+          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+            <span className="text-primary font-medium text-sm">
+              {node.member.username.charAt(0).toUpperCase()}
+            </span>
+          </div>
+          <div>
+            <h4 className="font-medium text-foreground">{node.member.username}</h4>
+            <p className="text-sm text-muted-foreground">{node.member.email}</p>
+          </div>
+          {depth > 0 && (
+            <div className="ml-auto">
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                Level {depth}
+              </span>
+            </div>
+          )}
+        </div>
+        {node.directReports.length > 0 && (
+          <div className="mt-2">
+            {node.directReports.map(report => renderManagementTreeNode(report, depth + 1))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview':
         return (
           <div className="space-y-6">
+            {/* Management Tree Section - Only show if member is a manager */}
+            {title?.isManager && (
+              <div className="bg-card border border-border rounded-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-foreground">Management Tree</h3>
+                  {managementTreeLoading && (
+                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                      <span>Loading...</span>
+                    </div>
+                  )}
+                </div>
+                
+                {managementTreeLoading ? (
+                  <div className="text-center py-8">
+                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                    <p className="text-muted-foreground">Loading management tree...</p>
+                  </div>
+                ) : managementTree.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      People who report directly or indirectly to {member?.username}:
+                    </p>
+                    {managementTree.map(node => renderManagementTreeNode(node))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
+                      <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </div>
+                    <p className="text-muted-foreground">No direct reports found</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      This manager doesn't have any direct reports yet.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="bg-card border border-border rounded-lg p-6">
               <h3 className="text-lg font-semibold text-foreground mb-4">Source Control Overview</h3>
               <p className="text-muted-foreground">

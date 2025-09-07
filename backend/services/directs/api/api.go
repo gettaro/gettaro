@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 
+	"ems.dev/backend/libraries/errors"
 	"ems.dev/backend/services/directs/database"
 	"ems.dev/backend/services/directs/types"
 )
@@ -16,12 +17,12 @@ type DirectReportsAPI interface {
 	DeleteDirectReport(ctx context.Context, id string) error
 
 	// Manager operations
-	GetManagerDirectReports(ctx context.Context, managerID, orgID string) ([]types.DirectReport, error)
-	GetManagerTree(ctx context.Context, managerID, orgID string) ([]types.OrgChartNode, error)
+	GetManagerDirectReports(ctx context.Context, managerMemberID, orgID string) ([]types.DirectReport, error)
+	GetManagerTree(ctx context.Context, managerMemberID, orgID string) ([]types.OrgChartNode, error)
 
 	// Employee operations
-	GetMemberManager(ctx context.Context, reportID, orgID string) (*types.DirectReport, error)
-	GetMemberManagementChain(ctx context.Context, reportID, orgID string) ([]types.ManagementChain, error)
+	GetMemberManager(ctx context.Context, reportMemberID, orgID string) (*types.DirectReport, error)
+	GetMemberManagementChain(ctx context.Context, reportMemberID, orgID string) ([]types.ManagementChain, error)
 
 	// Organizational structure
 	GetOrgChart(ctx context.Context, orgID string) ([]types.OrgChartNode, error)
@@ -40,11 +41,22 @@ func NewDirectReportsAPI(db database.DB) DirectReportsAPI {
 
 // CreateDirectReport creates a new direct report relationship
 func (a *DirectReportsAPIImpl) CreateDirectReport(ctx context.Context, params types.CreateDirectReportParams) (*types.DirectReport, error) {
+	// Validate that all required fields are not empty
+	if params.ManagerMemberID == "" {
+		return nil, errors.NewBadRequestError("manager member ID cannot be empty")
+	}
+	if params.ReportMemberID == "" {
+		return nil, errors.NewBadRequestError("report member ID cannot be empty")
+	}
+	if params.OrganizationID == "" {
+		return nil, errors.NewBadRequestError("organization ID cannot be empty")
+	}
+
 	directReport := &types.DirectReport{
-		ManagerID:      params.ManagerID,
-		ReportID:       params.ReportID,
-		OrganizationID: params.OrganizationID,
-		Depth:          params.Depth,
+		ManagerMemberID: params.ManagerMemberID,
+		ReportMemberID:  params.ReportMemberID,
+		OrganizationID:  params.OrganizationID,
+		Depth:           params.Depth,
 	}
 
 	err := a.db.CreateDirectReport(ctx, directReport)
@@ -76,23 +88,23 @@ func (a *DirectReportsAPIImpl) DeleteDirectReport(ctx context.Context, id string
 }
 
 // GetManagerDirectReports retrieves all direct reports for a specific manager
-func (a *DirectReportsAPIImpl) GetManagerDirectReports(ctx context.Context, managerID, orgID string) ([]types.DirectReport, error) {
-	return a.db.GetManagerDirectReports(ctx, managerID, orgID)
+func (a *DirectReportsAPIImpl) GetManagerDirectReports(ctx context.Context, managerMemberID, orgID string) ([]types.DirectReport, error) {
+	return a.db.GetManagerDirectReports(ctx, managerMemberID, orgID)
 }
 
 // GetManagerTree retrieves the full management tree for a manager
-func (a *DirectReportsAPIImpl) GetManagerTree(ctx context.Context, managerID, orgID string) ([]types.OrgChartNode, error) {
-	return a.db.GetManagerTree(ctx, managerID, orgID)
+func (a *DirectReportsAPIImpl) GetManagerTree(ctx context.Context, managerMemberID, orgID string) ([]types.OrgChartNode, error) {
+	return a.db.GetManagerTree(ctx, managerMemberID, orgID)
 }
 
 // GetMemberManager retrieves the manager of a specific member
-func (a *DirectReportsAPIImpl) GetMemberManager(ctx context.Context, reportID, orgID string) (*types.DirectReport, error) {
-	return a.db.GetMemberManager(ctx, reportID, orgID)
+func (a *DirectReportsAPIImpl) GetMemberManager(ctx context.Context, reportMemberID, orgID string) (*types.DirectReport, error) {
+	return a.db.GetMemberManager(ctx, reportMemberID, orgID)
 }
 
 // GetMemberManagementChain retrieves the full management chain for a member
-func (a *DirectReportsAPIImpl) GetMemberManagementChain(ctx context.Context, reportID, orgID string) ([]types.ManagementChain, error) {
-	return a.db.GetMemberManagementChain(ctx, reportID, orgID)
+func (a *DirectReportsAPIImpl) GetMemberManagementChain(ctx context.Context, reportMemberID, orgID string) ([]types.ManagementChain, error) {
+	return a.db.GetMemberManagementChain(ctx, reportMemberID, orgID)
 }
 
 // GetOrgChart retrieves the complete organizational chart
