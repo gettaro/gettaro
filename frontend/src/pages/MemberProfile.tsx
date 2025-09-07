@@ -132,6 +132,11 @@ export default function MemberProfilePage() {
       setError(null)
 
       const response = await Api.getManagerTree(currentOrganization.id, memberId)
+      console.log('Management tree response:', response)
+      console.log('OrgChart:', response.orgChart)
+      if (response.orgChart && response.orgChart.length > 0) {
+        console.log('First node:', response.orgChart[0])
+      }
       setManagementTree(response.orgChart)
     } catch (err) {
       console.error('Error loading management tree:', err)
@@ -593,6 +598,9 @@ export default function MemberProfilePage() {
   }
 
   const renderManagementTreeNode = (node: OrgChartNode, depth: number = 0) => {
+    console.log('Rendering node:', node)
+    console.log('Node member:', node.member)
+    
     const indentClass = `ml-${depth * 4}`
     
     return (
@@ -615,7 +623,7 @@ export default function MemberProfilePage() {
             </div>
           )}
         </div>
-        {node.directReports.length > 0 && (
+        {node.directReports != null && node.directReports.length > 0 && (
           <div className="mt-2">
             {node.directReports.map(report => renderManagementTreeNode(report, depth + 1))}
           </div>

@@ -25,17 +25,16 @@ type DirectReportResponse struct {
 	UpdatedAt      time.Time `json:"updatedAt"`
 
 	// Populated fields
-	Manager *UserResponse `json:"manager,omitempty"`
-	Report  *UserResponse `json:"report,omitempty"`
+	Manager *MemberResponse `json:"manager,omitempty"`
+	Report  *MemberResponse `json:"report,omitempty"`
 }
 
-// UserResponse represents a user in API responses
-type UserResponse struct {
+// MemberResponse represents a user in API responses
+type MemberResponse struct {
 	ID        string    `json:"id"`
 	Email     string    `json:"email"`
-	Name      string    `json:"name"`
-	IsActive  bool      `json:"isActive"`
-	Status    *string   `json:"status,omitempty"`
+	Username  string    `json:"username"`
+	TitleID   string    `json:"titleId"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }

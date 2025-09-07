@@ -32,14 +32,14 @@ type GetOrgChartFlatResponse struct {
 
 // OrgChartNodeResponse represents a node in the organizational chart
 type OrgChartNodeResponse struct {
-	Member        UserResponse           `json:"member"`
+	Member        MemberResponse         `json:"member"`
 	DirectReports []OrgChartNodeResponse `json:"directReports,omitempty"`
 	Depth         int                    `json:"depth"`
 }
 
 // ManagementChainResponse represents the management chain for a member
 type ManagementChainResponse struct {
-	Member  UserResponse  `json:"member"`
-	Manager *UserResponse `json:"manager,omitempty"`
-	Depth   int           `json:"depth"`
+	Member  MemberResponse  `json:"member"`
+	Manager *MemberResponse `json:"manager,omitempty"`
+	Depth   int             `json:"depth"`
 }

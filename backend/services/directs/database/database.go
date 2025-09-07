@@ -239,6 +239,7 @@ func (d *DirectReportsDB) GetOrgChartFlat(ctx context.Context, orgID string) ([]
 }
 
 // buildOrgChartNode recursively builds org chart nodes
+// TODO: This is inefficient and should be optimized
 func (d *DirectReportsDB) buildOrgChartNode(ctx context.Context, managerMemberID, orgID string, depth int) ([]types.OrgChartNode, error) {
 	// Get direct reports for this manager
 	directReports, err := d.GetManagerDirectReports(ctx, managerMemberID, orgID)

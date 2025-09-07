@@ -424,17 +424,16 @@ func (h *DirectsHandler) mapDirectReportsToResponse(drs []types.DirectReport) []
 	return responses
 }
 
-func (h *DirectsHandler) mapUserToResponse(member *membertypes.OrganizationMember) *directshttptypes.UserResponse {
+func (h *DirectsHandler) mapUserToResponse(member *membertypes.OrganizationMember) *directshttptypes.MemberResponse {
 	if member == nil || member.ID == "" {
 		return nil
 	}
 
-	return &directshttptypes.UserResponse{
+	return &directshttptypes.MemberResponse{
 		ID:        member.ID,
 		Email:     member.Email,
-		Name:      member.Username, // Using username as name
-		IsActive:  true,            // Assuming active if member exists
-		Status:    nil,             // No status field in OrganizationMember
+		Username:  member.Username, // Also include username field
+		TitleID:   *member.TitleID,
 		CreatedAt: member.CreatedAt,
 		UpdatedAt: member.UpdatedAt,
 	}
