@@ -5,6 +5,7 @@ export interface Member {
   organizationId: string
   isOwner: boolean
   titleId?: string
+  title?: string
   createdAt: string
   updatedAt: string
 }

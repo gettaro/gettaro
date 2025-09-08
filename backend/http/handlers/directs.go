@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 
 	directshttptypes "ems.dev/backend/http/types/directs"
@@ -9,6 +10,7 @@ import (
 	"ems.dev/backend/services/directs/types"
 	membertypes "ems.dev/backend/services/member/types"
 	orgapi "ems.dev/backend/services/organization/api"
+	titleapi "ems.dev/backend/services/title/api"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,13 +18,15 @@ import (
 type DirectsHandler struct {
 	directsApi directsapi.DirectReportsAPI
 	orgApi     orgapi.OrganizationAPI
+	titleApi   titleapi.TitleAPI
 }
 
 // NewDirectsHandler creates a new instance of DirectsHandler.
-func NewDirectsHandler(directsApi directsapi.DirectReportsAPI, orgApi orgapi.OrganizationAPI) *DirectsHandler {
+func NewDirectsHandler(directsApi directsapi.DirectReportsAPI, orgApi orgapi.OrganizationAPI, titleApi titleapi.TitleAPI) *DirectsHandler {
 	return &DirectsHandler{
 		directsApi: directsApi,
 		orgApi:     orgApi,
+		titleApi:   titleApi,
 	}
 }
 
@@ -429,11 +433,21 @@ func (h *DirectsHandler) mapUserToResponse(member *membertypes.OrganizationMembe
 		return nil
 	}
 
+	// Fetch title information
+	titleName := ""
+	if member.TitleID != nil && *member.TitleID != "" {
+		title, err := h.titleApi.GetTitle(context.Background(), *member.TitleID)
+		if err == nil && title != nil {
+			titleName = title.Name
+		}
+	}
+
 	return &directshttptypes.MemberResponse{
 		ID:        member.ID,
 		Email:     member.Email,
-		Username:  member.Username, // Also include username field
+		Username:  member.Username,
 		TitleID:   *member.TitleID,
+		Title:     titleName,
 		CreatedAt: member.CreatedAt,
 		UpdatedAt: member.UpdatedAt,
 	}

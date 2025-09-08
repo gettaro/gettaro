@@ -46,7 +46,7 @@ func (s *Server) setupRoutes() {
 		memberHandler.RegisterRoutes(protected)
 
 		// Direct reports routes
-		directsHandler := handlers.NewDirectsHandler(s.directsApi, s.orgApi)
+		directsHandler := handlers.NewDirectsHandler(s.directsApi, s.orgApi, s.titleApi)
 		directsHandler.RegisterRoutes(protected)
 
 		// Project management routes

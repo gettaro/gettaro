@@ -240,7 +240,7 @@ export default function Members() {
       username: member.username,
       titleId: member.titleId || '', // Pre-populate with current title
       sourceControlAccountId: sourceControlAccounts.find(acc => acc.memberId === member.id)?.id || '', // Pre-populate with current source control account
-      managerId: undefined // TODO: Get current manager from member data
+      managerId: member.managerId // Pre-populate with current manager
     })
     setIsUpdateModalOpen(true)
   }
@@ -758,6 +758,21 @@ export default function Members() {
                       </option>
                     ))}
                   </select>
+                  {updateFormData.titleId && (() => {
+                    const selectedTitle = titles.find(t => t.id === updateFormData.titleId)
+                    return selectedTitle && selectedTitle.isManager ? (
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                        <div className="flex items-center space-x-2">
+                          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-sm text-blue-800 font-medium">
+                            This is a manager role - this member can manage other team members
+                          </span>
+                        </div>
+                      </div>
+                    ) : null
+                  })()}
                 </div>
 
                 <div>

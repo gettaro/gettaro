@@ -11,7 +11,7 @@ import Api from '../api/api'
 import { formatMetricValue, formatTimeMetric } from '../utils/formatMetrics'
 import MetricIcon from '../components/MetricIcon'
 
-type TabType = 'overview' | 'source-control-metrics'
+type TabType = 'overview' | 'source-control-metrics' | 'management-tree'
 
 export default function MemberProfilePage() {
   const { memberId } = useParams<{ memberId: string }>()
@@ -44,6 +44,7 @@ export default function MemberProfilePage() {
   const [pullRequestReviewsLoading, setPullRequestReviewsLoading] = useState(false)
   const [managementTree, setManagementTree] = useState<OrgChartNode[]>([])
   const [managementTreeLoading, setManagementTreeLoading] = useState(false)
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (currentOrganization && memberId) {
@@ -58,12 +59,12 @@ export default function MemberProfilePage() {
     }
   }, [activeTab, currentOrganization?.id, memberId, dateParams.startDate, dateParams.endDate])
 
-  // Load management tree when member is loaded and is a manager
+  // Load management tree when management tree tab is selected
   useEffect(() => {
-    if (member && title?.isManager && currentOrganization?.id && memberId) {
+    if (activeTab === 'management-tree' && member && title?.isManager && currentOrganization?.id && memberId) {
       loadManagementTree()
     }
-  }, [member, title, currentOrganization?.id, memberId])
+  }, [activeTab, member, title, currentOrganization?.id, memberId])
 
   const initializePage = async () => {
     try {
@@ -132,12 +133,12 @@ export default function MemberProfilePage() {
       setError(null)
 
       const response = await Api.getManagerTree(currentOrganization.id, memberId)
-      console.log('Management tree response:', response)
-      console.log('OrgChart:', response.orgChart)
-      if (response.orgChart && response.orgChart.length > 0) {
-        console.log('First node:', response.orgChart[0])
-      }
       setManagementTree(response.orgChart)
+      
+      // Auto-expand the top-level manager (the current member)
+      if (response.orgChart && response.orgChart.length > 0) {
+        setExpandedNodes(new Set([memberId]))
+      }
     } catch (err) {
       console.error('Error loading management tree:', err)
       setError('Failed to load management tree')
@@ -597,24 +598,86 @@ export default function MemberProfilePage() {
     }
   }
 
-  const renderManagementTreeNode = (node: OrgChartNode, depth: number = 0) => {
-    console.log('Rendering node:', node)
-    console.log('Node member:', node.member)
+  const toggleNodeExpansion = (nodeId: string) => {
+    setExpandedNodes(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(nodeId)) {
+        newSet.delete(nodeId)
+      } else {
+        newSet.add(nodeId)
+      }
+      return newSet
+    })
+  }
+
+  const expandAllNodes = () => {
+    const getAllNodeIds = (nodes: OrgChartNode[]): string[] => {
+      const ids: string[] = []
+      nodes.forEach(node => {
+        ids.push(node.member.id)
+        if (node.directReports && node.directReports.length > 0) {
+          ids.push(...getAllNodeIds(node.directReports))
+        }
+      })
+      return ids
+    }
     
+    const allIds = getAllNodeIds(managementTree)
+    setExpandedNodes(new Set(allIds))
+  }
+
+  const collapseAllNodes = () => {
+    setExpandedNodes(new Set())
+  }
+
+  const renderManagementTreeNode = (node: OrgChartNode, depth: number = 0) => {
     const indentClass = `ml-${depth * 4}`
+    const isExpanded = expandedNodes.has(node.member.id)
+    const hasDirectReports = node.directReports && node.directReports.length > 0
+    const isManager = hasDirectReports
     
     return (
       <div key={node.member.id} className={`${indentClass} mb-2`}>
-        <div className="flex items-center space-x-3 p-3 bg-muted/30 rounded-lg border border-border">
+        <div className="flex items-center space-x-3 p-3 bg-muted/30 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+          {/* Expand/Collapse Button */}
+          {isManager && (
+            <button
+              onClick={() => toggleNodeExpansion(node.member.id)}
+              className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
+            >
+              {isExpanded ? (
+                <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              )}
+            </button>
+          )}
+          
+          {/* Avatar */}
           <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
             <span className="text-primary font-medium text-sm">
               {node.member.username.charAt(0).toUpperCase()}
             </span>
           </div>
-          <div>
+          
+          {/* Member Info */}
+          <div className="flex-1">
             <h4 className="font-medium text-foreground">{node.member.username}</h4>
-            <p className="text-sm text-muted-foreground">{node.member.email}</p>
+            {node.member.title && (
+              <p className="text-sm text-muted-foreground">{node.member.title}</p>
+            )}
+            {isManager && (
+              <p className="text-xs text-muted-foreground">
+                {node.directReports.length} direct report{node.directReports.length !== 1 ? 's' : ''}
+              </p>
+            )}
           </div>
+          
+          {/* Level Indicator */}
           {depth > 0 && (
             <div className="ml-auto">
               <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
@@ -623,8 +686,10 @@ export default function MemberProfilePage() {
             </div>
           )}
         </div>
-        {node.directReports != null && node.directReports.length > 0 && (
-          <div className="mt-2">
+        
+        {/* Direct Reports (only show if expanded) */}
+        {isManager && isExpanded && (
+          <div className="mt-2 ml-6 border-l-2 border-muted pl-4">
             {node.directReports.map(report => renderManagementTreeNode(report, depth + 1))}
           </div>
         )}
@@ -637,47 +702,6 @@ export default function MemberProfilePage() {
       case 'overview':
         return (
           <div className="space-y-6">
-            {/* Management Tree Section - Only show if member is a manager */}
-            {title?.isManager && (
-              <div className="bg-card border border-border rounded-lg p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-foreground">Management Tree</h3>
-                  {managementTreeLoading && (
-                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                      <span>Loading...</span>
-                    </div>
-                  )}
-                </div>
-                
-                {managementTreeLoading ? (
-                  <div className="text-center py-8">
-                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                    <p className="text-muted-foreground">Loading management tree...</p>
-                  </div>
-                ) : managementTree.length > 0 ? (
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground mb-4">
-                      People who report directly or indirectly to {member?.username}:
-                    </p>
-                    {managementTree.map(node => renderManagementTreeNode(node))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
-                      <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                      </svg>
-                    </div>
-                    <p className="text-muted-foreground">No direct reports found</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      This manager doesn't have any direct reports yet.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
             <div className="bg-card border border-border rounded-lg p-6">
               <h3 className="text-lg font-semibold text-foreground mb-4">Source Control Overview</h3>
               <p className="text-muted-foreground">
@@ -972,6 +996,68 @@ export default function MemberProfilePage() {
           </div>
         )
 
+      case 'management-tree':
+        return (
+          <div className="space-y-6">
+            <div className="bg-card border border-border rounded-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-foreground">Management Tree</h3>
+                <div className="flex items-center space-x-2">
+                  {managementTreeLoading ? (
+                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                      <span>Loading...</span>
+                    </div>
+                  ) : managementTree.length > 0 ? (
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={expandAllNodes}
+                        className="text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-1 rounded transition-colors"
+                      >
+                        Expand All
+                      </button>
+                      <button
+                        onClick={collapseAllNodes}
+                        className="text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-1 rounded transition-colors"
+                      >
+                        Collapse All
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              
+              {managementTreeLoading ? (
+                <div className="text-center py-8">
+                  <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                  <p className="text-muted-foreground">Loading management tree...</p>
+                </div>
+              ) : managementTree.length > 0 ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Direct and indirect reports:
+                  </p>
+                  
+                  {/* Direct Reports */}
+                  {managementTree.map(node => renderManagementTreeNode(node))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-muted-foreground">No direct reports found</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    This manager doesn't have any direct reports yet.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+
       default:
         return null
     }
@@ -1134,6 +1220,18 @@ export default function MemberProfilePage() {
               >
                 Code Contributions
               </button>
+              {title?.isManager && (
+                <button
+                  onClick={() => setActiveTab('management-tree')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    activeTab === 'management-tree'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                  }`}
+                >
+                  Management Tree
+                </button>
+              )}
             </nav>
           </div>
           

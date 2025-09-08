@@ -139,7 +139,20 @@ func (a *Api) RemoveOrganizationMember(ctx context.Context, orgID string, userID
 
 // GetOrganizationMembers returns all members of an organization
 func (a *Api) GetOrganizationMembers(ctx context.Context, orgID string, params *types.OrganizationMemberParams) ([]types.OrganizationMember, error) {
-	return a.db.GetOrganizationMembers(orgID, params)
+	members, err := a.db.GetOrganizationMembers(orgID, params)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate manager information for each member
+	for i := range members {
+		manager, err := a.directsApi.GetMemberManager(ctx, members[i].ID, orgID)
+		if err == nil && manager != nil {
+			members[i].ManagerID = &manager.ManagerMemberID
+		}
+	}
+
+	return members, nil
 }
 
 // GetOrganizationMemberByID retrieves a member by their ID

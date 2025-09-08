@@ -13,7 +13,8 @@ type OrganizationMember struct {
 	Username       string    `json:"username"`
 	OrganizationID string    `json:"organizationId"`
 	IsOwner        bool      `json:"isOwner"`
-	TitleID        *string   `json:"titleId,omitempty"` // New field for direct title reference
+	TitleID        *string   `json:"titleId,omitempty"`   // New field for direct title reference
+	ManagerID      *string   `json:"managerId,omitempty"` // Manager's member ID
 	CreatedAt      time.Time `json:"createdAt"`
 	UpdatedAt      time.Time `json:"updatedAt"`
 }
