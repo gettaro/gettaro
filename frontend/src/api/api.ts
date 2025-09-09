@@ -6,6 +6,16 @@ import { Member, AddMemberRequest, UpdateMemberRequest } from '../types/member'
 import { SourceControlAccount, PullRequest, GetMemberPullRequestsParams, GetMemberPullRequestReviewsParams, MemberActivity } from '../types/sourcecontrol'
 import { GetManagerTreeResponse } from '../types/directs'
 import { GetMemberMetricsParams, GetMemberMetricsResponse } from '../types/memberMetrics'
+import { 
+  ConversationTemplate, 
+  CreateConversationTemplateRequest, 
+  UpdateConversationTemplateRequest, 
+  ListConversationTemplatesQuery,
+  ListConversationTemplatesResponse,
+  GetConversationTemplateResponse,
+  CreateConversationTemplateResponse,
+  UpdateConversationTemplateResponse
+} from '../types/conversationTemplate'
 
 export default class Api {
   private static API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
@@ -355,6 +365,39 @@ export default class Api {
   static async getManagerTree(organizationId: string, managerId: string): Promise<GetManagerTreeResponse> {
     const response = await this.get(`/organizations/${organizationId}/managers/${managerId}/directs/tree`)
     return response
+  }
+
+  // Conversation Template API functions
+  static async getConversationTemplates(organizationId: string, query?: ListConversationTemplatesQuery): Promise<ListConversationTemplatesResponse> {
+    const queryParams = new URLSearchParams()
+    if (query?.is_active !== undefined) {
+      queryParams.append('is_active', query.is_active.toString())
+    }
+    
+    const queryString = queryParams.toString()
+    const url = queryString ? `/organizations/${organizationId}/conversation-templates?${queryString}` : `/organizations/${organizationId}/conversation-templates`
+    
+    const response = await this.get(url)
+    return response
+  }
+
+  static async getConversationTemplate(templateId: string): Promise<GetConversationTemplateResponse> {
+    const response = await this.get(`/conversation-templates/${templateId}`)
+    return response
+  }
+
+  static async createConversationTemplate(organizationId: string, template: CreateConversationTemplateRequest): Promise<CreateConversationTemplateResponse> {
+    const response = await this.post(`/organizations/${organizationId}/conversation-templates`, template)
+    return response
+  }
+
+  static async updateConversationTemplate(templateId: string, template: UpdateConversationTemplateRequest): Promise<UpdateConversationTemplateResponse> {
+    const response = await this.put(`/conversation-templates/${templateId}`, template)
+    return response
+  }
+
+  static async deleteConversationTemplate(templateId: string): Promise<void> {
+    await this.delete(`/conversation-templates/${templateId}`)
   }
 }
 

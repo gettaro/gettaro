@@ -4,6 +4,7 @@ import (
 	"os"
 
 	authapi "ems.dev/backend/services/auth/api"
+	conversationtemplateapi "ems.dev/backend/services/conversationtemplate/api"
 	directsapi "ems.dev/backend/services/directs/api"
 	integrationapi "ems.dev/backend/services/integration/api"
 	memberapi "ems.dev/backend/services/member/api"
@@ -17,32 +18,34 @@ import (
 )
 
 type Server struct {
-	router           *gin.Engine
-	db               *gorm.DB
-	userApi          userapi.UserAPI
-	orgApi           orgapi.OrganizationAPI
-	teamApi          teamapi.TeamAPI
-	titleApi         titleapi.TitleAPI
-	authApi          authapi.AuthAPI
-	integrationApi   integrationapi.IntegrationAPI
-	sourcecontrolApi sourcecontrolapi.SourceControlAPI
-	memberApi        memberapi.MemberAPI
-	directsApi       directsapi.DirectReportsAPI
+	router                  *gin.Engine
+	db                      *gorm.DB
+	userApi                 userapi.UserAPI
+	orgApi                  orgapi.OrganizationAPI
+	teamApi                 teamapi.TeamAPI
+	titleApi                titleapi.TitleAPI
+	authApi                 authapi.AuthAPI
+	integrationApi          integrationapi.IntegrationAPI
+	sourcecontrolApi        sourcecontrolapi.SourceControlAPI
+	memberApi               memberapi.MemberAPI
+	directsApi              directsapi.DirectReportsAPI
+	conversationTemplateApi conversationtemplateapi.ConversationTemplateAPIInterface
 }
 
-func New(db *gorm.DB, userApi userapi.UserAPI, orgApi orgapi.OrganizationAPI, teamApi teamapi.TeamAPI, titleApi titleapi.TitleAPI, authApi authapi.AuthAPI, integrationApi integrationapi.IntegrationAPI, sourcecontrolApi sourcecontrolapi.SourceControlAPI, memberApi memberapi.MemberAPI, directsApi directsapi.DirectReportsAPI) *Server {
+func New(db *gorm.DB, userApi userapi.UserAPI, orgApi orgapi.OrganizationAPI, teamApi teamapi.TeamAPI, titleApi titleapi.TitleAPI, authApi authapi.AuthAPI, integrationApi integrationapi.IntegrationAPI, sourcecontrolApi sourcecontrolapi.SourceControlAPI, memberApi memberapi.MemberAPI, directsApi directsapi.DirectReportsAPI, conversationTemplateApi conversationtemplateapi.ConversationTemplateAPIInterface) *Server {
 	s := &Server{
-		router:           gin.Default(),
-		db:               db,
-		userApi:          userApi,
-		orgApi:           orgApi,
-		teamApi:          teamApi,
-		titleApi:         titleApi,
-		authApi:          authApi,
-		integrationApi:   integrationApi,
-		sourcecontrolApi: sourcecontrolApi,
-		memberApi:        memberApi,
-		directsApi:       directsApi,
+		router:                  gin.Default(),
+		db:                      db,
+		userApi:                 userApi,
+		orgApi:                  orgApi,
+		teamApi:                 teamApi,
+		titleApi:                titleApi,
+		authApi:                 authApi,
+		integrationApi:          integrationApi,
+		sourcecontrolApi:        sourcecontrolApi,
+		memberApi:               memberApi,
+		directsApi:              directsApi,
+		conversationTemplateApi: conversationTemplateApi,
 	}
 
 	s.setupMiddleware()

@@ -7,6 +7,7 @@ import Settings from './pages/Settings'
 import Members from './pages/Members'
 import Titles from './pages/Titles'
 import MemberProfile from './pages/MemberProfile'
+import ConversationTemplates from './pages/ConversationTemplates'
 
 export const router = createBrowserRouter([
   {
@@ -36,6 +37,10 @@ export const router = createBrowserRouter([
       {
         path: "settings/titles",
         element: <Titles />,
+      },
+      {
+        path: "settings/conversation-templates",
+        element: <ConversationTemplates />,
       },
       {
         path: "members/:memberId/profile",

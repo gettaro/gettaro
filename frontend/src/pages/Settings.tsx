@@ -119,6 +119,42 @@ export default function Settings() {
               </Link>
             </div>
           </div>
+
+          {/* Conversation Templates Section */}
+          <div className="bg-card border border-border rounded-lg p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                  <svg
+                    className="w-6 h-6 text-primary"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-foreground">Conversation Templates</h2>
+                  <p className="text-muted-foreground">
+                    Create and manage templates for performance conversations and 1:1s.
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/settings/conversation-templates"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors"
+              >
+                Manage
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </div>

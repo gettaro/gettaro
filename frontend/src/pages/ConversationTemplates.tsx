@@ -1,0 +1,348 @@
+import React, { useState, useEffect } from 'react'
+import { useOrganizationStore } from '../stores/organization'
+import Api from '../api/api'
+import { ConversationTemplate, TemplateField } from '../types/conversationTemplate'
+import { Button } from '../components/ui/button'
+import { Card } from '../components/ui/card'
+import { Input } from '../components/ui/input'
+import { Label } from '../components/ui/label'
+import { useToast } from '../hooks/useToast'
+
+export default function ConversationTemplates() {
+  const { currentOrganization, isLoading: isLoadingOrgs } = useOrganizationStore()
+  const { toast } = useToast()
+  const [templates, setTemplates] = useState<ConversationTemplate[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [editingTemplate, setEditingTemplate] = useState<ConversationTemplate | null>(null)
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    isActive: true
+  })
+  const [templateFields, setTemplateFields] = useState<TemplateField[]>([])
+
+  useEffect(() => {
+    if (currentOrganization) {
+      fetchTemplates()
+    }
+  }, [currentOrganization])
+
+  const fetchTemplates = async () => {
+    if (!currentOrganization) return
+
+    try {
+      setLoading(true)
+      const response = await Api.getConversationTemplates(currentOrganization.id)
+      setTemplates(response.conversation_templates || [])
+    } catch (error) {
+      console.error('Error fetching conversation templates:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch conversation templates',
+        variant: 'destructive'
+      })
+      setTemplates([]) // Ensure templates is always an array
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreateTemplate = async () => {
+    if (!currentOrganization) return
+
+    try {
+      const response = await Api.createConversationTemplate(currentOrganization.id, {
+        name: formData.name,
+        description: formData.description || undefined,
+        template_fields: templateFields,
+        is_active: formData.isActive
+      })
+
+      setTemplates([response.conversation_template, ...(templates || [])])
+      resetForm()
+      toast({
+        title: 'Success',
+        description: 'Conversation template created successfully'
+      })
+    } catch (error) {
+      console.error('Error creating conversation template:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to create conversation template',
+        variant: 'destructive'
+      })
+    }
+  }
+
+  const handleUpdateTemplate = async () => {
+    if (!editingTemplate) return
+
+    try {
+      const response = await Api.updateConversationTemplate(editingTemplate.id, {
+        name: formData.name,
+        description: formData.description || undefined,
+        template_fields: templateFields,
+        is_active: formData.isActive
+      })
+
+      setTemplates((templates || []).map(t => t.id === editingTemplate.id ? response.conversation_template : t))
+      resetForm()
+      toast({
+        title: 'Success',
+        description: 'Conversation template updated successfully'
+      })
+    } catch (error) {
+      console.error('Error updating conversation template:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to update conversation template',
+        variant: 'destructive'
+      })
+    }
+  }
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    try {
+      await Api.deleteConversationTemplate(templateId)
+      setTemplates((templates || []).filter(t => t.id !== templateId))
+      toast({
+        title: 'Success',
+        description: 'Conversation template deleted successfully'
+      })
+    } catch (error) {
+      console.error('Error deleting conversation template:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to delete conversation template',
+        variant: 'destructive'
+      })
+    }
+  }
+
+  const resetForm = () => {
+    setFormData({ name: '', description: '', isActive: true })
+    setTemplateFields([])
+    setShowCreateForm(false)
+    setEditingTemplate(null)
+  }
+
+  const startEdit = (template: ConversationTemplate) => {
+    setEditingTemplate(template)
+    setFormData({
+      name: template.name,
+      description: template.description || '',
+      isActive: template.is_active
+    })
+    setTemplateFields([...template.template_fields])
+    setShowCreateForm(true)
+  }
+
+  const addTemplateField = () => {
+    const newField: TemplateField = {
+      id: `field_${Date.now()}`,
+      label: '',
+      type: 'text',
+      required: false,
+      order: templateFields.length
+    }
+    setTemplateFields([...templateFields, newField])
+  }
+
+  const updateTemplateField = (index: number, field: Partial<TemplateField>) => {
+    const updatedFields = [...templateFields]
+    updatedFields[index] = { ...updatedFields[index], ...field }
+    setTemplateFields(updatedFields)
+  }
+
+  const removeTemplateField = (index: number) => {
+    setTemplateFields(templateFields.filter((_, i) => i !== index))
+  }
+
+  if (!currentOrganization) {
+    return (
+      <div className="p-6">
+        <h1 className="text-2xl font-bold mb-6">Conversation Templates</h1>
+        <p>Please select an organization to manage conversation templates.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Conversation Templates</h1>
+        <Button onClick={() => setShowCreateForm(true)}>
+          Create Template
+        </Button>
+      </div>
+
+      {showCreateForm && (
+        <Card className="p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">
+            {editingTemplate ? 'Edit Template' : 'Create New Template'}
+          </h2>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="name">Template Name</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g., Weekly 1:1 Conversation"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Input
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Optional description"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isActive"
+                checked={formData.isActive}
+                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+              />
+              <Label htmlFor="isActive">Active</Label>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <Label>Template Fields</Label>
+                <Button type="button" variant="outline" onClick={addTemplateField}>
+                  Add Field
+                </Button>
+              </div>
+
+              {templateFields.map((field, index) => (
+                <Card key={field.id} className="p-4 mb-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Field Label</Label>
+                      <Input
+                        value={field.label}
+                        onChange={(e) => updateTemplateField(index, { label: e.target.value })}
+                        placeholder="e.g., What went well this week?"
+                      />
+                    </div>
+                    <div>
+                      <Label>Field Type</Label>
+                      <select
+                        className="w-full p-2 border rounded"
+                        value={field.type}
+                        onChange={(e) => updateTemplateField(index, { type: e.target.value as any })}
+                      >
+                        <option value="text">Text</option>
+                        <option value="textarea">Textarea</option>
+                        <option value="select">Select</option>
+                        <option value="checkbox">Checkbox</option>
+                        <option value="rating">Rating</option>
+                        <option value="date">Date</option>
+                        <option value="number">Number</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label>Placeholder</Label>
+                      <Input
+                        value={field.placeholder || ''}
+                        onChange={(e) => updateTemplateField(index, { placeholder: e.target.value })}
+                        placeholder="Optional placeholder text"
+                      />
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={field.required}
+                        onChange={(e) => updateTemplateField(index, { required: e.target.checked })}
+                      />
+                      <Label>Required</Label>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => removeTemplateField(index)}
+                    className="mt-2"
+                  >
+                    Remove Field
+                  </Button>
+                </Card>
+              ))}
+            </div>
+
+            <div className="flex space-x-2">
+              <Button onClick={editingTemplate ? handleUpdateTemplate : handleCreateTemplate}>
+                {editingTemplate ? 'Update Template' : 'Create Template'}
+              </Button>
+              <Button variant="outline" onClick={resetForm}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {loading ? (
+        <p>Loading conversation templates...</p>
+      ) : (
+        <div className="space-y-4">
+          {!templates || templates.length === 0 ? (
+            <Card className="p-6 text-center">
+              <p className="text-gray-500">No conversation templates found.</p>
+            </Card>
+          ) : (
+            (templates || []).filter(template => template).map((template) => (
+              <Card key={template.id} className="p-6">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-lg font-semibold">{template.name}</h3>
+                    {template.description && (
+                      <p className="text-gray-600 mt-1">{template.description}</p>
+                    )}
+                    <div className="flex items-center space-x-4 mt-2">
+                      <span className={`px-2 py-1 rounded text-sm ${
+                        template.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {template.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        {template.template_fields.length} field{template.template_fields.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => startEdit(template)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteTemplate(template.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

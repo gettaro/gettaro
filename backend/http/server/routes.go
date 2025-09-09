@@ -52,5 +52,9 @@ func (s *Server) setupRoutes() {
 		// Project management routes
 		pmHandler := handlers.NewProjectManagementHandler()
 		pmHandler.RegisterRoutes(protected)
+
+		// Conversation template routes
+		conversationTemplateHandler := handlers.NewConversationTemplateHandler(s.conversationTemplateApi, s.orgApi)
+		conversationTemplateHandler.RegisterRoutes(protected)
 	}
 }
