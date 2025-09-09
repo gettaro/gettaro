@@ -227,11 +227,11 @@ components:
     GetMemberMetricsResponse:
       type: object
       properties:
-        snapshotMetrics:
+        snapshot_metrics:
           type: array
           items:
             $ref: "#/components/schemas/SnapshotCategory"
-        graphMetrics:
+        graph_metrics:
           type: array
           items:
             $ref: "#/components/schemas/GraphCategory"

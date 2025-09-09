@@ -9,11 +9,11 @@ import (
 
 type GetOrganizationIntegrationConfigsRequest struct {
 	ID             string                                   `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	OrganizationID string                                   `json:"organizationId"`
-	ProviderName   integrationtypes.IntegrationProvider     `json:"providerName"`
-	ProviderType   integrationtypes.IntegrationProviderType `json:"providerType"`
+	OrganizationID string                                   `json:"organization_id"`
+	ProviderName   integrationtypes.IntegrationProvider     `json:"provider_name"`
+	ProviderType   integrationtypes.IntegrationProviderType `json:"provider_type"`
 	Metadata       datatypes.JSON                           `json:"metadata"`
-	LastSyncedAt   *time.Time                               `json:"lastSyncedAt"`
-	CreatedAt      time.Time                                `json:"createdAt" gorm:"default:now()"`
-	UpdatedAt      time.Time                                `json:"updatedAt"`
+	LastSyncedAt   *time.Time                               `json:"last_synced_at"`
+	CreatedAt      time.Time                                `json:"created_at" gorm:"default:now()"`
+	UpdatedAt      time.Time                                `json:"updated_at"`
 }

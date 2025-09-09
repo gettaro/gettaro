@@ -1,11 +1,11 @@
 export interface SourceControlAccount {
   id: string
-  memberId?: string
-  organizationId?: string
-  providerName: string
-  providerId: string
+  member_id?: string
+  organization_id?: string
+  provider_name: string
+  provider_id: string
   username: string
-  lastSyncedAt?: string
+  last_synced_at?: string
 }
 
 export interface PullRequest {
@@ -40,12 +40,12 @@ export interface MemberActivity {
   description?: string
   url?: string
   repository?: string
-  createdAt: string
+  created_at: string
   metadata?: Record<string, any>
-  authorUsername?: string
-  prTitle?: string          // For comments/reviews: the PR title
-  prAuthorUsername?: string // For comments/reviews: the PR author
-  prMetrics?: Record<string, any> // PR performance metrics
+  author_username?: string
+  pr_title?: string          // For comments/reviews: the PR title
+  pr_author_username?: string // For comments/reviews: the PR author
+  pr_metrics?: Record<string, any> // PR performance metrics
 }
 
 export interface GetMemberActivityParams {

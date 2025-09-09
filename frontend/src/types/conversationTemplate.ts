@@ -10,7 +10,7 @@ export interface TemplateField {
 
 export interface ConversationTemplate {
   id: string
-  organizationId: string
+  organization_id: string
   name: string
   description?: string
   template_fields: TemplateField[]

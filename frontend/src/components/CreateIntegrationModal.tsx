@@ -19,7 +19,7 @@ export default function NewIntegrationModal({ organizationId, onSuccess }: Creat
   const [loading, setLoading] = useState(false)
   const [repositories, setRepositories] = useState('')
   const [formData, setFormData] = useState<CreateIntegrationConfigRequest>({
-    providerName: 'github',
+    provider_name: 'github',
     token: '',
     metadata: {},
   })
@@ -29,7 +29,7 @@ export default function NewIntegrationModal({ organizationId, onSuccess }: Creat
     setLoading(true)
     try {
       const submitData = { ...formData }
-      if (formData.providerName === 'github') {
+      if (formData.provider_name === 'github') {
         submitData.metadata = { repositories }
       }
       await Api.createIntegrationConfig(organizationId, submitData)
@@ -62,9 +62,9 @@ export default function NewIntegrationModal({ organizationId, onSuccess }: Creat
             <div className="space-y-2">
               <Label htmlFor="provider">Provider</Label>
               <Select.Root
-                value={formData.providerName}
+                value={formData.provider_name}
                 onValueChange={(value: string) =>
-                  setFormData({ ...formData, providerName: value as 'github' })
+                  setFormData({ ...formData, provider_name: value as 'github' })
                 }
               >
                 <Select.Trigger className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
@@ -96,7 +96,7 @@ export default function NewIntegrationModal({ organizationId, onSuccess }: Creat
               />
             </div>
 
-            {formData.providerName === 'github' && (
+            {formData.provider_name === 'github' && (
               <div className="space-y-2">
                 <Label htmlFor="repositories">Repositories</Label>
                 <Input

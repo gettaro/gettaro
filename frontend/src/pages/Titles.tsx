@@ -53,7 +53,7 @@ export default function Titles() {
       setError(null)
       const request: CreateTitleRequest = { 
         name: newTitleName.trim(),
-        isManager: newTitleIsManager
+        is_manager: newTitleIsManager
       }
       await Api.createTitle(currentOrganization.id, request)
       setNewTitleName('')
@@ -84,7 +84,7 @@ export default function Titles() {
   const handleEditTitle = (title: Title) => {
     setEditingTitle(title)
     setEditTitleName(title.name)
-    setEditTitleIsManager(title.isManager)
+    setEditTitleIsManager(title.is_manager)
     setIsEditModalOpen(true)
   }
 
@@ -97,7 +97,7 @@ export default function Titles() {
       setError(null)
       const request: UpdateTitleRequest = { 
         name: editTitleName.trim(),
-        isManager: editTitleIsManager
+        is_manager: editTitleIsManager
       }
       await Api.updateTitle(currentOrganization.id, editingTitle.id, request)
       setEditTitleName('')
@@ -177,7 +177,7 @@ export default function Titles() {
                   <div>
                     <h3 className="font-medium text-foreground mb-2">{title.name}</h3>
                     <div className="mb-2">
-                      {title.isManager ? (
+                      {title.is_manager ? (
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
                           <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
@@ -194,7 +194,7 @@ export default function Titles() {
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Created {new Date(title.createdAt).toLocaleDateString()}
+                      Created {new Date(title.created_at).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="flex items-center space-x-3">

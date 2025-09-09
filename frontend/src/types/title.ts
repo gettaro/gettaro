@@ -1,23 +1,23 @@
 export interface Title {
   id: string
   name: string
-  organizationId: string
-  isManager: boolean
-  createdAt: string
-  updatedAt: string
+  organization_id: string
+  is_manager: boolean
+  created_at: string
+  updated_at: string
 }
 
 export interface CreateTitleRequest {
   name: string
-  isManager: boolean
+  is_manager: boolean
 }
 
 export interface UpdateTitleRequest {
   name: string
-  isManager: boolean
+  is_manager: boolean
 }
 
 export interface AssignUserTitleRequest {
-  userId: string
-  titleId: string
+  user_id: string
+  title_id: string
 } 

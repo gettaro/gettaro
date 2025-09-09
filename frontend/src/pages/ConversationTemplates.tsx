@@ -20,7 +20,7 @@ export default function ConversationTemplates() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    isActive: true
+    is_active: true
   })
   const [templateFields, setTemplateFields] = useState<TemplateField[]>([])
 
@@ -58,7 +58,7 @@ export default function ConversationTemplates() {
         name: formData.name,
         description: formData.description || undefined,
         template_fields: templateFields,
-        is_active: formData.isActive
+        is_active: formData.is_active
       })
 
       setTemplates([response.conversation_template, ...(templates || [])])
@@ -85,7 +85,7 @@ export default function ConversationTemplates() {
         name: formData.name,
         description: formData.description || undefined,
         template_fields: templateFields,
-        is_active: formData.isActive
+        is_active: formData.is_active
       })
 
       setTemplates((templates || []).map(t => t.id === editingTemplate.id ? response.conversation_template : t))
@@ -123,7 +123,7 @@ export default function ConversationTemplates() {
   }
 
   const resetForm = () => {
-    setFormData({ name: '', description: '', isActive: true })
+    setFormData({ name: '', description: '', is_active: true })
     setTemplateFields([])
     setShowCreateForm(false)
     setEditingTemplate(null)
@@ -134,7 +134,7 @@ export default function ConversationTemplates() {
     setFormData({
       name: template.name,
       description: template.description || '',
-      isActive: template.is_active
+      is_active: template.is_active
     })
     setTemplateFields([...template.template_fields])
     setShowCreateForm(true)
@@ -210,8 +210,8 @@ export default function ConversationTemplates() {
               <input
                 type="checkbox"
                 id="isActive"
-                checked={formData.isActive}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                checked={formData.is_active}
+                onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
               />
               <Label htmlFor="isActive">Active</Label>
             </div>

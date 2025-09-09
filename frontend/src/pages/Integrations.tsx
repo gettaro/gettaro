@@ -62,7 +62,7 @@ export default function Integrations() {
           <Card key={integration.id}>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span className="capitalize">{integration.providerName}</span>
+                <span className="capitalize">{integration.provider_name}</span>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -72,18 +72,18 @@ export default function Integrations() {
                 </Button>
               </CardTitle>
               <CardDescription>
-                Created {new Date(integration.createdAt).toLocaleDateString()}
+                Created {new Date(integration.created_at).toLocaleDateString()}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 <div>
-                  <span className="font-medium">Type:</span> {integration.providerType}
+                  <span className="font-medium">Type:</span> {integration.provider_type}
                 </div>
-                {integration.lastSyncedAt && (
+                {integration.last_synced_at && (
                   <div>
                     <span className="font-medium">Last Synced:</span>{' '}
-                    {new Date(integration.lastSyncedAt).toLocaleDateString()}
+                    {new Date(integration.last_synced_at).toLocaleDateString()}
                   </div>
                 )}
                 {integration.metadata && (

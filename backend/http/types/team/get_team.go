@@ -10,18 +10,18 @@ type TeamResponse struct {
 	ID             string           `json:"id"`
 	Name           string           `json:"name"`
 	Description    string           `json:"description"`
-	OrganizationID string           `json:"organizationId"`
-	CreatedAt      time.Time        `json:"createdAt"`
-	UpdatedAt      time.Time        `json:"updatedAt"`
+	OrganizationID string           `json:"organization_id"`
+	CreatedAt      time.Time        `json:"created_at"`
+	UpdatedAt      time.Time        `json:"updated_at"`
 	Members        []MemberResponse `json:"members"`
 }
 
 type MemberResponse struct {
 	ID        string    `json:"id"`
-	UserID    string    `json:"userId"`
+	UserID    string    `json:"user_id"`
 	Role      string    `json:"role"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type ListTeamsResponse struct {

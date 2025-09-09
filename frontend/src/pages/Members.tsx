@@ -26,15 +26,15 @@ export default function Members() {
   const [formData, setFormData] = useState<AddMemberRequest>({
     email: '',
     username: '',
-    titleId: '',
-    sourceControlAccountId: '',
-    managerId: undefined
+    title_id: '',
+    source_control_account_id: '',
+    manager_id: undefined
   })
   const [updateFormData, setUpdateFormData] = useState<UpdateMemberRequest>({
     username: '',
-    titleId: '',
-    sourceControlAccountId: '',
-    managerId: undefined
+    title_id: '',
+    source_control_account_id: '',
+    manager_id: undefined
   })
 
   useEffect(() => {
@@ -134,15 +134,15 @@ export default function Members() {
 
   const aggregateMemberMetrics = (memberMetrics: GetMemberMetricsResponse[]): GetMemberMetricsResponse => {
     const aggregated: GetMemberMetricsResponse = {
-      snapshotMetrics: [],
-      graphMetrics: []
+      snapshot_metrics: [],
+      graph_metrics: []
     }
 
     // Aggregate snapshot metrics
     const categoryMap = new Map<string, SnapshotMetric[]>()
 
     memberMetrics.forEach(memberMetric => {
-      memberMetric.snapshotMetrics.forEach(category => {
+      memberMetric.snapshot_metrics.forEach(category => {
         if (!categoryMap.has(category.category.name)) {
           categoryMap.set(category.category.name, [])
         }
@@ -151,16 +151,16 @@ export default function Members() {
           const existingMetric = categoryMap.get(category.category.name)?.find(m => m.label === metric.label)
           if (existingMetric) {
             existingMetric.value += metric.value
-            existingMetric.peersValue += metric.peersValue
+            existingMetric.peers_value += metric.peers_value
           } else {
             categoryMap.get(category.category.name)?.push({
               label: metric.label,
               description: metric.description || '',
               value: metric.value,
-              peersValue: metric.peersValue,
+              peers_value: metric.peers_value,
               unit: metric.unit,
-              iconIdentifier: metric.iconIdentifier || 'default',
-              iconColor: metric.iconColor || 'gray'
+              icon_identifier: metric.icon_identifier || 'default',
+              icon_color: metric.icon_color || 'gray'
             })
           }
         })
@@ -169,14 +169,14 @@ export default function Members() {
 
     // Convert aggregated metrics back to the expected format
     categoryMap.forEach((metrics, categoryName) => {
-      aggregated.snapshotMetrics.push({
+      aggregated.snapshot_metrics.push({
         category: {
           name: categoryName,
           priority: 0 // Default priority since we don't have this info in aggregation
         },
         metrics: metrics.map(metric => ({
           ...metric,
-          peersValue: metric.peersValue / memberMetrics.length // Average peer value
+          peers_value: metric.peers_value / memberMetrics.length // Average peer value
         }))
       })
     })
@@ -195,9 +195,9 @@ export default function Members() {
       setFormData({
         email: '',
         username: '',
-        titleId: '',
-        sourceControlAccountId: '',
-        managerId: undefined
+        title_id: '',
+        source_control_account_id: '',
+        manager_id: undefined
       })
       setIsAddModalOpen(false)
       await loadMembers() // Reload the list
@@ -219,9 +219,9 @@ export default function Members() {
       await Api.updateOrganizationMember(currentOrganization.id, selectedMember.id, updateFormData)
       setUpdateFormData({
         username: '',
-        titleId: '',
-        sourceControlAccountId: '',
-        managerId: undefined
+        title_id: '',
+        source_control_account_id: '',
+        manager_id: undefined
       })
       setSelectedMember(null)
       setIsUpdateModalOpen(false)
@@ -238,9 +238,9 @@ export default function Members() {
     setSelectedMember(member)
     setUpdateFormData({
       username: member.username,
-      titleId: member.titleId || '', // Pre-populate with current title
-      sourceControlAccountId: sourceControlAccounts.find(acc => acc.memberId === member.id)?.id || '', // Pre-populate with current source control account
-      managerId: member.managerId // Pre-populate with current manager
+      title_id: member.title_id || '', // Pre-populate with current title
+      source_control_account_id: sourceControlAccounts.find(acc => acc.member_id === member.id)?.id || '', // Pre-populate with current source control account
+      manager_id: member.manager_id // Pre-populate with current manager
     })
     setIsUpdateModalOpen(true)
   }
@@ -360,7 +360,7 @@ export default function Members() {
             <div className="divide-y divide-border">
               {members.map((member) => {
                 // Find source control account once for efficiency
-                const sourceControlAccount = sourceControlAccounts.find(acc => acc.memberId === member.id)
+                const sourceControlAccount = sourceControlAccounts.find(acc => acc.member_id === member.id)
                 
                 return (
                   <div key={member.id} className="p-6 flex items-center justify-between">
@@ -374,12 +374,12 @@ export default function Members() {
                         <h3 className="font-medium text-foreground">{member.username}</h3>
                         <p className="text-sm text-muted-foreground">{member.email}</p>
                         <div className="mt-2 space-y-1">
-                          {member.titleId && (
+                          {member.title_id && (
                             <div className="flex items-center space-x-2 text-sm text-foreground">
                               <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2z" />
                               </svg>
-                              <span>{titles.find(t => t.id === member.titleId)?.name || 'Unknown Title'}</span>
+                              <span>{titles.find(t => t.id === member.title_id)?.name || 'Unknown Title'}</span>
                             </div>
                           )}
                           {/* Source Control Account - Always show this section */}
@@ -390,8 +390,8 @@ export default function Members() {
                             {sourceControlAccount ? (
                               <span className="font-medium text-blue-600">
                                 @{sourceControlAccount.username}
-                                {sourceControlAccount.providerName && 
-                                  ` (${sourceControlAccount.providerName})`
+                                {sourceControlAccount.provider_name && 
+                                  ` (${sourceControlAccount.provider_name})`
                                 }
                               </span>
                             ) : (
@@ -402,15 +402,15 @@ export default function Members() {
                           </div>
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">
-                          Joined {new Date(member.createdAt).toLocaleDateString()}
+                          Joined {new Date(member.created_at).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <span className={getRoleBadge(member.isOwner)}>
-                        {member.isOwner ? 'Owner' : 'Member'}
+                      <span className={getRoleBadge(member.is_owner)}>
+                        {member.is_owner ? 'Owner' : 'Member'}
                       </span>
-                      {!member.isOwner && (
+                      {!member.is_owner && (
                         <>
                           <button 
                             onClick={() => handleEditMember(member)}
@@ -502,7 +502,7 @@ export default function Members() {
                 </div>
               ) : metrics ? (
                 <div className="space-y-8">
-                  {metrics.snapshotMetrics.map((category) => (
+                  {metrics.snapshot_metrics.map((category) => (
                     <div key={category.category.name} className="space-y-4">
                       <h3 className="text-lg font-semibold text-foreground">{category.category.name}</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -511,8 +511,8 @@ export default function Members() {
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center space-x-2">
                                 <MetricIcon 
-                                  iconIdentifier={metric.iconIdentifier || 'default'} 
-                                  iconColor={metric.iconColor || 'gray'} 
+                                  iconIdentifier={metric.icon_identifier || 'default'} 
+                                  iconColor={metric.icon_color || 'gray'} 
                                   className="w-5 h-5"
                                 />
                                 <span className="text-sm font-medium text-foreground">{metric.label}</span>
@@ -525,11 +525,11 @@ export default function Members() {
                               </span>
                               <div className="text-right">
                                 <span className="text-sm text-muted-foreground">
-                                  {formatMetricValue(metric.peersValue, metric.unit)}
+                                  {formatMetricValue(metric.peers_value, metric.unit)}
                                 </span>
                                 <div className="text-xs text-muted-foreground">
-                                  {typeof metric.value === 'number' && typeof metric.peersValue === 'number' && metric.peersValue > 0
-                                    ? `${((metric.value / metric.peersValue) * 100).toFixed(1)}%`
+                                  {typeof metric.value === 'number' && typeof metric.peers_value === 'number' && metric.peers_value > 0
+                                    ? `${((metric.value / metric.peers_value) * 100).toFixed(1)}%`
                                     : 'N/A'}
                                 </div>
                               </div>
@@ -605,14 +605,14 @@ export default function Members() {
                   </label>
                   <select
                     required
-                    value={formData.titleId}
-                    onChange={(e) => setFormData({ ...formData, titleId: e.target.value })}
+                    value={formData.title_id}
+                    onChange={(e) => setFormData({ ...formData, title_id: e.target.value })}
                     className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="">Select a title</option>
                     {titles.map((title) => (
                       <option key={title.id} value={title.id}>
-                        {title.name}{title.isManager ? ' (Manager)' : ''}
+                        {title.name}{title.is_manager ? ' (Manager)' : ''}
                       </option>
                     ))}
                   </select>
@@ -624,15 +624,15 @@ export default function Members() {
                   </label>
                   <select
                     required
-                    value={formData.sourceControlAccountId}
-                    onChange={(e) => setFormData({ ...formData, sourceControlAccountId: e.target.value })}
+                    value={formData.source_control_account_id}
+                    onChange={(e) => setFormData({ ...formData, source_control_account_id: e.target.value })}
                     className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="">Select a source control account</option>
                     {sourceControlAccounts.length > 0 ? (
                       sourceControlAccounts.map((account) => (
                         <option key={account.id} value={account.id}>
-                          {account.username} {account.providerName ? `(${account.providerName})` : ''}
+                          {account.username} {account.provider_name ? `(${account.provider_name})` : ''}
                         </option>
                       ))
                     ) : (
@@ -651,16 +651,16 @@ export default function Members() {
                     Manager (Optional)
                   </label>
                   <select
-                    value={formData.managerId || ''}
-                    onChange={(e) => setFormData({ ...formData, managerId: e.target.value || undefined })}
+                    value={formData.manager_id || ''}
+                    onChange={(e) => setFormData({ ...formData, manager_id: e.target.value || undefined })}
                     className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="">No manager</option>
                     {members
                       .filter(member => {
                         // Only show members with manager titles as potential managers
-                        const memberTitle = titles.find(t => t.id === member.titleId)
-                        return memberTitle?.isManager
+                        const memberTitle = titles.find(t => t.id === member.title_id)
+                        return memberTitle?.is_manager
                       })
                       .map((member) => (
                         <option key={member.id} value={member.id}>
@@ -701,7 +701,7 @@ export default function Members() {
                   onClick={() => {
                     setIsUpdateModalOpen(false)
                     setSelectedMember(null)
-                    setUpdateFormData({ username: '', titleId: '', sourceControlAccountId: '', managerId: undefined })
+                    setUpdateFormData({ username: '', title_id: '', source_control_account_id: '', manager_id: undefined })
                   }}
                   className="text-muted-foreground hover:text-foreground"
                 >
@@ -747,20 +747,20 @@ export default function Members() {
                   </label>
                   <select
                     required
-                    value={updateFormData.titleId}
-                    onChange={(e) => setUpdateFormData({ ...updateFormData, titleId: e.target.value })}
+                    value={updateFormData.title_id}
+                    onChange={(e) => setUpdateFormData({ ...updateFormData, title_id: e.target.value })}
                     className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="">Select a title</option>
                     {titles.map((title) => (
                       <option key={title.id} value={title.id}>
-                        {title.name}{title.isManager ? ' (Manager)' : ''}
+                        {title.name}{title.is_manager ? ' (Manager)' : ''}
                       </option>
                     ))}
                   </select>
-                  {updateFormData.titleId && (() => {
-                    const selectedTitle = titles.find(t => t.id === updateFormData.titleId)
-                    return selectedTitle && selectedTitle.isManager ? (
+                  {updateFormData.title_id && (() => {
+                    const selectedTitle = titles.find(t => t.id === updateFormData.title_id)
+                    return selectedTitle && selectedTitle.is_manager ? (
                       <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
                         <div className="flex items-center space-x-2">
                           <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -781,15 +781,15 @@ export default function Members() {
                   </label>
                   <select
                     required
-                    value={updateFormData.sourceControlAccountId}
-                    onChange={(e) => setUpdateFormData({ ...updateFormData, sourceControlAccountId: e.target.value })}
+                    value={updateFormData.source_control_account_id}
+                    onChange={(e) => setUpdateFormData({ ...updateFormData, source_control_account_id: e.target.value })}
                     className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="">Select a source control account</option>
                     {sourceControlAccounts.length > 0 ? (
                       sourceControlAccounts.map((account) => (
                         <option key={account.id} value={account.id}>
-                          {account.username} {account.providerName ? `(${account.providerName})` : ''}
+                          {account.username} {account.provider_name ? `(${account.provider_name})` : ''}
                         </option>
                       ))
                     ) : (
@@ -808,8 +808,8 @@ export default function Members() {
                     Manager (Optional)
                   </label>
                   <select
-                    value={updateFormData.managerId || ''}
-                    onChange={(e) => setUpdateFormData({ ...updateFormData, managerId: e.target.value || undefined })}
+                    value={updateFormData.manager_id || ''}
+                    onChange={(e) => setUpdateFormData({ ...updateFormData, manager_id: e.target.value || undefined })}
                     className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="">No manager</option>
@@ -817,8 +817,8 @@ export default function Members() {
                       .filter(member => {
                         // Only show members with manager titles as potential managers
                         // Also exclude the current member being edited
-                        const memberTitle = titles.find(t => t.id === member.titleId)
-                        return memberTitle?.isManager && member.id !== selectedMember?.id
+                        const memberTitle = titles.find(t => t.id === member.title_id)
+                        return memberTitle?.is_manager && member.id !== selectedMember?.id
                       })
                       .map((member) => (
                         <option key={member.id} value={member.id}>
@@ -834,7 +834,7 @@ export default function Members() {
                     onClick={() => {
                       setIsUpdateModalOpen(false)
                       setSelectedMember(null)
-                      setUpdateFormData({ username: '', titleId: '', sourceControlAccountId: '', managerId: undefined })
+                      setUpdateFormData({ username: '', title_id: '', source_control_account_id: '', manager_id: undefined })
                     }}
                     className="flex-1 px-4 py-2 border border-border rounded-md text-foreground hover:bg-muted transition-colors"
                   >

@@ -20,12 +20,12 @@ type MemberActivity struct {
 	Description      string                 `json:"description,omitempty"`
 	URL              string                 `json:"url,omitempty"`
 	Repository       string                 `json:"repository,omitempty"`
-	CreatedAt        time.Time              `json:"createdAt"`
+	CreatedAt        time.Time              `json:"created_at"`
 	Metadata         map[string]interface{} `json:"metadata,omitempty"`
-	AuthorUsername   string                 `json:"authorUsername,omitempty"`
-	PRTitle          string                 `json:"prTitle,omitempty"`          // For comments/reviews: the PR title
-	PRAuthorUsername string                 `json:"prAuthorUsername,omitempty"` // For comments/reviews: the PR author
-	PRMetrics        datatypes.JSON         `json:"prMetrics,omitempty"`
+	AuthorUsername   string                 `json:"author_username,omitempty"`
+	PRTitle          string                 `json:"pr_title,omitempty"`           // For comments/reviews: the PR title
+	PRAuthorUsername string                 `json:"pr_author_username,omitempty"` // For comments/reviews: the PR author
+	PRMetrics        datatypes.JSON         `json:"pr_metrics,omitempty"`
 }
 
 // GetMemberActivityResponse represents the response for getting member activity

@@ -271,7 +271,7 @@ func (h *DirectsHandler) AddDirectReport(c *gin.Context) {
 	}
 
 	var req struct {
-		ReportID string `json:"reportId" binding:"required"`
+		ReportID string `json:"report_id" binding:"required"`
 		Depth    int    `json:"depth" binding:"required"`
 	}
 

@@ -2,20 +2,20 @@ export interface Member {
   id: string
   email: string
   username: string
-  organizationId: string
-  isOwner: boolean
-  titleId?: string
+  organization_id: string
+  is_owner: boolean
+  title_id?: string
   title?: string
-  createdAt: string
-  updatedAt: string
+  created_at: string
+  updated_at: string
 }
 
 export interface OrgChartNode {
   member: Member
-  directReports: OrgChartNode[]
+  direct_reports: OrgChartNode[]
   depth: number
 }
 
 export interface GetManagerTreeResponse {
-  orgChart: OrgChartNode[]
+  org_chart: OrgChartNode[]
 }

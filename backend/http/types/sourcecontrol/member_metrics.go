@@ -13,7 +13,7 @@ type GetMemberMetricsRequest struct {
 type SnapshotMetric struct {
 	Label      string     `json:"label"`
 	Value      float64    `json:"value"`
-	PeersValue float64    `json:"peersValue"`
+	PeersValue float64    `json:"peers_value"`
 	Unit       types.Unit `json:"unit"` // "count", "time" etc.
 }
 
@@ -38,7 +38,7 @@ type TimeSeriesEntry struct {
 // GraphMetric represents a single metric in the graph data
 type GraphMetric struct {
 	Label      string            `json:"label"`
-	TimeSeries []TimeSeriesEntry `json:"timeSeries"`
+	TimeSeries []TimeSeriesEntry `json:"time_series"`
 }
 
 // GraphCategory represents a category of metrics in the graph data
@@ -49,6 +49,6 @@ type GraphCategory struct {
 
 // GetMemberMetricsResponse represents the response for getting member metrics
 type GetMemberMetricsResponse struct {
-	SnapshotMetrics []SnapshotCategory `json:"snapshotMetrics"`
-	GraphMetrics    []GraphCategory    `json:"graphMetrics"`
+	SnapshotMetrics []SnapshotCategory `json:"snapshot_metrics"`
+	GraphMetrics    []GraphCategory    `json:"graph_metrics"`
 }

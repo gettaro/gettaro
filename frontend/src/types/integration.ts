@@ -2,18 +2,18 @@ export type IntegrationProvider = 'github'
 
 export interface IntegrationConfig {
   id: string
-  organizationId: string
-  providerName: IntegrationProvider
-  providerType: string
-  encryptedToken: string
+  organization_id: string
+  provider_name: IntegrationProvider
+  provider_type: string
+  encrypted_token: string
   metadata: Record<string, any>
-  lastSyncedAt?: string
-  createdAt: string
-  updatedAt: string
+  last_synced_at?: string
+  created_at: string
+  updated_at: string
 }
 
 export interface CreateIntegrationConfigRequest {
-  providerName: IntegrationProvider
+  provider_name: IntegrationProvider
   token: string
   metadata?: Record<string, any>
 }

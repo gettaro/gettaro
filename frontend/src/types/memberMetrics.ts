@@ -10,10 +10,10 @@ export interface SnapshotMetric {
   label: string
   description: string
   value: number
-  peersValue: number
+  peers_value: number
   unit: string // "count", "time", "loc", etc.
-  iconIdentifier: string
-  iconColor: string
+  icon_identifier: string
+  icon_color: string
 }
 
 // Metric rule category
@@ -44,7 +44,7 @@ export interface TimeSeriesEntry {
 export interface GraphMetric {
   label: string
   type: string
-  timeSeries: TimeSeriesEntry[]
+  time_series: TimeSeriesEntry[]
 }
 
 // Category of graph metrics
@@ -55,6 +55,6 @@ export interface GraphCategory {
 
 // Response for member metrics
 export interface GetMemberMetricsResponse {
-  snapshotMetrics: SnapshotCategory[]
-  graphMetrics: GraphCategory[]
+  snapshot_metrics: SnapshotCategory[]
+  graph_metrics: GraphCategory[]
 } 

@@ -41,6 +41,6 @@ type BaseMetricRule struct {
 	Unit           types.Unit               `json:"unit"`
 	Dimension      MetricDimension          `json:"dimension"`
 	Operation      MetricOperation          `json:"operation"`
-	IconIdentifier string                   `json:"iconIdentifier"`
-	IconColor      string                   `json:"iconColor"`
+	IconIdentifier string                   `json:"icon_identifier"`
+	IconColor      string                   `json:"icon_color"`
 }

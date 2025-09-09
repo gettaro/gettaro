@@ -11,12 +11,12 @@ type ListDirectReportsQuery struct {
 
 // ListDirectReportsResponse represents the response for listing direct reports
 type ListDirectReportsResponse struct {
-	DirectReports []DirectReportResponse `json:"directReports"`
+	DirectReports []DirectReportResponse `json:"direct_reports"`
 }
 
 // GetDirectReportResponse represents the response for getting a single direct report
 type GetDirectReportResponse struct {
-	DirectReport DirectReportResponse `json:"directReport"`
+	DirectReport DirectReportResponse `json:"direct_report"`
 }
 
 // UpdateDirectReportRequest represents the request body for updating a direct report
@@ -26,5 +26,5 @@ type UpdateDirectReportRequest struct {
 
 // UpdateDirectReportResponse represents the response for updating a direct report
 type UpdateDirectReportResponse struct {
-	DirectReport DirectReportResponse `json:"directReport"`
+	DirectReport DirectReportResponse `json:"direct_report"`
 }

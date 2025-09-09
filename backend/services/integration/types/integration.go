@@ -21,18 +21,18 @@ const (
 
 type IntegrationConfig struct {
 	ID             string                  `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	OrganizationID string                  `json:"organizationId"`
-	ProviderName   IntegrationProvider     `json:"providerName"`
-	ProviderType   IntegrationProviderType `json:"providerType"`
-	EncryptedToken string                  `json:"encryptedToken"`
+	OrganizationID string                  `json:"organization_id"`
+	ProviderName   IntegrationProvider     `json:"provider_name"`
+	ProviderType   IntegrationProviderType `json:"provider_type"`
+	EncryptedToken string                  `json:"encrypted_token"`
 	Metadata       datatypes.JSON          `json:"metadata"`
-	LastSyncedAt   *time.Time              `json:"lastSyncedAt"`
-	CreatedAt      time.Time               `json:"createdAt" gorm:"default:now()"`
-	UpdatedAt      time.Time               `json:"updatedAt"`
+	LastSyncedAt   *time.Time              `json:"last_synced_at"`
+	CreatedAt      time.Time               `json:"created_at" gorm:"default:now()"`
+	UpdatedAt      time.Time               `json:"updated_at"`
 }
 
 type CreateIntegrationConfigRequest struct {
-	ProviderName IntegrationProvider `json:"providerName" binding:"required"`
+	ProviderName IntegrationProvider `json:"provider_name" binding:"required"`
 	Token        string              `json:"token" binding:"required"`
 	Metadata     datatypes.JSON      `json:"metadata"`
 }

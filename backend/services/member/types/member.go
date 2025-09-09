@@ -8,19 +8,19 @@ import (
 // This is stored in the organization_members table
 type OrganizationMember struct {
 	ID             string    `json:"id"`
-	UserID         string    `json:"userId"`
+	UserID         string    `json:"user_id"`
 	Email          string    `json:"email"`
 	Username       string    `json:"username"`
-	OrganizationID string    `json:"organizationId"`
-	IsOwner        bool      `json:"isOwner"`
-	TitleID        *string   `json:"titleId,omitempty"`   // New field for direct title reference
-	ManagerID      *string   `json:"managerId,omitempty"` // Manager's member ID
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	OrganizationID string    `json:"organization_id"`
+	IsOwner        bool      `json:"is_owner"`
+	TitleID        *string   `json:"title_id,omitempty"`   // New field for direct title reference
+	ManagerID      *string   `json:"manager_id,omitempty"` // Manager's member ID
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type OrganizationMemberParams struct {
-	TitleIDs []string `json:"titleIds"`
+	TitleIDs []string `json:"title_ids"`
 	IDs      []string `json:"ids"`
 }
 
@@ -28,20 +28,20 @@ type OrganizationMemberParams struct {
 type AddMemberRequest struct {
 	Email                  string  `json:"email"`
 	Username               string  `json:"username"`
-	TitleID                string  `json:"titleId"`
-	SourceControlAccountID string  `json:"sourceControlAccountId"`
-	ManagerID              *string `json:"managerId,omitempty"`
+	TitleID                string  `json:"title_id"`
+	SourceControlAccountID string  `json:"source_control_account_id"`
+	ManagerID              *string `json:"manager_id,omitempty"`
 }
 
 // UpdateMemberRequest represents the request to update a member in an organization
 type UpdateMemberRequest struct {
 	Username               string  `json:"username"`
-	TitleID                string  `json:"titleId"`
-	SourceControlAccountID string  `json:"sourceControlAccountId"`
-	ManagerID              *string `json:"managerId,omitempty"`
+	TitleID                string  `json:"title_id"`
+	SourceControlAccountID string  `json:"source_control_account_id"`
+	ManagerID              *string `json:"manager_id,omitempty"`
 }
 
 // RemoveMemberRequest represents the request to remove a member from an organization
 type RemoveMemberRequest struct {
-	UserID string `json:"userId"`
+	UserID string `json:"user_id"`
 }

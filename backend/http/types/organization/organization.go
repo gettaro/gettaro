@@ -8,10 +8,10 @@ type CreateOrganizationRequest struct {
 type AddOrganizationMemberRequest struct {
 	Email                  string `json:"email" binding:"required"`
 	Username               string `json:"username" binding:"required"`
-	TitleID                string `json:"titleId" binding:"required"`
-	SourceControlAccountID string `json:"sourceControlAccountId" binding:"required"`
+	TitleID                string `json:"title_id" binding:"required"`
+	SourceControlAccountID string `json:"source_control_account_id" binding:"required"`
 }
 
 type RemoveOrganizationMemberRequest struct {
-	UserID string `json:"userId" binding:"required"`
+	UserID string `json:"user_id" binding:"required"`
 }

@@ -61,7 +61,7 @@ export default function MemberProfilePage() {
 
   // Load management tree when management tree tab is selected
   useEffect(() => {
-    if (activeTab === 'management-tree' && member && title?.isManager && currentOrganization?.id && memberId) {
+    if (activeTab === 'management-tree' && member && title?.is_manager && currentOrganization?.id && memberId) {
       loadManagementTree()
     }
   }, [activeTab, member, title, currentOrganization?.id, memberId])
@@ -133,10 +133,10 @@ export default function MemberProfilePage() {
       setError(null)
 
       const response = await Api.getManagerTree(currentOrganization.id, memberId)
-      setManagementTree(response.orgChart)
+      setManagementTree(response.org_chart)
       
       // Auto-expand the top-level manager (the current member)
-      if (response.orgChart && response.orgChart.length > 0) {
+      if (response.org_chart && response.org_chart.length > 0) {
         setExpandedNodes(new Set([memberId]))
       }
     } catch (err) {
@@ -330,7 +330,7 @@ export default function MemberProfilePage() {
         return (
           <div>
             <div className="text-sm text-muted-foreground mb-2">
-              <span className="font-medium">@{activity.authorUsername}</span> has created a new PR
+              <span className="font-medium">@{activity.author_username}</span> has created a new PR
             </div>
             <h3 className="text-lg font-medium text-foreground mb-3">
               {activity.title}
@@ -398,25 +398,25 @@ export default function MemberProfilePage() {
             )}
 
             {/* PR Metrics */}
-            {activity.prMetrics && (
+            {activity.pr_metrics && (
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-3">
                 {/* Time to merge */}
-                {activity.prMetrics.time_to_merge_seconds !== undefined && (
+                {activity.pr_metrics.time_to_merge_seconds !== undefined && (
                   <span className="flex items-center space-x-1">
                     <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span>Merge: {formatTimeMetric(activity.prMetrics.time_to_merge_seconds)}</span>
+                    <span>Merge: {formatTimeMetric(activity.pr_metrics.time_to_merge_seconds)}</span>
                   </span>
                 )}
                 
                 {/* Time to first review */}
-                {activity.prMetrics.time_to_first_non_bot_review_seconds !== undefined && (
+                {activity.pr_metrics.time_to_first_non_bot_review_seconds !== undefined && (
                   <span className="flex items-center space-x-1">
                     <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span>First review: {formatTimeMetric(activity.prMetrics.time_to_first_non_bot_review_seconds)}</span>
+                    <span>First review: {formatTimeMetric(activity.pr_metrics.time_to_first_non_bot_review_seconds)}</span>
                   </span>
                 )}
 
@@ -426,7 +426,7 @@ export default function MemberProfilePage() {
                     <svg className="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span>Opened {Math.ceil((Date.now() - new Date(activity.createdAt).getTime()) / (1000 * 60 * 60 * 24))}d</span>
+                    <span>Opened {Math.ceil((Date.now() - new Date(activity.created_at).getTime()) / (1000 * 60 * 60 * 24))}d</span>
                   </span>
                 )}
               </div>
@@ -467,9 +467,9 @@ export default function MemberProfilePage() {
         return (
           <div>
             <div className="text-sm text-muted-foreground mb-2">
-              <span className="font-medium">@{activity.authorUsername}</span> commented on{' '}
-              <span className="font-medium">{activity.prTitle}</span> from{' '}
-              <span className="font-medium">@{activity.prAuthorUsername}</span>
+              <span className="font-medium">@{activity.author_username}</span> commented on{' '}
+              <span className="font-medium">{activity.pr_title}</span> from{' '}
+              <span className="font-medium">@{activity.pr_author_username}</span>
             </div>
             
             {/* Expandable Comment */}
@@ -507,9 +507,9 @@ export default function MemberProfilePage() {
         return (
           <div>
             <div className="text-sm text-muted-foreground mb-2">
-              <span className="font-medium">@{activity.authorUsername}</span> has reviewed{' '}
-              <span className="font-medium">{activity.prTitle}</span> from{' '}
-              <span className="font-medium">@{activity.prAuthorUsername}</span>
+              <span className="font-medium">@{activity.author_username}</span> has reviewed{' '}
+              <span className="font-medium">{activity.pr_title}</span> from{' '}
+              <span className="font-medium">@{activity.pr_author_username}</span>
             </div>
             
             {/* Expandable Review */}
@@ -571,10 +571,10 @@ export default function MemberProfilePage() {
       setMember(foundMember)
 
       // Load title if member has one
-      if (foundMember.titleId) {
+      if (foundMember.title_id) {
         try {
           const titles = await Api.getOrganizationTitles(currentOrganization.id)
-          const foundTitle = titles.find(t => t.id === foundMember.titleId)
+          const foundTitle = titles.find(t => t.id === foundMember.title_id)
           setTitle(foundTitle || null)
         } catch (err) {
           console.error('Error loading title:', err)
@@ -584,7 +584,7 @@ export default function MemberProfilePage() {
       // Load source control account if member has one
       try {
         const sourceControlAccounts = await Api.getOrganizationSourceControlAccounts(currentOrganization.id)
-        const foundAccount = sourceControlAccounts.find(acc => acc.memberId === memberId)
+        const foundAccount = sourceControlAccounts.find(acc => acc.member_id === memberId)
         setSourceControlAccount(foundAccount || null)
       } catch (err) {
         console.error('Error loading source control account:', err)
@@ -615,8 +615,8 @@ export default function MemberProfilePage() {
       const ids: string[] = []
       nodes.forEach(node => {
         ids.push(node.member.id)
-        if (node.directReports && node.directReports.length > 0) {
-          ids.push(...getAllNodeIds(node.directReports))
+        if (node.direct_reports && node.direct_reports.length > 0) {
+          ids.push(...getAllNodeIds(node.direct_reports))
         }
       })
       return ids
@@ -633,7 +633,7 @@ export default function MemberProfilePage() {
   const renderManagementTreeNode = (node: OrgChartNode, depth: number = 0) => {
     const indentClass = `ml-${depth * 4}`
     const isExpanded = expandedNodes.has(node.member.id)
-    const hasDirectReports = node.directReports && node.directReports.length > 0
+    const hasDirectReports = node.direct_reports && node.direct_reports.length > 0
     const isManager = hasDirectReports
     
     return (
@@ -672,7 +672,7 @@ export default function MemberProfilePage() {
             )}
             {isManager && (
               <p className="text-xs text-muted-foreground">
-                {node.directReports.length} direct report{node.directReports.length !== 1 ? 's' : ''}
+                {node.direct_reports.length} direct report{node.direct_reports.length !== 1 ? 's' : ''}
               </p>
             )}
           </div>
@@ -690,7 +690,7 @@ export default function MemberProfilePage() {
         {/* Direct Reports (only show if expanded) */}
         {isManager && isExpanded && (
           <div className="mt-2 ml-6 border-l-2 border-muted pl-4">
-            {node.directReports.map(report => renderManagementTreeNode(report, depth + 1))}
+            {(node.direct_reports || []).map(report => renderManagementTreeNode(report, depth + 1))}
           </div>
         )}
       </div>
@@ -770,26 +770,26 @@ export default function MemberProfilePage() {
                 </div>
               ) : metrics ? (
                 <div className="space-y-8">
-                  {metrics.snapshotMetrics.map((category) => (
+                  {(metrics.snapshot_metrics || []).map((category) => (
                     <div key={category.category.name} className="space-y-4">
                       <h4 className="text-md font-semibold text-foreground">{category.category.name}</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {category.metrics.map((metric) => (
+                        {(category.metrics || []).map((metric) => (
                           <div key={metric.label} className="text-center p-4 bg-muted/30 rounded-lg border border-border">
                             <div className="flex justify-center mb-2">
                               {/* Use backend-provided icon */}
                               <MetricIcon 
-                                iconIdentifier={metric.iconIdentifier || 'default'} 
-                                iconColor={metric.iconColor || 'gray'} 
+                                iconIdentifier={metric.icon_identifier || 'default'} 
+                                iconColor={metric.icon_color || 'gray'} 
                               />
                             </div>
                             <div className="text-2xl font-bold text-foreground">
                               {formatMetricValue(metric.value, metric.unit)}
                             </div>
                             <div className="text-sm text-muted-foreground">{metric.label}</div>
-                            {typeof metric.peersValue === 'number' && metric.peersValue > 0 && (
+                            {typeof metric.peers_value === 'number' && metric.peers_value > 0 && (
                               <div className="text-xs text-muted-foreground mt-1">
-                                vs {formatMetricValue(metric.peersValue, metric.unit)} (peers)
+                                vs {formatMetricValue(metric.peers_value, metric.unit)} (peers)
                               </div>
                             )}
                           </div>
@@ -859,7 +859,7 @@ export default function MemberProfilePage() {
                     </div>
                   ) : (
                     <div className="h-96 overflow-y-auto">
-                      {pullRequests.map((pr) => (
+                      {(pullRequests || []).map((pr) => (
                         <div key={pr.id} className="p-6">
                           <div className="flex items-start space-x-4">
                             <div className="flex-shrink-0 mt-1">
@@ -954,7 +954,7 @@ export default function MemberProfilePage() {
                     </div>
                   ) : (
                     <div className="h-96 overflow-y-auto">
-                      {pullRequestReviews.map((review) => (
+                      {(pullRequestReviews || []).map((review) => (
                           <div key={review.id} className="p-6">
                             <div className="flex items-start space-x-4">
                               <div className="flex-shrink-0 mt-1">
@@ -965,7 +965,7 @@ export default function MemberProfilePage() {
                                 
                                 <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-3">
                                   <span>
-                                    {new Date(review.createdAt).toLocaleDateString('en-US', {
+                                    {new Date(review.created_at).toLocaleDateString('en-US', {
                                       year: 'numeric',
                                       month: 'long',
                                       day: 'numeric',
@@ -1039,7 +1039,7 @@ export default function MemberProfilePage() {
                   </p>
                   
                   {/* Direct Reports */}
-                  {managementTree.map(node => renderManagementTreeNode(node))}
+                  {(managementTree || []).map(node => renderManagementTreeNode(node))}
                 </div>
               ) : (
                 <div className="text-center py-8">
@@ -1175,7 +1175,7 @@ export default function MemberProfilePage() {
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                       </svg>
-                      <span>{sourceControlAccount.username} ({sourceControlAccount.providerName})</span>
+                      <span>{sourceControlAccount.username} ({sourceControlAccount.provider_name})</span>
                     </div>
                   )}
                 </div>
@@ -1184,7 +1184,7 @@ export default function MemberProfilePage() {
             
             {/* Role Badge */}
             <div className="flex items-center space-x-2">
-              {member.isOwner && (
+              {member.is_owner && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                   Owner
                 </span>
@@ -1220,7 +1220,7 @@ export default function MemberProfilePage() {
               >
                 Code Contributions
               </button>
-              {title?.isManager && (
+              {title?.is_manager && (
                 <button
                   onClick={() => setActiveTab('management-tree')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
