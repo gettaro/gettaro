@@ -10,8 +10,9 @@ import { OrgChartNode } from '../types/directs'
 import Api from '../api/api'
 import { formatMetricValue, formatTimeMetric } from '../utils/formatMetrics'
 import MetricIcon from '../components/MetricIcon'
+import { ConversationsTab } from '../components/ConversationsTab'
 
-type TabType = 'overview' | 'source-control-metrics' | 'management-tree'
+type TabType = 'overview' | 'source-control-metrics' | 'management-tree' | 'conversations'
 
 export default function MemberProfilePage() {
   const { memberId } = useParams<{ memberId: string }>()
@@ -1058,6 +1059,15 @@ export default function MemberProfilePage() {
           </div>
         )
 
+      case 'conversations':
+        return (
+          <ConversationsTab
+            organizationId={currentOrganization!.id}
+            memberId={memberId!}
+            memberName={member!.username}
+          />
+        )
+
       default:
         return null
     }
@@ -1232,6 +1242,16 @@ export default function MemberProfilePage() {
                   Management Tree
                 </button>
               )}
+              <button
+                onClick={() => setActiveTab('conversations')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'conversations'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                }`}
+              >
+                Conversations
+              </button>
             </nav>
           </div>
           

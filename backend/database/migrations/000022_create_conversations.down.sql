@@ -1,4 +1,2 @@
--- Drop conversations table and related objects
-DROP TRIGGER IF EXISTS conversations_updated_at ON conversations;
-DROP FUNCTION IF EXISTS update_conversations_updated_at();
+-- Drop conversations table
 DROP TABLE IF EXISTS conversations;

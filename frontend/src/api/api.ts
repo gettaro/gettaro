@@ -16,6 +16,17 @@ import {
   CreateConversationTemplateResponse,
   UpdateConversationTemplateResponse
 } from '../types/conversationTemplate'
+import {
+  Conversation,
+  ConversationWithDetails,
+  CreateConversationRequest,
+  UpdateConversationRequest,
+  ListConversationsQuery,
+  ListConversationsResponse,
+  GetConversationResponse,
+  GetConversationWithDetailsResponse,
+  ConversationStatsResponse
+} from '../types/conversation'
 
 export default class Api {
   private static API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
@@ -398,6 +409,52 @@ export default class Api {
 
   static async deleteConversationTemplate(templateId: string): Promise<void> {
     await this.delete(`/conversation-templates/${templateId}`)
+  }
+
+  // Conversation API functions
+  static async getConversations(organizationId: string, query?: ListConversationsQuery): Promise<ListConversationsResponse> {
+    const queryParams = new URLSearchParams()
+    if (query?.manager_member_id) queryParams.append('manager_member_id', query.manager_member_id)
+    if (query?.direct_member_id) queryParams.append('direct_member_id', query.direct_member_id)
+    if (query?.template_id) queryParams.append('template_id', query.template_id)
+    if (query?.status) queryParams.append('status', query.status)
+    if (query?.limit) queryParams.append('limit', query.limit.toString())
+    if (query?.offset) queryParams.append('offset', query.offset.toString())
+    
+    const queryString = queryParams.toString()
+    const url = queryString ? `/organizations/${organizationId}/conversations?${queryString}` : `/organizations/${organizationId}/conversations`
+    
+    const response = await this.get(url)
+    return response
+  }
+
+  static async getConversation(conversationId: string): Promise<GetConversationResponse> {
+    const response = await this.get(`/conversations/${conversationId}`)
+    return response
+  }
+
+  static async getConversationWithDetails(conversationId: string): Promise<GetConversationWithDetailsResponse> {
+    const response = await this.get(`/conversations/${conversationId}/details`)
+    return response
+  }
+
+  static async createConversation(organizationId: string, conversation: CreateConversationRequest): Promise<GetConversationResponse> {
+    const response = await this.post(`/organizations/${organizationId}/conversations`, conversation)
+    return response
+  }
+
+  static async updateConversation(conversationId: string, conversation: UpdateConversationRequest): Promise<void> {
+    await this.put(`/conversations/${conversationId}`, conversation)
+  }
+
+  static async deleteConversation(conversationId: string): Promise<void> {
+    await this.delete(`/conversations/${conversationId}`)
+  }
+
+  static async getConversationStats(organizationId: string, managerMemberId?: string): Promise<ConversationStatsResponse> {
+    const queryParams = managerMemberId ? `?manager_member_id=${managerMemberId}` : ''
+    const response = await this.get(`/organizations/${organizationId}/conversations/stats${queryParams}`)
+    return response
   }
 }
 

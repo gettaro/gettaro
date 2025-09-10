@@ -62,7 +62,8 @@ func (d *MemberDB) GetOrganizationMembers(orgID string, params *types.Organizati
 	var args []interface{}
 	args = append(args, orgID)
 
-	if len(params.TitleIDs) > 0 {
+	// Handle nil params gracefully
+	if params != nil && len(params.TitleIDs) > 0 {
 		query += " AND om.title_id IN ("
 		for i := range params.TitleIDs {
 			if i > 0 {
@@ -77,7 +78,7 @@ func (d *MemberDB) GetOrganizationMembers(orgID string, params *types.Organizati
 		}
 	}
 
-	if len(params.IDs) > 0 {
+	if params != nil && len(params.IDs) > 0 {
 		query += " AND om.id IN ("
 		for i := range params.IDs {
 			if i > 0 {
