@@ -1,28 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
-import { Card } from './ui/card';
 import { useToast } from '../hooks/useToast';
 import Api from '../api/api';
-import { Conversation, ConversationWithDetails, CreateConversationRequest, ConversationTemplate } from '../types/conversation';
-import { CreateConversationModal } from './CreateConversationModal';
-import { ConversationModal } from './ConversationModal';
+import { ConversationWithDetails, TemplateField } from '../types/conversation';
 
 interface ConversationsTabProps {
   organizationId: string;
   memberId: string;
   memberName: string;
+  onViewConversation: (conversationId: string) => void;
+  onCreateConversation: () => void;
 }
 
 export const ConversationsTab: React.FC<ConversationsTabProps> = ({ 
   organizationId, 
   memberId, 
-  memberName 
+  memberName,
+  onViewConversation,
+  onCreateConversation
 }) => {
   const [conversations, setConversations] = useState<ConversationWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showConversationModal, setShowConversationModal] = useState(false);
-  const [selectedConversation, setSelectedConversation] = useState<ConversationWithDetails | null>(null);
   const [expandedConversations, setExpandedConversations] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const fetchRef = useRef<boolean>(false);
@@ -71,27 +69,6 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
     }
   }, [organizationId, memberId]);
 
-  const handleCreateConversation = async (data: CreateConversationRequest) => {
-    try {
-      await Api.createConversation(organizationId, {
-        ...data,
-        direct_member_id: memberId
-      });
-      toast({
-        title: 'Success',
-        description: 'Conversation created successfully',
-      });
-      setShowCreateModal(false);
-      fetchConversations(true);
-    } catch (error) {
-      console.error('Error creating conversation:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to create conversation',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handleUpdateConversation = async (conversationId: string, status: 'draft' | 'completed') => {
     try {
@@ -146,27 +123,7 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
   };
 
   const handleEditConversation = async (conversationId: string) => {
-    try {
-      const response = await Api.getConversationWithDetails(conversationId);
-      setSelectedConversation(response.conversation);
-      setShowConversationModal(true);
-    } catch (error) {
-      console.error('Error fetching conversation details:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load conversation details',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleCloseConversationModal = () => {
-    setShowConversationModal(false);
-    setSelectedConversation(null);
-  };
-
-  const handleConversationUpdate = () => {
-    fetchConversations(true);
+    onViewConversation(conversationId);
   };
 
   const formatDate = (dateString?: string) => {
@@ -262,7 +219,7 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
                   <span>Loading...</span>
                 </div>
               )}
-              <Button onClick={() => setShowCreateModal(true)}>
+              <Button onClick={onCreateConversation}>
                 New Conversation
               </Button>
             </div>
@@ -278,7 +235,7 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
                 </svg>
               </div>
               <div className="text-muted-foreground mb-3 text-sm">No conversations yet</div>
-              <Button onClick={() => setShowCreateModal(true)} size="sm">
+              <Button onClick={onCreateConversation} size="sm">
                 Start First Conversation
               </Button>
             </div>
@@ -398,22 +355,6 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
         </div>
       </div>
 
-      {showCreateModal && (
-        <CreateConversationModal
-          organizationId={organizationId}
-          onClose={() => setShowCreateModal(false)}
-          onSubmit={handleCreateConversation}
-        />
-      )}
-
-      {showConversationModal && (
-        <ConversationModal
-          conversation={selectedConversation}
-          isOpen={showConversationModal}
-          onClose={handleCloseConversationModal}
-          onUpdate={handleConversationUpdate}
-        />
-      )}
     </div>
   );
 };

@@ -11,6 +11,8 @@ import Api from '../api/api'
 import { formatMetricValue, formatTimeMetric } from '../utils/formatMetrics'
 import MetricIcon from '../components/MetricIcon'
 import { ConversationsTab } from '../components/ConversationsTab'
+import { ConversationSidebar } from '../components/ConversationSidebar'
+import { ConversationWithDetails } from '../types/conversation'
 
 type TabType = 'overview' | 'source-control-metrics' | 'management-tree' | 'conversations'
 
@@ -46,6 +48,11 @@ export default function MemberProfilePage() {
   const [managementTree, setManagementTree] = useState<OrgChartNode[]>([])
   const [managementTreeLoading, setManagementTreeLoading] = useState(false)
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set())
+  
+  // Conversation sidebar state
+  const [showConversationSidebar, setShowConversationSidebar] = useState(false)
+  const [selectedConversation, setSelectedConversation] = useState<ConversationWithDetails | null>(null)
+  const [conversationSidebarMode, setConversationSidebarMode] = useState<'edit' | 'create'>('edit')
 
   useEffect(() => {
     if (currentOrganization && memberId) {
@@ -631,6 +638,40 @@ export default function MemberProfilePage() {
     setExpandedNodes(new Set())
   }
 
+  const handleViewConversation = async (conversationId: string) => {
+    try {
+      const response = await Api.getConversationWithDetails(conversationId)
+      setSelectedConversation(response.conversation)
+      setConversationSidebarMode('edit')
+      setShowConversationSidebar(true)
+    } catch (error) {
+      console.error('Error fetching conversation details:', error)
+    }
+  }
+
+  const handleCreateConversation = () => {
+    setSelectedConversation(null)
+    setConversationSidebarMode('create')
+    setShowConversationSidebar(true)
+  }
+
+  const handleCloseConversationSidebar = () => {
+    setShowConversationSidebar(false)
+    setSelectedConversation(null)
+    setConversationSidebarMode('edit')
+  }
+
+  const handleConversationUpdate = (updatedConversation: ConversationWithDetails) => {
+    setSelectedConversation(updatedConversation)
+    // You might want to refresh the conversations list here
+  }
+
+  const handleConversationCreate = (newConversation: ConversationWithDetails) => {
+    setSelectedConversation(newConversation)
+    setConversationSidebarMode('edit')
+    // You might want to refresh the conversations list here
+  }
+
   const renderManagementTreeNode = (node: OrgChartNode, depth: number = 0) => {
     const indentClass = `ml-${depth * 3}`
     const isExpanded = expandedNodes.has(node.member.id)
@@ -1064,6 +1105,8 @@ export default function MemberProfilePage() {
             organizationId={currentOrganization!.id}
             memberId={memberId!}
             memberName={member!.username}
+            onViewConversation={handleViewConversation}
+            onCreateConversation={handleCreateConversation}
           />
         )
 
@@ -1132,7 +1175,7 @@ export default function MemberProfilePage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="max-w-6xl mx-auto">
+      <div className={`max-w-6xl mx-auto ${showConversationSidebar ? 'mr-[28rem]' : ''}`}>
         {/* Breadcrumb Navigation */}
         <nav className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
           <a
@@ -1259,6 +1302,18 @@ export default function MemberProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Conversation Sidebar */}
+      <ConversationSidebar
+        conversation={selectedConversation}
+        isOpen={showConversationSidebar}
+        onClose={handleCloseConversationSidebar}
+        onUpdate={handleConversationUpdate}
+        onCreate={handleConversationCreate}
+        mode={conversationSidebarMode}
+        organizationId={currentOrganization?.id}
+        memberId={memberId}
+      />
     </div>
   )
 } 

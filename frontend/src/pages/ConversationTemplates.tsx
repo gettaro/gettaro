@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useOrganizationStore } from '../stores/organization'
 import Api from '../api/api'
 import { ConversationTemplate, TemplateField } from '../types/conversationTemplate'
@@ -9,7 +9,7 @@ import { Label } from '../components/ui/label'
 import { useToast } from '../hooks/useToast'
 
 export default function ConversationTemplates() {
-  const { currentOrganization, isLoading: isLoadingOrgs } = useOrganizationStore()
+  const { currentOrganization } = useOrganizationStore()
   const { toast } = useToast()
   const [templates, setTemplates] = useState<ConversationTemplate[]>([])
   const [loading, setLoading] = useState(true)

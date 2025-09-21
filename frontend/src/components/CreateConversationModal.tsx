@@ -9,12 +9,14 @@ import { CreateConversationRequest, ConversationTemplate } from '../types/conver
 
 interface CreateConversationModalProps {
   organizationId: string;
+  memberId: string;
   onClose: () => void;
   onSubmit: (data: CreateConversationRequest) => void;
 }
 
 export const CreateConversationModal: React.FC<CreateConversationModalProps> = ({
   organizationId,
+  memberId,
   onClose,
   onSubmit
 }) => {
@@ -80,6 +82,7 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
       const data: CreateConversationRequest = {
         template_id: selectedTemplate.id,
         title: title,
+        direct_member_id: memberId,
         conversation_date: conversationDate || undefined,
         content: content
       };

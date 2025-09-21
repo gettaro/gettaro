@@ -7,7 +7,6 @@ import { SourceControlAccount, PullRequest, GetMemberPullRequestsParams, GetMemb
 import { GetManagerTreeResponse } from '../types/directs'
 import { GetMemberMetricsParams, GetMemberMetricsResponse } from '../types/memberMetrics'
 import { 
-  ConversationTemplate, 
   CreateConversationTemplateRequest, 
   UpdateConversationTemplateRequest, 
   ListConversationTemplatesQuery,
@@ -17,8 +16,6 @@ import {
   UpdateConversationTemplateResponse
 } from '../types/conversationTemplate'
 import {
-  Conversation,
-  ConversationWithDetails,
   CreateConversationRequest,
   UpdateConversationRequest,
   ListConversationsQuery,

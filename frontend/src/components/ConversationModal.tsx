@@ -5,7 +5,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { useToast } from '../hooks/useToast';
 import Api from '../api/api';
-import { ConversationWithDetails, UpdateConversationRequest, ConversationTemplate } from '../types/conversation';
+import { ConversationWithDetails, UpdateConversationRequest, TemplateField } from '../types/conversation';
 
 interface ConversationModalProps {
   conversation: ConversationWithDetails | null;
