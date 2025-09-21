@@ -632,26 +632,26 @@ export default function MemberProfilePage() {
   }
 
   const renderManagementTreeNode = (node: OrgChartNode, depth: number = 0) => {
-    const indentClass = `ml-${depth * 4}`
+    const indentClass = `ml-${depth * 3}`
     const isExpanded = expandedNodes.has(node.member.id)
     const hasDirectReports = node.direct_reports && node.direct_reports.length > 0
     const isManager = hasDirectReports
     
     return (
-      <div key={node.member.id} className={`${indentClass} mb-2`}>
-        <div className="flex items-center space-x-3 p-3 bg-muted/30 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+      <div key={node.member.id} className={`${indentClass} mb-1`}>
+        <div className="flex items-center space-x-2 p-2 bg-muted/20 rounded border border-border/30 hover:bg-muted/30 transition-colors">
           {/* Expand/Collapse Button */}
           {isManager && (
             <button
               onClick={() => toggleNodeExpansion(node.member.id)}
-              className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
+              className="w-5 h-5 flex items-center justify-center rounded hover:bg-muted/50 transition-colors"
             >
               {isExpanded ? (
-                <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3 h-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               ) : (
-                <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3 h-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               )}
@@ -659,17 +659,17 @@ export default function MemberProfilePage() {
           )}
           
           {/* Avatar */}
-          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-            <span className="text-primary font-medium text-sm">
+          <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+            <span className="text-primary font-medium text-xs">
               {node.member.username.charAt(0).toUpperCase()}
             </span>
           </div>
           
           {/* Member Info */}
           <div className="flex-1">
-            <h4 className="font-medium text-foreground">{node.member.username}</h4>
+            <h4 className="font-medium text-foreground text-sm">{node.member.username}</h4>
             {node.member.title && (
-              <p className="text-sm text-muted-foreground">{node.member.title}</p>
+              <p className="text-xs text-muted-foreground">{node.member.title}</p>
             )}
             {isManager && (
               <p className="text-xs text-muted-foreground">
@@ -681,7 +681,7 @@ export default function MemberProfilePage() {
           {/* Level Indicator */}
           {depth > 0 && (
             <div className="ml-auto">
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+              <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded text-xs">
                 Level {depth}
               </span>
             </div>
@@ -690,7 +690,7 @@ export default function MemberProfilePage() {
         
         {/* Direct Reports (only show if expanded) */}
         {isManager && isExpanded && (
-          <div className="mt-2 ml-6 border-l-2 border-muted pl-4">
+          <div className="mt-1 ml-4 border-l border-muted/50 pl-3">
             {(node.direct_reports || []).map(report => renderManagementTreeNode(report, depth + 1))}
           </div>
         )}
@@ -702,10 +702,10 @@ export default function MemberProfilePage() {
     switch (activeTab) {
       case 'overview':
         return (
-          <div className="space-y-6">
-            <div className="bg-card border border-border rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Source Control Overview</h3>
-              <p className="text-muted-foreground">
+          <div className="space-y-4">
+            <div className="bg-card rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-foreground mb-3">Source Control Overview</h3>
+              <p className="text-muted-foreground text-sm">
                 This section will contain source control metrics. Coming soon...
               </p>
             </div>
@@ -714,10 +714,10 @@ export default function MemberProfilePage() {
 
       case 'source-control-metrics':
         return (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Date Filter Controls */}
-            <div className="bg-card border border-border rounded-lg p-6">
-              <div className="flex items-center justify-between mb-4">
+            <div className="bg-card rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-semibold text-foreground">Filter by Date Range</h3>
                 {(metricsLoading || pullRequestsLoading || pullRequestReviewsLoading) && (
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
@@ -729,7 +729,7 @@ export default function MemberProfilePage() {
                   </div>
                 )}
               </div>
-              <div className="flex space-x-4">
+              <div className="flex space-x-3">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
                     Start Date
@@ -738,7 +738,7 @@ export default function MemberProfilePage() {
                     type="date"
                     value={dateParams.startDate || ''}
                     onChange={(e) => handleDateChange('startDate', e.target.value)}
-                    className="px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="px-3 py-2 border border-border/50 rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-sm"
                   />
                 </div>
                 <div>
@@ -749,20 +749,20 @@ export default function MemberProfilePage() {
                     type="date"
                     value={dateParams.endDate || ''}
                     onChange={(e) => handleDateChange('endDate', e.target.value)}
-                    className="px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="px-3 py-2 border border-border/50 rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-sm"
                   />
                 </div>
               </div>
             </div>
 
             {/* Metrics Section */}
-            <div className="bg-card border border-border rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-6">Metrics</h3>
+            <div className="bg-card rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-foreground mb-4">Metrics</h3>
               
               {metricsLoading ? (
-                <div className="flex items-center justify-center h-32">
+                <div className="flex items-center justify-center h-24">
                   <div className="flex items-center space-x-2 text-muted-foreground">
-                    <svg className="animate-spin h-6 w-6" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -770,24 +770,23 @@ export default function MemberProfilePage() {
                   </div>
                 </div>
               ) : metrics ? (
-                <div className="space-y-8">
+                <div className="space-y-6">
                   {(metrics.snapshot_metrics || []).map((category) => (
-                    <div key={category.category.name} className="space-y-4">
+                    <div key={category.category.name} className="space-y-3">
                       <h4 className="text-md font-semibold text-foreground">{category.category.name}</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                         {(category.metrics || []).map((metric) => (
-                          <div key={metric.label} className="text-center p-4 bg-muted/30 rounded-lg border border-border">
-                            <div className="flex justify-center mb-2">
-                              {/* Use backend-provided icon */}
+                          <div key={metric.label} className="text-center p-3 bg-muted/20 rounded border border-border/30">
+                            <div className="flex justify-end mb-1">
                               <MetricIcon 
                                 iconIdentifier={metric.icon_identifier || 'default'} 
                                 iconColor={metric.icon_color || 'gray'} 
                               />
                             </div>
-                            <div className="text-2xl font-bold text-foreground">
+                            <div className="text-xl font-bold text-foreground">
                               {formatMetricValue(metric.value, metric.unit)}
                             </div>
-                            <div className="text-sm text-muted-foreground">{metric.label}</div>
+                            <div className="text-xs text-muted-foreground">{metric.label}</div>
                             {typeof metric.peers_value === 'number' && metric.peers_value > 0 && (
                               <div className="text-xs text-muted-foreground mt-1">
                                 vs {formatMetricValue(metric.peers_value, metric.unit)} (peers)
@@ -800,10 +799,10 @@ export default function MemberProfilePage() {
                   ))}
                 </div>
               ) : (
-                <div className="flex items-center justify-center h-32">
+                <div className="flex items-center justify-center h-24">
                   <div className="text-center">
-                    <div className="text-muted-foreground mb-2">No metrics available</div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-muted-foreground mb-1 text-sm">No metrics available</div>
+                    <div className="text-xs text-muted-foreground">
                       Metrics will appear here once you have source control activity
                     </div>
                   </div>
@@ -812,8 +811,8 @@ export default function MemberProfilePage() {
             </div>
 
             {/* Recent Pull Requests Table */}
-            <div className="bg-card border border-border rounded-lg">
-              <div className="p-6 border-b border-border">
+            <div className="bg-card rounded-lg">
+              <div className="p-4 border-b border-border/50">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-semibold text-foreground">Pull Requests</h3>
@@ -821,7 +820,7 @@ export default function MemberProfilePage() {
                       Pull requests created in the selected date range
                     </p>
                   </div>
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-3">
                     {pullRequestsLoading && (
                       <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                         <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -851,31 +850,31 @@ export default function MemberProfilePage() {
                 </div>
               </div>
               {expandedTables.has('pull-requests') && (
-                <div className="divide-y divide-border">
+                <div className="divide-y divide-border/50">
                   {pullRequests.length === 0 ? (
-                    <div className="p-6 text-center">
-                      <div className="text-muted-foreground">
+                    <div className="p-4 text-center">
+                      <div className="text-muted-foreground text-sm">
                         No pull requests found for the selected date range.
                       </div>
                     </div>
                   ) : (
-                    <div className="h-96 overflow-y-auto">
+                    <div className="max-h-80 overflow-y-auto">
                       {(pullRequests || []).map((pr) => (
-                        <div key={pr.id} className="p-6">
-                          <div className="flex items-start space-x-4">
+                        <div key={pr.id} className="p-4">
+                          <div className="flex items-start space-x-3">
                             <div className="flex-shrink-0 mt-1">
-                              <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                               </svg>
                             </div>
                             <div className="flex-1 min-w-0">
                               {renderPullRequestContent(pr)}
                               
-                              <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-3">
+                              <div className="flex items-center space-x-3 text-xs text-muted-foreground mt-2">
                                 <span>
                                   {new Date(pr.created_at).toLocaleDateString('en-US', {
                                     year: 'numeric',
-                                    month: 'long',
+                                    month: 'short',
                                     day: 'numeric',
                                     hour: '2-digit',
                                     minute: '2-digit'
@@ -885,7 +884,7 @@ export default function MemberProfilePage() {
                                   <span className="text-green-600">
                                     Merged {new Date(pr.merged_at).toLocaleString('en-US', {
                                       year: 'numeric',
-                                      month: 'long',
+                                      month: 'short',
                                       day: 'numeric',
                                       hour: '2-digit',
                                       minute: '2-digit'
@@ -914,8 +913,8 @@ export default function MemberProfilePage() {
             </div>
 
             {/* Recent PR Reviews Table */}
-            <div className="bg-card border border-border rounded-lg">
-              <div className="p-6 border-b border-border">
+            <div className="bg-card rounded-lg">
+              <div className="p-4 border-b border-border/50">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-semibold text-foreground">Pull Request Reviews</h3>
@@ -942,33 +941,33 @@ export default function MemberProfilePage() {
                 </div>
               </div>
               {expandedTables.has('pr-reviews') && (
-                <div className="divide-y divide-border">
+                <div className="divide-y divide-border/50">
                   {pullRequestReviewsLoading ? (
-                    <div className="p-6 text-center">
-                      <div className="text-muted-foreground">Loading PR reviews...</div>
+                    <div className="p-4 text-center">
+                      <div className="text-muted-foreground text-sm">Loading PR reviews...</div>
                     </div>
                   ) : pullRequestReviews.length === 0 ? (
-                    <div className="p-6 text-center">
-                      <div className="text-muted-foreground">
+                    <div className="p-4 text-center">
+                      <div className="text-muted-foreground text-sm">
                         No PR reviews found for the selected date range.
                       </div>
                     </div>
                   ) : (
-                    <div className="h-96 overflow-y-auto">
+                    <div className="max-h-80 overflow-y-auto">
                       {(pullRequestReviews || []).map((review) => (
-                          <div key={review.id} className="p-6">
-                            <div className="flex items-start space-x-4">
+                          <div key={review.id} className="p-4">
+                            <div className="flex items-start space-x-3">
                               <div className="flex-shrink-0 mt-1">
                                 {getActivityIcon(review.type)}
                               </div>
                               <div className="flex-1 min-w-0">
                                 {renderActivityContent(review)}
                                 
-                                <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-3">
+                                <div className="flex items-center space-x-3 text-xs text-muted-foreground mt-2">
                                   <span>
                                     {new Date(review.created_at).toLocaleDateString('en-US', {
                                       year: 'numeric',
-                                      month: 'long',
+                                      month: 'short',
                                       day: 'numeric',
                                       hour: '2-digit',
                                       minute: '2-digit'
@@ -999,9 +998,9 @@ export default function MemberProfilePage() {
 
       case 'management-tree':
         return (
-          <div className="space-y-6">
-            <div className="bg-card border border-border rounded-lg p-6">
-              <div className="flex items-center justify-between mb-4">
+          <div className="space-y-4">
+            <div className="bg-card rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-semibold text-foreground">Management Tree</h3>
                 <div className="flex items-center space-x-2">
                   {managementTreeLoading ? (
@@ -1013,13 +1012,13 @@ export default function MemberProfilePage() {
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={expandAllNodes}
-                        className="text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-1 rounded transition-colors"
+                        className="text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-2 py-1 rounded transition-colors"
                       >
                         Expand All
                       </button>
                       <button
                         onClick={collapseAllNodes}
-                        className="text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-1 rounded transition-colors"
+                        className="text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-2 py-1 rounded transition-colors"
                       >
                         Collapse All
                       </button>
@@ -1029,13 +1028,13 @@ export default function MemberProfilePage() {
               </div>
               
               {managementTreeLoading ? (
-                <div className="text-center py-8">
-                  <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                  <p className="text-muted-foreground">Loading management tree...</p>
+                <div className="text-center py-6">
+                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                  <p className="text-muted-foreground text-sm">Loading management tree...</p>
                 </div>
               ) : managementTree.length > 0 ? (
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground mb-4">
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground mb-3">
                     Direct and indirect reports:
                   </p>
                   
@@ -1043,14 +1042,14 @@ export default function MemberProfilePage() {
                   {(managementTree || []).map(node => renderManagementTreeNode(node))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
-                    <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="text-center py-6">
+                  <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center mx-auto mb-2">
+                    <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                   </div>
-                  <p className="text-muted-foreground">No direct reports found</p>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-muted-foreground text-sm">No direct reports found</p>
+                  <p className="text-xs text-muted-foreground mt-1">
                     This manager doesn't have any direct reports yet.
                   </p>
                 </div>
@@ -1149,44 +1148,44 @@ export default function MemberProfilePage() {
         </nav>
 
         {/* Member Basic Information */}
-        <div className="bg-card border border-border rounded-lg p-6 mb-8">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center space-x-4">
+        <div className="bg-card rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
               {/* Avatar Placeholder */}
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </div>
               
               <div>
-                <h1 className="text-3xl font-bold text-foreground mb-2">
+                <h1 className="text-2xl font-semibold text-foreground">
                   {member.username}
                 </h1>
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <div className="flex items-center space-x-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                  <span className="flex items-center space-x-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
                     <span>{member.email}</span>
-                  </div>
+                  </span>
                   
                   {title && (
-                    <div className="flex items-center space-x-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span className="flex items-center space-x-1">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.815-8.764-2.245m0 0A23.023 23.023 0 014 12c0-3.183.815-6.22 2.245-8.764m0 0A23.023 23.023 0 0112 4c3.183 0 6.22.815 8.764 2.245M12 4v8m0 0v8" />
                       </svg>
                       <span>{title.name}</span>
-                    </div>
+                    </span>
                   )}
                   
                   {sourceControlAccount && (
-                    <div className="flex items-center space-x-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span className="flex items-center space-x-1">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                       </svg>
-                      <span>{sourceControlAccount.username} ({sourceControlAccount.provider_name})</span>
-                    </div>
+                      <span>{sourceControlAccount.username}</span>
+                    </span>
                   )}
                 </div>
               </div>
@@ -1195,11 +1194,11 @@ export default function MemberProfilePage() {
             {/* Role Badge */}
             <div className="flex items-center space-x-2">
               {member.is_owner && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800">
                   Owner
                 </span>
               )}
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
                 Member
               </span>
             </div>
@@ -1207,25 +1206,25 @@ export default function MemberProfilePage() {
         </div>
 
         {/* Tabs */}
-        <div className="bg-card border border-border rounded-lg">
-          <div className="border-b border-border">
-            <nav className="flex space-x-8 px-6">
+        <div className="bg-card rounded-lg">
+          <div className="border-b border-border/50">
+            <nav className="flex space-x-6 px-4">
               <button
                 onClick={() => setActiveTab('overview')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'overview'
                     ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
                 }`}
               >
                 Overview
               </button>
               <button
                 onClick={() => setActiveTab('source-control-metrics')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'source-control-metrics'
                     ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
                 }`}
               >
                 Code Contributions
@@ -1233,10 +1232,10 @@ export default function MemberProfilePage() {
               {title?.is_manager && (
                 <button
                   onClick={() => setActiveTab('management-tree')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
                     activeTab === 'management-tree'
                       ? 'border-primary text-primary'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
                   }`}
                 >
                   Management Tree
@@ -1244,10 +1243,10 @@ export default function MemberProfilePage() {
               )}
               <button
                 onClick={() => setActiveTab('conversations')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'conversations'
                     ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
                 }`}
               >
                 Conversations
@@ -1255,7 +1254,7 @@ export default function MemberProfilePage() {
             </nav>
           </div>
           
-          <div className="p-6">
+          <div className="p-4">
             {renderTabContent()}
           </div>
         </div>

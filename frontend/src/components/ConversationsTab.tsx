@@ -189,7 +189,7 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
     const value = content[field.id] || '';
     
     return (
-      <div className="p-3 bg-muted/30 rounded-md">
+      <div className="p-2 bg-muted/20 rounded border border-border/30">
         <p className="text-sm text-muted-foreground">
           {value ? (
             typeof value === 'string' ? value : JSON.stringify(value)
@@ -208,14 +208,14 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
     
     if (!fields || fields.length === 0) {
       return (
-        <div className="p-4 bg-muted/30 rounded-md">
+        <div className="p-3 bg-muted/20 rounded border border-border/30">
           <p className="text-sm text-muted-foreground">No template fields defined for this conversation.</p>
         </div>
       );
     }
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <h4 className="font-medium text-sm text-muted-foreground">Conversation Details:</h4>
         {fields
           .sort((a, b) => a.order - b.order)
@@ -241,10 +241,10 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Conversations Table */}
-      <div className="bg-card border border-border rounded-lg">
-        <div className="p-6 border-b border-border">
+      <div className="bg-card rounded-lg">
+        <div className="p-4 border-b border-border/50">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-foreground">Conversations with {memberName}</h3>
@@ -252,7 +252,7 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
                 One-on-one conversations and feedback sessions
               </p>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               {loading && (
                 <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                   <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -269,29 +269,29 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
           </div>
         </div>
 
-        <div className="divide-y divide-border">
+        <div className="divide-y divide-border/50">
           {conversations.length === 0 ? (
-            <div className="p-8 text-center">
-              <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="p-6 text-center">
+              <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
+                <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
               </div>
-              <div className="text-muted-foreground mb-4">No conversations yet</div>
-              <Button onClick={() => setShowCreateModal(true)}>
+              <div className="text-muted-foreground mb-3 text-sm">No conversations yet</div>
+              <Button onClick={() => setShowCreateModal(true)} size="sm">
                 Start First Conversation
               </Button>
             </div>
           ) : (
-            <div className="max-h-96 overflow-y-auto">
+            <div className="max-h-80 overflow-y-auto">
               {conversations.map((conversation) => {
                 const isExpanded = expandedConversations.has(conversation.id);
                 return (
-                  <div key={conversation.id} className="p-6 hover:bg-muted/30 transition-colors">
-                    <div className="flex items-start space-x-4">
+                  <div key={conversation.id} className="p-4 hover:bg-muted/20 transition-colors">
+                    <div className="flex items-start space-x-3">
                       <div className="flex-shrink-0 mt-1">
-                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                          <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                          <svg className="w-3 h-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                           </svg>
                         </div>
@@ -299,7 +299,7 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <h4 className="text-lg font-semibold text-foreground mb-1">
+                            <h4 className="text-base font-semibold text-foreground mb-1">
                               {conversation.title || 'Untitled Conversation'}
                             </h4>
                             {conversation.template?.description && (
@@ -307,35 +307,35 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
                                 {conversation.template.description}
                               </p>
                             )}
-                            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                            <div className="flex items-center space-x-3 text-xs text-muted-foreground">
                               <span className="flex items-center space-x-1">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                                 <span>{formatDate(conversation.conversation_date)}</span>
                               </span>
                               <span className="flex items-center space-x-1">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 <span>Created {new Date(conversation.created_at).toLocaleDateString()}</span>
                               </span>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-2 ml-4">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(conversation.status)}`}>
+                          <div className="flex items-center space-x-2 ml-3">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(conversation.status)}`}>
                               {conversation.status}
                             </span>
                           </div>
                         </div>
                         
-                        <div className="flex items-center justify-between mt-4">
+                        <div className="flex items-center justify-between mt-3">
                           <div className="flex items-center space-x-2">
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => toggleConversationExpansion(conversation.id)}
-                              className="text-xs"
+                              className="text-xs h-7"
                             >
                               {isExpanded ? 'Hide Details' : 'View Details'}
                             </Button>
@@ -344,7 +344,7 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleEditConversation(conversation.id)}
-                                className="text-xs"
+                                className="text-xs h-7"
                               >
                                 Edit
                               </Button>
@@ -354,7 +354,7 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleUpdateConversation(conversation.id, 'completed')}
-                                className="text-xs"
+                                className="text-xs h-7"
                               >
                                 Mark Complete
                               </Button>
@@ -364,7 +364,7 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleUpdateConversation(conversation.id, 'draft')}
-                                className="text-xs"
+                                className="text-xs h-7"
                               >
                                 Reopen
                               </Button>
@@ -374,9 +374,9 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
                             size="sm"
                             variant="ghost"
                             onClick={() => handleDeleteConversation(conversation.id)}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7 p-0"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                           </Button>
@@ -384,7 +384,7 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
 
                         {/* Expanded Content */}
                         {isExpanded && (
-                          <div className="mt-6 pt-4 border-t border-border">
+                          <div className="mt-4 pt-3 border-t border-border/50">
                             {renderExpandedContent(conversation)}
                           </div>
                         )}
