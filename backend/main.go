@@ -17,6 +17,8 @@ import (
 	"ems.dev/backend/libraries/github"
 	apiai "ems.dev/backend/services/ai/api"
 	aidb "ems.dev/backend/services/ai/database"
+	anthropicprovider "ems.dev/backend/services/ai/providers/anthropic"
+	aitypes "ems.dev/backend/services/ai/types"
 	authapi "ems.dev/backend/services/auth/api"
 	authdb "ems.dev/backend/services/auth/database"
 	conversationapi "ems.dev/backend/services/conversation/api"
@@ -81,7 +83,21 @@ func main() {
 	conversationDb := conversationdb.NewConversationDB(database.DB)
 	conversationApi := conversationapi.NewConversationAPI(conversationDb, conversationTemplateApi)
 	aiDb := aidb.NewAIDB(database.DB)
-	aiApi := apiai.NewAIService(aiDb, memberApi, teamApi, conversationApi, sourcecontrolApi, orgApi, userApi)
+
+	// Create AI service configuration
+	aiConfig := &aitypes.AIServiceConfig{
+		Provider:          getEnvOrDefault("AI_PROVIDER", "anthropic"),
+		Model:             getEnvOrDefault("AI_MODEL", "claude-3-5-sonnet-20241022"),
+		MaxTokens:         2000,
+		Temperature:       0.7,
+		MaxContextSize:    4000,
+		EnableHistory:     true,
+		EnableSuggestions: true,
+	}
+
+	anthropicAPIKey := getEnvOrDefault("ANTHROPIC_API_KEY", "")
+	anthropicProvider := anthropicprovider.NewProvider(anthropicAPIKey)
+	aiApi := apiai.NewAIService(aiDb, memberApi, teamApi, conversationApi, sourcecontrolApi, orgApi, userApi, aiConfig, anthropicProvider)
 
 	// Initialize and start sync job scheduler
 	// Check if jobs are enabled
@@ -116,4 +132,12 @@ func getSyncInterval() time.Duration {
 	}
 
 	return time.Duration(interval) * time.Hour
+}
+
+// Helper function to get environment variable with default
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

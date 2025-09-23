@@ -24,6 +24,12 @@ import {
   GetConversationWithDetailsResponse,
   ConversationStatsResponse
 } from '../types/conversation'
+import {
+  AIQueryRequest,
+  AIQueryResponse,
+  AIQueryHistoryItem,
+  AIQueryStats
+} from '../types/ai'
 
 export default class Api {
   private static API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
@@ -452,6 +458,24 @@ export default class Api {
     const queryParams = managerMemberId ? `?manager_member_id=${managerMemberId}` : ''
     const response = await this.get(`/organizations/${organizationId}/conversations/stats${queryParams}`)
     return response
+  }
+
+  // AI API functions
+  static async queryAI(organizationId: string, query: AIQueryRequest): Promise<AIQueryResponse> {
+    const response = await this.post(`/organizations/${organizationId}/ai/query`, query)
+    return response.ai_response
+  }
+
+  static async getAIQueryHistory(organizationId: string, limit?: number): Promise<AIQueryHistoryItem[]> {
+    const queryParams = limit ? `?limit=${limit}` : ''
+    const response = await this.get(`/organizations/${organizationId}/ai/history${queryParams}`)
+    return response.queries
+  }
+
+  static async getAIQueryStats(organizationId: string, days?: number): Promise<AIQueryStats> {
+    const queryParams = days ? `?days=${days}` : ''
+    const response = await this.get(`/organizations/${organizationId}/ai/stats${queryParams}`)
+    return response.stats
   }
 }
 

@@ -60,10 +60,9 @@ func (h *AIHandler) QueryAI(c *gin.Context) {
 
 	// Organization ID comes from the URL context
 
-	// Get user ID from context (set by auth middleware)
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found in context"})
+	user, err := utils.GetUserFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -78,7 +77,7 @@ func (h *AIHandler) QueryAI(c *gin.Context) {
 	}
 
 	// Process query
-	response, err := h.aiService.Query(c.Request.Context(), serviceReq, userID.(string))
+	response, err := h.aiService.Query(c.Request.Context(), serviceReq, user.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

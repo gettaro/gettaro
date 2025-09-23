@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 	"time"
 
 	"ems.dev/backend/services/ai/database"
+	"ems.dev/backend/services/ai/providers"
 	"ems.dev/backend/services/ai/types"
 	conversationapi "ems.dev/backend/services/conversation/api"
 	conversationtypes "ems.dev/backend/services/conversation/types"
@@ -39,6 +39,7 @@ type AIService struct {
 	organizationAPI  orgapi.OrganizationAPI
 	userAPI          userapi.UserAPI
 	config           *types.AIServiceConfig
+	provider         providers.AIProviderInterface
 }
 
 // NewAIService creates a new AI service instance
@@ -50,17 +51,9 @@ func NewAIService(
 	sourceControlAPI sourcecontrolapi.SourceControlAPI,
 	organizationAPI orgapi.OrganizationAPI,
 	userAPI userapi.UserAPI,
+	config *types.AIServiceConfig,
+	provider providers.AIProviderInterface,
 ) *AIService {
-	config := &types.AIServiceConfig{
-		Provider:          getEnvOrDefault("AI_PROVIDER", "openai"),
-		Model:             getEnvOrDefault("AI_MODEL", "gpt-4"),
-		MaxTokens:         2000,
-		Temperature:       0.7,
-		MaxContextSize:    4000,
-		EnableHistory:     true,
-		EnableSuggestions: true,
-	}
-
 	return &AIService{
 		db:               db,
 		memberAPI:        memberAPI,
@@ -70,6 +63,7 @@ func NewAIService(
 		organizationAPI:  organizationAPI,
 		userAPI:          userAPI,
 		config:           config,
+		provider:         provider,
 	}
 }
 
@@ -87,10 +81,10 @@ func (s *AIService) Query(ctx context.Context, req *types.AIQueryRequest, userID
 	// Build prompt
 	prompt := s.buildPrompt(req.Query, contextData, req.EntityType, req.Context)
 
-	// Call AI service (placeholder implementation)
-	aiResponse, err := s.callAIService(prompt)
+	// Call AI provider
+	aiResponse, err := s.provider.Query(ctx, prompt, s.config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to call AI service: %w", err)
+		return nil, fmt.Errorf("failed to call AI provider: %w", err)
 	}
 
 	// Generate suggestions
@@ -302,21 +296,6 @@ Please provide a helpful response based on the available data. If you need more 
 	return prompt
 }
 
-// callAIService calls the external AI service (placeholder implementation)
-func (s *AIService) callAIService(prompt string) (*types.AIQueryResponse, error) {
-	// This is a placeholder implementation
-	// In a real implementation, you would call OpenAI, Anthropic, or another AI service
-
-	// For now, return a mock response
-	response := &types.AIQueryResponse{
-		Answer:     "This is a placeholder AI response. The actual AI service integration would be implemented here.",
-		Sources:    []string{"member_data", "conversations", "source_control"},
-		Confidence: 0.85,
-	}
-
-	return response, nil
-}
-
 // generateSuggestions generates follow-up question suggestions
 func (s *AIService) generateSuggestions(entityType, context string) []string {
 	suggestions := []string{}
@@ -358,12 +337,4 @@ func (s *AIService) generateSuggestions(entityType, context string) []string {
 	}
 
 	return suggestions
-}
-
-// Helper function to get environment variable with default
-func getEnvOrDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }

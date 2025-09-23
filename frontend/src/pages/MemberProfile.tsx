@@ -13,8 +13,10 @@ import MetricIcon from '../components/MetricIcon'
 import { ConversationsTab } from '../components/ConversationsTab'
 import { ConversationSidebar } from '../components/ConversationSidebar'
 import { ConversationWithDetails } from '../types/conversation'
+import { AIChat } from '../components/AIChat'
+import { ChatContext } from '../types/ai'
 
-type TabType = 'overview' | 'source-control-metrics' | 'management-tree' | 'conversations'
+type TabType = 'overview' | 'source-control-metrics' | 'management-tree' | 'conversations' | 'ai-chat'
 
 export default function MemberProfilePage() {
   const { memberId } = useParams<{ memberId: string }>()
@@ -1110,6 +1112,31 @@ export default function MemberProfilePage() {
           />
         )
 
+      case 'ai-chat':
+        if (!member || !currentOrganization) {
+          return <div>Loading...</div>
+        }
+        
+        const chatContext: ChatContext = {
+          entityType: 'member',
+          entityId: memberId!,
+          entityName: member.username,
+          organizationId: currentOrganization.id,
+          context: 'overview'
+        }
+        
+        return (
+          <div className="space-y-4">
+            <div className="bg-card rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-foreground mb-2">AI Assistant</h3>
+              <p className="text-muted-foreground text-sm mb-4">
+                Chat with our AI assistant to get insights about {member.username}. Ask questions about their performance, conversations, or any other aspects.
+              </p>
+              <AIChat context={chatContext} className="h-[600px]" />
+            </div>
+          </div>
+        )
+
       default:
         return null
     }
@@ -1293,6 +1320,16 @@ export default function MemberProfilePage() {
                 }`}
               >
                 Conversations
+              </button>
+              <button
+                onClick={() => setActiveTab('ai-chat')}
+                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'ai-chat'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
+                }`}
+              >
+                AI Assistant
               </button>
             </nav>
           </div>
