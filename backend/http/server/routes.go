@@ -60,5 +60,9 @@ func (s *Server) setupRoutes() {
 		// Conversation routes
 		conversationHandler := handlers.NewConversationHandler(s.conversationApi, s.memberApi, s.orgApi, s.userApi)
 		conversationHandler.RegisterRoutes(protected)
+
+		// AI routes
+		aiHandler := handlers.NewAIHandler(s.aiApi, s.orgApi)
+		aiHandler.RegisterRoutes(protected)
 	}
 }

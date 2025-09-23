@@ -15,6 +15,8 @@ import (
 	githubprovider "ems.dev/backend/jobs/sourcecontrol/providers/github"
 	auth0client "ems.dev/backend/libraries/auth0"
 	"ems.dev/backend/libraries/github"
+	apiai "ems.dev/backend/services/ai/api"
+	aidb "ems.dev/backend/services/ai/database"
 	authapi "ems.dev/backend/services/auth/api"
 	authdb "ems.dev/backend/services/auth/database"
 	conversationapi "ems.dev/backend/services/conversation/api"
@@ -78,6 +80,8 @@ func main() {
 	conversationTemplateApi := conversationtemplateapi.NewConversationTemplateAPI(conversationTemplateDb)
 	conversationDb := conversationdb.NewConversationDB(database.DB)
 	conversationApi := conversationapi.NewConversationAPI(conversationDb, conversationTemplateApi)
+	aiDb := aidb.NewAIDB(database.DB)
+	aiApi := apiai.NewAIService(aiDb, memberApi, teamApi, conversationApi, sourcecontrolApi, orgApi, userApi)
 
 	// Initialize and start sync job scheduler
 	// Check if jobs are enabled
@@ -93,7 +97,7 @@ func main() {
 	}
 
 	// Initialize and run server
-	srv := server.New(database.DB, userApi, orgApi, teamApi, titleApi, authApi, integrationApi, sourcecontrolApi, memberApi, directsApi, conversationTemplateApi, conversationApi)
+	srv := server.New(database.DB, userApi, orgApi, teamApi, titleApi, authApi, integrationApi, sourcecontrolApi, memberApi, directsApi, conversationTemplateApi, conversationApi, aiApi)
 	if err := srv.Run(":8080"); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}

@@ -3,6 +3,7 @@ package server
 import (
 	"os"
 
+	apiai "ems.dev/backend/services/ai/api"
 	authapi "ems.dev/backend/services/auth/api"
 	conversationapi "ems.dev/backend/services/conversation/api"
 	conversationtemplateapi "ems.dev/backend/services/conversationtemplate/api"
@@ -32,9 +33,10 @@ type Server struct {
 	directsApi              directsapi.DirectReportsAPI
 	conversationTemplateApi conversationtemplateapi.ConversationTemplateAPIInterface
 	conversationApi         conversationapi.ConversationAPIInterface
+	aiApi                   apiai.AIServiceInterface
 }
 
-func New(db *gorm.DB, userApi userapi.UserAPI, orgApi orgapi.OrganizationAPI, teamApi teamapi.TeamAPI, titleApi titleapi.TitleAPI, authApi authapi.AuthAPI, integrationApi integrationapi.IntegrationAPI, sourcecontrolApi sourcecontrolapi.SourceControlAPI, memberApi memberapi.MemberAPI, directsApi directsapi.DirectReportsAPI, conversationTemplateApi conversationtemplateapi.ConversationTemplateAPIInterface, conversationApi conversationapi.ConversationAPIInterface) *Server {
+func New(db *gorm.DB, userApi userapi.UserAPI, orgApi orgapi.OrganizationAPI, teamApi teamapi.TeamAPI, titleApi titleapi.TitleAPI, authApi authapi.AuthAPI, integrationApi integrationapi.IntegrationAPI, sourcecontrolApi sourcecontrolapi.SourceControlAPI, memberApi memberapi.MemberAPI, directsApi directsapi.DirectReportsAPI, conversationTemplateApi conversationtemplateapi.ConversationTemplateAPIInterface, conversationApi conversationapi.ConversationAPIInterface, aiApi apiai.AIServiceInterface) *Server {
 	s := &Server{
 		router:                  gin.Default(),
 		db:                      db,
@@ -49,6 +51,7 @@ func New(db *gorm.DB, userApi userapi.UserAPI, orgApi orgapi.OrganizationAPI, te
 		directsApi:              directsApi,
 		conversationTemplateApi: conversationTemplateApi,
 		conversationApi:         conversationApi,
+		aiApi:                   aiApi,
 	}
 
 	s.setupMiddleware()
