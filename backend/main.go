@@ -17,7 +17,9 @@ import (
 	"ems.dev/backend/libraries/github"
 	apiai "ems.dev/backend/services/ai/api"
 	aidb "ems.dev/backend/services/ai/database"
+	"ems.dev/backend/services/ai/providers"
 	anthropicprovider "ems.dev/backend/services/ai/providers/anthropic"
+	groqprovider "ems.dev/backend/services/ai/providers/groq"
 	aitypes "ems.dev/backend/services/ai/types"
 	authapi "ems.dev/backend/services/auth/api"
 	authdb "ems.dev/backend/services/auth/database"
@@ -88,16 +90,16 @@ func main() {
 	aiConfig := &aitypes.AIServiceConfig{
 		Provider:          getEnvOrDefault("AI_PROVIDER", "anthropic"),
 		Model:             getEnvOrDefault("AI_MODEL", "claude-3-5-sonnet-20241022"),
-		MaxTokens:         2000,
+		MaxTokens:         100000,
 		Temperature:       0.7,
-		MaxContextSize:    4000,
+		MaxContextSize:    500000,
 		EnableHistory:     true,
 		EnableSuggestions: true,
 	}
 
-	anthropicAPIKey := getEnvOrDefault("ANTHROPIC_API_KEY", "")
-	anthropicProvider := anthropicprovider.NewProvider(anthropicAPIKey)
-	aiApi := apiai.NewAIService(aiDb, memberApi, teamApi, conversationApi, sourcecontrolApi, orgApi, userApi, aiConfig, anthropicProvider)
+	// Initialize AI provider based on configuration
+	aiProvider := initializeAIProvider(aiConfig)
+	aiApi := apiai.NewAIService(aiDb, memberApi, teamApi, conversationApi, sourcecontrolApi, orgApi, userApi, aiConfig, aiProvider)
 
 	// Initialize and start sync job scheduler
 	// Check if jobs are enabled
@@ -116,6 +118,30 @@ func main() {
 	srv := server.New(database.DB, userApi, orgApi, teamApi, titleApi, authApi, integrationApi, sourcecontrolApi, memberApi, directsApi, conversationTemplateApi, conversationApi, aiApi)
 	if err := srv.Run(":8080"); err != nil {
 		log.Fatal("Failed to start server:", err)
+	}
+}
+
+// initializeAIProvider initializes the appropriate AI provider based on configuration
+func initializeAIProvider(config *aitypes.AIServiceConfig) providers.AIProviderInterface {
+	provider := getEnvOrDefault("AI_PROVIDER", "anthropic")
+
+	switch provider {
+	case "groq":
+		groqAPIKey := getEnvOrDefault("GROQ_API_KEY", "")
+		if groqAPIKey == "" {
+			log.Fatal("GROQ_API_KEY environment variable is required when using Groq provider")
+		}
+		log.Printf("Initializing Groq AI provider with model: %s", config.Model)
+		return groqprovider.NewProvider(groqAPIKey)
+	case "anthropic":
+		fallthrough
+	default:
+		anthropicAPIKey := getEnvOrDefault("ANTHROPIC_API_KEY", "")
+		if anthropicAPIKey == "" {
+			log.Fatal("ANTHROPIC_API_KEY environment variable is required when using Anthropic provider")
+		}
+		log.Printf("Initializing Anthropic AI provider with model: %s", config.Model)
+		return anthropicprovider.NewProvider(anthropicAPIKey)
 	}
 }
 

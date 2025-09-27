@@ -17,9 +17,11 @@ import (
 	membertypes "ems.dev/backend/services/member/types"
 	orgapi "ems.dev/backend/services/organization/api"
 	sourcecontrolapi "ems.dev/backend/services/sourcecontrol/api"
+	sourcecontroltypes "ems.dev/backend/services/sourcecontrol/types"
 	teamapi "ems.dev/backend/services/team/api"
 	teamtypes "ems.dev/backend/services/team/types"
 	userapi "ems.dev/backend/services/user/api"
+	"gorm.io/datatypes"
 )
 
 // AIServiceInterface defines the interface for AI operations
@@ -184,11 +186,55 @@ func (s *AIService) gatherMemberData(ctx context.Context, req *types.AIQueryRequ
 		}
 	}
 
-	// Get source control data if context includes performance or overview
-	if strings.Contains(req.Context, "performance") || req.Context == "overview" {
-		// This would integrate with your existing source control metrics
-		// For now, we'll add a placeholder
-		entityData.Data["source_control_metrics"] = "Source control data would be integrated here"
+	// Get source control data for member queries (unless explicitly about conversations only)
+	shouldGatherSourceControl := req.Context == "overview" ||
+		strings.Contains(req.Context, "performance") ||
+		strings.Contains(strings.ToLower(req.Query), "performance") ||
+		strings.Contains(strings.ToLower(req.Query), "metric") ||
+		strings.Contains(strings.ToLower(req.Query), "code") ||
+		strings.Contains(strings.ToLower(req.Query), "pull request") ||
+		strings.Contains(strings.ToLower(req.Query), "review") ||
+		strings.Contains(strings.ToLower(req.Query), "contribution") ||
+		strings.Contains(strings.ToLower(req.Query), "activity") ||
+		(!strings.Contains(strings.ToLower(req.Query), "conversation") && req.Context != "conversation")
+
+	if shouldGatherSourceControl {
+		// Get member's source control accounts
+		sourceControlAccounts, err := s.sourceControlAPI.GetSourceControlAccounts(ctx, &sourcecontroltypes.SourceControlAccountParams{
+			OrganizationID: req.OrganizationID,
+			MemberIDs:      []string{req.EntityID},
+		})
+		if err == nil && len(sourceControlAccounts) > 0 {
+			entityData.Data["source_control_accounts"] = sourceControlAccounts
+
+			// Get member's pull requests (last 90 days)
+			startDate := time.Now().AddDate(0, 0, -90)
+			pullRequests, err := s.sourceControlAPI.GetMemberPullRequests(ctx, &sourcecontroltypes.MemberPullRequestParams{
+				MemberID:  req.EntityID,
+				StartDate: &startDate,
+			})
+			if err == nil {
+				entityData.Data["pull_requests"] = pullRequests
+			}
+
+			// Get member's pull request reviews (last 90 days)
+			reviews, err := s.sourceControlAPI.GetMemberPullRequestReviews(ctx, &sourcecontroltypes.MemberPullRequestReviewsParams{
+				MemberID:  req.EntityID,
+				StartDate: &startDate,
+			})
+			if err == nil {
+				entityData.Data["pull_request_reviews"] = reviews
+			}
+
+			// Calculate metrics for the member
+			metricsResponse, err := s.sourceControlAPI.CalculateMetrics(ctx, sourcecontroltypes.MetricRuleParams{
+				MetricParams: datatypes.JSON(`{"member_id": "` + req.EntityID + `"}`),
+				StartDate:    &startDate,
+			})
+			if err == nil {
+				entityData.Data["metrics"] = metricsResponse
+			}
+		}
 	}
 
 	return entityData, nil
