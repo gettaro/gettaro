@@ -92,11 +92,18 @@ type MemberActivity struct {
 	PRMetrics        datatypes.JSON `json:"pr_metrics,omitempty"`         // Added PRMetrics
 }
 
+// PullRequestWithComments represents a pull request with its comments
+type PullRequestWithComments struct {
+	*PullRequest
+	Comments []*PRComment `json:"comments,omitempty"`
+}
+
 // MemberPullRequestParams represents the parameters for getting member pull requests
 type MemberPullRequestParams struct {
-	MemberID  string     `json:"member_id"`
-	StartDate *time.Time `json:"start_date,omitempty"`
-	EndDate   *time.Time `json:"end_date,omitempty"`
+	MemberID        string     `json:"member_id"`
+	StartDate       *time.Time `json:"start_date,omitempty"`
+	EndDate         *time.Time `json:"end_date,omitempty"`
+	IncludeComments *bool      `json:"include_comments,omitempty"` // Optional include PR comments with body
 }
 
 // MemberPullRequestReviewsParams represents the parameters for getting member pull request reviews
@@ -104,6 +111,7 @@ type MemberPullRequestReviewsParams struct {
 	MemberID  string     `json:"member_id"`
 	StartDate *time.Time `json:"start_date,omitempty"`
 	EndDate   *time.Time `json:"end_date,omitempty"`
+	HasBody   *bool      `json:"has_body,omitempty"` // Optional filter for reviews with body content
 }
 
 // MemberMetricsParams represents the parameters for getting member metrics

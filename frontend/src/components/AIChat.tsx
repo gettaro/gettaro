@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { useToast } from '../hooks/useToast';
@@ -33,7 +35,14 @@ export const AIChat: React.FC<AIChatProps> = ({ context, className = '' }) => {
       const welcomeMessage: ChatMessage = {
         id: 'welcome',
         type: 'ai',
-        content: `Hello! I'm your AI assistant for ${context.entityName}. I can help you understand their performance, conversations, and other insights. What would you like to know?`,
+        content: `Hello! I'm your AI assistant for **${context.entityName}**. I can help you understand their:
+
+- **Performance metrics** and coding activity
+- **Conversations** and feedback
+- **Team dynamics** and collaboration
+- **Growth areas** and development opportunities
+
+What would you like to know?`,
         timestamp: new Date(),
         suggestions: [
           `How is ${context.entityName} performing?`,
@@ -139,7 +148,32 @@ export const AIChat: React.FC<AIChatProps> = ({ context, className = '' }) => {
                   : 'bg-muted'
               }`}
             >
-              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              {message.type === 'ai' ? (
+                <div className="text-sm prose prose-sm max-w-none">
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      // Custom styling for markdown elements
+                      p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                      li: ({ children }) => <li className="text-sm">{children}</li>,
+                      strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                      em: ({ children }) => <em className="italic">{children}</em>,
+                      code: ({ children }) => <code className="bg-muted px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
+                      pre: ({ children }) => <pre className="bg-muted p-2 rounded text-xs font-mono overflow-x-auto mb-2">{children}</pre>,
+                      blockquote: ({ children }) => <blockquote className="border-l-4 border-muted-foreground/20 pl-4 italic mb-2">{children}</blockquote>,
+                      h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                      h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                      h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              )}
               
               {/* AI message metadata */}
               {message.type === 'ai' && (

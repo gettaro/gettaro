@@ -28,7 +28,7 @@ type DB interface {
 	GetPullRequestComments(ctx context.Context, prID string) ([]*types.PRComment, error)
 
 	// Member Activity
-	GetMemberPullRequests(ctx context.Context, params *types.MemberPullRequestParams) ([]*types.PullRequest, error)
+	GetMemberPullRequests(ctx context.Context, params *types.MemberPullRequestParams) ([]*types.PullRequestWithComments, error)
 	GetMemberPullRequestReviews(ctx context.Context, params *types.MemberPullRequestReviewsParams) ([]*types.MemberActivity, error)
 
 	// Calculate time to merge metrics
@@ -198,37 +198,119 @@ func (d *SourceControlDB) GetSourceControlAccount(ctx context.Context, id string
 }
 
 // GetMemberPullRequests retrieves pull requests for a specific member
-func (d *SourceControlDB) GetMemberPullRequests(ctx context.Context, params *types.MemberPullRequestParams) ([]*types.PullRequest, error) {
-	var prs []types.PullRequest
-	query := d.db.WithContext(ctx).Model(&types.PullRequest{})
+func (d *SourceControlDB) GetMemberPullRequests(ctx context.Context, params *types.MemberPullRequestParams) ([]*types.PullRequestWithComments, error) {
+	// Build the base query
+	baseQuery := `
+		SELECT DISTINCT
+			pr.id,
+			pr.source_control_account_id,
+			pr.provider_id,
+			pr.repository_name,
+			pr.title,
+			pr.description,
+			pr.url,
+			pr.status,
+			pr.created_at,
+			pr.updated_at,
+			pr.merged_at,
+			pr.last_updated_at,
+			pr.comments,
+			pr.review_comments,
+			pr.additions,
+			pr.deletions,
+			pr.changed_files,
+			pr.metrics,
+			pr.metadata
+		FROM pull_requests pr
+		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		WHERE sca.member_id = ?
+	`
 
-	// Join with source_control_accounts to filter by member_id
-	query = query.Joins(`
-		JOIN source_control_accounts sca ON pull_requests.source_control_account_id = sca.id
-	`)
-
-	// Filter by member ID
-	query = query.Where("sca.member_id = ?", params.MemberID)
+	var args []interface{}
+	args = append(args, params.MemberID)
 
 	// Add date range filters if provided
 	if params.StartDate != nil {
-		query = query.Where("pull_requests.created_at >= ?", params.StartDate)
+		baseQuery += " AND pr.created_at >= ?"
+		args = append(args, params.StartDate)
 	}
 	if params.EndDate != nil {
-		query = query.Where("pull_requests.created_at <= ?", params.EndDate)
+		baseQuery += " AND pr.created_at <= ?"
+		args = append(args, params.EndDate)
 	}
 
-	// Order by created_at descending
-	query = query.Order("pull_requests.created_at DESC")
+	baseQuery += " ORDER BY pr.created_at DESC"
 
-	if err := query.Find(&prs).Error; err != nil {
+	// Execute the base query to get pull requests
+	var prs []types.PullRequest
+	if err := d.db.WithContext(ctx).Raw(baseQuery, args...).Scan(&prs).Error; err != nil {
 		return nil, err
 	}
 
-	result := make([]*types.PullRequest, len(prs))
-	for i := range prs {
-		result[i] = &prs[i]
+	// If comments are not requested, return without comments
+	if params.IncludeComments == nil || !*params.IncludeComments {
+		result := make([]*types.PullRequestWithComments, len(prs))
+		for i := range prs {
+			result[i] = &types.PullRequestWithComments{
+				PullRequest: &prs[i],
+				Comments:    []*types.PRComment{},
+			}
+		}
+		return result, nil
 	}
+
+	// Get all PR IDs for the comment query
+	prIDs := make([]string, len(prs))
+	for i, pr := range prs {
+		prIDs[i] = pr.ID
+	}
+
+	// Get all comments for these PRs in a single query
+	commentsQuery := `
+		SELECT 
+			pc.id,
+			pc.pr_id,
+			pc.source_control_account_id,
+			pc.provider_id,
+			pc.body,
+			pc.type,
+			pc.created_at,
+			pc.updated_at
+		FROM pr_comments pc
+		JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+		WHERE pc.pr_id IN(?) 
+		AND pc.body IS NOT NULL 
+		AND pc.body != ''
+		AND sca.metadata->>'type' = 'User'
+		ORDER BY pc.pr_id, pc.created_at ASC
+	`
+
+	var comments []types.PRComment
+	if err := d.db.WithContext(ctx).Raw(commentsQuery, prIDs).Scan(&comments).Error; err != nil {
+		return nil, err
+	}
+
+	// Group comments by PR ID
+	commentsByPR := make(map[string][]*types.PRComment)
+	for i := range comments {
+		prID := comments[i].PRID
+		commentsByPR[prID] = append(commentsByPR[prID], &comments[i])
+	}
+
+	// Build the final result
+	result := make([]*types.PullRequestWithComments, len(prs))
+	for i := range prs {
+		prComments := commentsByPR[prs[i].ID]
+		if prComments == nil {
+			prComments = []*types.PRComment{}
+		}
+
+		result[i] = &types.PullRequestWithComments{
+			PullRequest: &prs[i],
+			Comments:    prComments,
+		}
+	}
+
 	return result, nil
 }
 
@@ -236,18 +318,25 @@ func (d *SourceControlDB) GetMemberPullRequests(ctx context.Context, params *typ
 func (d *SourceControlDB) GetMemberPullRequestReviews(ctx context.Context, params *types.MemberPullRequestReviewsParams) ([]*types.MemberActivity, error) {
 	var activities []*types.MemberActivity
 
-	// Build date filter conditions for comments
-	var commentDateFilter string
+	// Build filter conditions for comments
+	var commentFilter string
 	var args []interface{}
 	args = append(args, params.MemberID)
 
 	if params.StartDate != nil {
-		commentDateFilter += " AND pc.created_at >= ?"
+		commentFilter += " AND pc.created_at >= ?"
 		args = append(args, params.StartDate)
 	}
 	if params.EndDate != nil {
-		commentDateFilter += " AND pc.created_at <= ?"
+		commentFilter += " AND pc.created_at <= ?"
 		args = append(args, params.EndDate)
+	}
+	if params.HasBody != nil {
+		if *params.HasBody {
+			commentFilter += " AND pc.body IS NOT NULL AND pc.body != ''"
+		} else {
+			commentFilter += " AND (pc.body IS NULL OR pc.body = '')"
+		}
 	}
 
 	// Get comments and reviews by the member on other people's PRs
@@ -272,7 +361,7 @@ func (d *SourceControlDB) GetMemberPullRequestReviews(ctx context.Context, param
 		JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
 		JOIN source_control_accounts pr_author ON pr.source_control_account_id = pr_author.id
 		WHERE sca.member_id = ? 
-		AND sca.id != pr.source_control_account_id` + commentDateFilter + `
+		AND sca.id != pr.source_control_account_id` + commentFilter + `
 		ORDER BY pc.created_at DESC
 	`
 

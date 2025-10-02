@@ -26,7 +26,7 @@ type SourceControlAPI interface {
 	GetPullRequestComments(ctx context.Context, prID string) ([]*types.PRComment, error)
 
 	// Member Activity
-	GetMemberPullRequests(ctx context.Context, params *types.MemberPullRequestParams) ([]*types.PullRequest, error)
+	GetMemberPullRequests(ctx context.Context, params *types.MemberPullRequestParams) ([]*types.PullRequestWithComments, error)
 	GetMemberPullRequestReviews(ctx context.Context, params *types.MemberPullRequestReviewsParams) ([]*types.MemberActivity, error)
 
 	// CalculateMetrics calculates source control metrics
@@ -87,11 +87,11 @@ func (a *Api) UpdatePullRequest(ctx context.Context, pr *types.PullRequest) erro
 // - ctx: The context for the request, used for cancellation and timeouts
 // - params: The parameters containing member ID and optional date range filters
 // Returns:
-// - []*types.PullRequest: A list of pull requests created by the member, ordered by created_at descending
+// - []*types.PullRequestWithComments: A list of pull requests created by the member with optional comments, ordered by created_at descending
 // - error: If any error occurs during the retrieval
 // Side Effects:
-// - Makes a database query to fetch member pull requests
-func (a *Api) GetMemberPullRequests(ctx context.Context, params *types.MemberPullRequestParams) ([]*types.PullRequest, error) {
+// - Makes a database query to fetch member pull requests and optionally their comments
+func (a *Api) GetMemberPullRequests(ctx context.Context, params *types.MemberPullRequestParams) ([]*types.PullRequestWithComments, error) {
 	return a.db.GetMemberPullRequests(ctx, params)
 }
 

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"ems.dev/backend/services/ai/database"
@@ -21,7 +20,6 @@ import (
 	teamapi "ems.dev/backend/services/team/api"
 	teamtypes "ems.dev/backend/services/team/types"
 	userapi "ems.dev/backend/services/user/api"
-	"gorm.io/datatypes"
 )
 
 // AIServiceInterface defines the interface for AI operations
@@ -71,10 +69,16 @@ func NewAIService(
 
 // Query processes an AI query request
 func (s *AIService) Query(ctx context.Context, req *types.AIQueryRequest, userID string) (*types.AIQueryResponse, error) {
-	// Gather relevant data based on entity type
-	entityData, err := s.gatherEntityData(ctx, req)
+	// Generate retrieval plan using LLM
+	retrievalPlan, err := s.generateRetrievalPlan(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to gather entity data: %w", err)
+		return nil, fmt.Errorf("failed to generate retrieval plan: %w", err)
+	}
+
+	// Execute the retrieval plan
+	entityData, err := s.executeRetrievalPlan(ctx, req, retrievalPlan)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute retrieval plan: %w", err)
 	}
 
 	// Format data for AI
@@ -110,7 +114,7 @@ func (s *AIService) Query(ctx context.Context, req *types.AIQueryRequest, userID
 			Answer:         response.Answer,
 			Context:        req.Context,
 			Confidence:     response.Confidence,
-			Sources:        response.Sources,
+			Sources:        types.StringArray(response.Sources),
 			CreatedAt:      time.Now(),
 		}
 
@@ -132,8 +136,36 @@ func (s *AIService) GetQueryStats(ctx context.Context, organizationID string, us
 	return s.db.GetQueryStats(ctx, organizationID, userID, days)
 }
 
-// gatherEntityData collects relevant data for the entity
-func (s *AIService) gatherEntityData(ctx context.Context, req *types.AIQueryRequest) (*types.EntityData, error) {
+// generateRetrievalPlan uses LLM to generate a structured retrieval plan
+func (s *AIService) generateRetrievalPlan(ctx context.Context, req *types.AIQueryRequest) (*types.RetrievalPlan, error) {
+	// Build prompt for retrieval plan generation
+	prompt := s.buildRetrievalPlanPrompt(req)
+
+	// Call AI provider to generate plan
+	aiResponse, err := s.provider.Query(ctx, prompt, s.config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call AI provider for retrieval plan: %w", err)
+	}
+
+	// Parse the JSON response
+	var plan types.RetrievalPlan
+	if err := json.Unmarshal([]byte(aiResponse.Answer), &plan); err != nil {
+		// Fallback to default plan if parsing fails
+		log.Printf("Failed to parse retrieval plan, using default: %v", err)
+		return s.getDefaultRetrievalPlan(req), nil
+	}
+
+	// Validate the plan
+	if err := s.validateRetrievalPlan(&plan, req); err != nil {
+		log.Printf("Retrieval plan validation failed, using default: %v", err)
+		return s.getDefaultRetrievalPlan(req), nil
+	}
+
+	return &plan, nil
+}
+
+// executeRetrievalPlan executes the generated retrieval plan
+func (s *AIService) executeRetrievalPlan(ctx context.Context, req *types.AIQueryRequest, plan *types.RetrievalPlan) (*types.EntityData, error) {
 	entityData := &types.EntityData{
 		EntityType:     req.EntityType,
 		EntityID:       req.EntityID,
@@ -142,152 +174,35 @@ func (s *AIService) gatherEntityData(ctx context.Context, req *types.AIQueryRequ
 		LastUpdated:    time.Now(),
 	}
 
-	switch req.EntityType {
-	case "member":
-		return s.gatherMemberData(ctx, req, entityData)
-	case "team":
-		return s.gatherTeamData(ctx, req, entityData)
-	case "organization":
-		return s.gatherOrganizationData(ctx, req, entityData)
-	default:
-		return nil, fmt.Errorf("unsupported entity type: %s", req.EntityType)
-	}
-}
-
-// gatherMemberData collects member-specific data
-func (s *AIService) gatherMemberData(ctx context.Context, req *types.AIQueryRequest, entityData *types.EntityData) (*types.EntityData, error) {
-	// Get member details
-	members, err := s.memberAPI.GetOrganizationMembers(ctx, req.OrganizationID, nil)
-	if err != nil {
-		return nil, err
+	// Always include basic entity data
+	if err := s.gatherBasicEntityData(ctx, req, entityData); err != nil {
+		return nil, fmt.Errorf("failed to gather basic entity data: %w", err)
 	}
 
-	var member *membertypes.OrganizationMember
-	for _, m := range members {
-		if m.ID == req.EntityID {
-			member = &m
-			break
-		}
-	}
-
-	if member == nil {
-		return nil, fmt.Errorf("member not found")
-	}
-
-	entityData.Data["member"] = member
-
-	// Get conversations if context includes conversations
-	if strings.Contains(req.Context, "conversation") || req.Context == "overview" {
-		conversations, err := s.conversationAPI.ListConversations(ctx, req.OrganizationID, &conversationtypes.ListConversationsQuery{
-			DirectMemberID: &req.EntityID,
-		})
-		if err == nil {
-			entityData.Data["conversations"] = conversations
-		}
-	}
-
-	// Get source control data for member queries (unless explicitly about conversations only)
-	shouldGatherSourceControl := req.Context == "overview" ||
-		strings.Contains(req.Context, "performance") ||
-		strings.Contains(strings.ToLower(req.Query), "performance") ||
-		strings.Contains(strings.ToLower(req.Query), "metric") ||
-		strings.Contains(strings.ToLower(req.Query), "code") ||
-		strings.Contains(strings.ToLower(req.Query), "pull request") ||
-		strings.Contains(strings.ToLower(req.Query), "review") ||
-		strings.Contains(strings.ToLower(req.Query), "contribution") ||
-		strings.Contains(strings.ToLower(req.Query), "activity") ||
-		(!strings.Contains(strings.ToLower(req.Query), "conversation") && req.Context != "conversation")
-
-	if shouldGatherSourceControl {
-		// Get member's source control accounts
-		sourceControlAccounts, err := s.sourceControlAPI.GetSourceControlAccounts(ctx, &sourcecontroltypes.SourceControlAccountParams{
-			OrganizationID: req.OrganizationID,
-			MemberIDs:      []string{req.EntityID},
-		})
-		if err == nil && len(sourceControlAccounts) > 0 {
-			entityData.Data["source_control_accounts"] = sourceControlAccounts
-
-			// Get member's pull requests (last 90 days)
-			startDate := time.Now().AddDate(0, 0, -90)
-			pullRequests, err := s.sourceControlAPI.GetMemberPullRequests(ctx, &sourcecontroltypes.MemberPullRequestParams{
-				MemberID:  req.EntityID,
-				StartDate: &startDate,
-			})
-			if err == nil {
-				entityData.Data["pull_requests"] = pullRequests
+	// Execute plan based on data sources
+	for _, source := range plan.DataSources {
+		switch source {
+		case "source_control":
+			if err := s.gatherSourceControlData(ctx, req, entityData, plan); err != nil {
+				log.Printf("Failed to gather source control data: %v", err)
 			}
-
-			// Get member's pull request reviews (last 90 days)
-			reviews, err := s.sourceControlAPI.GetMemberPullRequestReviews(ctx, &sourcecontroltypes.MemberPullRequestReviewsParams{
-				MemberID:  req.EntityID,
-				StartDate: &startDate,
-			})
-			if err == nil {
-				entityData.Data["pull_request_reviews"] = reviews
+		case "conversations":
+			if err := s.gatherConversationData(ctx, req, entityData, plan); err != nil {
+				log.Printf("Failed to gather conversation data: %v", err)
 			}
-
-			// Calculate metrics for the member
-			metricsResponse, err := s.sourceControlAPI.CalculateMetrics(ctx, sourcecontroltypes.MetricRuleParams{
-				MetricParams: datatypes.JSON(`{"member_id": "` + req.EntityID + `"}`),
-				StartDate:    &startDate,
-			})
-			if err == nil {
-				entityData.Data["metrics"] = metricsResponse
+		case "member_data":
+			if err := s.gatherMemberData(ctx, req, entityData, plan); err != nil {
+				log.Printf("Failed to gather member data: %v", err)
+			}
+		case "team_data":
+			if err := s.gatherTeamData(ctx, req, entityData, plan); err != nil {
+				log.Printf("Failed to gather team data: %v", err)
+			}
+		case "organization_data":
+			if err := s.gatherOrganizationData(ctx, req, entityData, plan); err != nil {
+				log.Printf("Failed to gather organization data: %v", err)
 			}
 		}
-	}
-
-	return entityData, nil
-}
-
-// gatherTeamData collects team-specific data
-func (s *AIService) gatherTeamData(ctx context.Context, req *types.AIQueryRequest, entityData *types.EntityData) (*types.EntityData, error) {
-	// Get team details
-	team, err := s.teamAPI.GetTeam(ctx, req.EntityID)
-	if err != nil {
-		return nil, err
-	}
-
-	if team == nil {
-		return nil, fmt.Errorf("team not found")
-	}
-
-	entityData.Data["team"] = team
-
-	// Get team members
-	members, err := s.memberAPI.GetOrganizationMembers(ctx, req.OrganizationID, nil)
-	if err == nil {
-		// Filter members for this team (you'd need to implement team membership logic)
-		entityData.Data["team_members"] = members
-	}
-
-	return entityData, nil
-}
-
-// gatherOrganizationData collects organization-specific data
-func (s *AIService) gatherOrganizationData(ctx context.Context, req *types.AIQueryRequest, entityData *types.EntityData) (*types.EntityData, error) {
-	// Get organization details
-	org, err := s.organizationAPI.GetOrganizationByID(ctx, req.OrganizationID)
-	if err != nil {
-		return nil, err
-	}
-
-	if org == nil {
-		return nil, fmt.Errorf("organization not found")
-	}
-
-	entityData.Data["organization"] = org
-
-	// Get organization members
-	members, err := s.memberAPI.GetOrganizationMembers(ctx, req.OrganizationID, nil)
-	if err == nil {
-		entityData.Data["members"] = members
-	}
-
-	// Get teams
-	teams, err := s.teamAPI.ListTeams(ctx, teamtypes.TeamSearchParams{})
-	if err == nil {
-		entityData.Data["teams"] = teams
 	}
 
 	return entityData, nil
@@ -383,4 +298,317 @@ func (s *AIService) generateSuggestions(entityType, context string) []string {
 	}
 
 	return suggestions
+}
+
+// buildRetrievalPlanPrompt builds a prompt for generating retrieval plans
+func (s *AIService) buildRetrievalPlanPrompt(req *types.AIQueryRequest) string {
+	return fmt.Sprintf(`You are a data retrieval planning assistant. Based on the user's query, generate a JSON plan for what data to retrieve.
+
+Available data sources:
+- source_control: Pull requests, reviews, metrics, code contributions
+- conversations: Manager conversations, feedback, action items
+- member_data: Basic member information
+- team_data: Team composition, performance, structure
+- organization_data: Organization-wide metrics, teams, members
+
+Query: "%s"
+Entity Type: %s
+Context: %s
+
+Generate a JSON response with this exact structure:
+{
+  "data_sources": ["source_control", "conversations"],
+  "time": {
+    "from": "2025-09-01",
+    "to": "2025-09-27", 
+    "interval": "daily"
+  },
+  "filters": {
+    "member_ids": ["member_id_1"],
+    "limit": 100
+  },
+  "priority": "high",
+  "reasoning": "Brief explanation of why this plan was chosen"
+}
+
+Rules:
+1. Only include data sources that are relevant to the query
+2. When the user is requesting an overview use all the data sources directly related to the entity. Ex. If member use source_control and conversations. If team use team_data and member_data. If organization use organization_data and team_data and member_data and source_control.
+3. Set appropriate time ranges based on query context
+4. If no start and end date are provided, use the last 30 days
+5. Use "daily" interval for recent data, "weekly" for trends, "monthly" for overviews
+6. Set priority based on query urgency
+7. Provide clear reasoning for your choices
+8. Return ONLY valid JSON, no other text`, req.Query, req.EntityType, req.Context)
+}
+
+// validateRetrievalPlan validates a generated retrieval plan
+func (s *AIService) validateRetrievalPlan(plan *types.RetrievalPlan, req *types.AIQueryRequest) error {
+	// Check if data sources are valid
+	validSources := map[string]bool{
+		"source_control":    true,
+		"conversations":     true,
+		"member_data":       true,
+		"team_data":         true,
+		"organization_data": true,
+	}
+
+	for _, source := range plan.DataSources {
+		if !validSources[source] {
+			return fmt.Errorf("invalid data source: %s", source)
+		}
+	}
+
+	// Validate time range if provided
+	if plan.Time != nil {
+		if plan.Time.From == "" || plan.Time.To == "" {
+			return fmt.Errorf("time range must have both 'from' and 'to' dates")
+		}
+
+		validIntervals := map[string]bool{
+			"daily":   true,
+			"weekly":  true,
+			"monthly": true,
+			"yearly":  true,
+		}
+		if !validIntervals[plan.Time.Interval] {
+			return fmt.Errorf("invalid time interval: %s", plan.Time.Interval)
+		}
+	}
+
+	// Validate priority
+	if plan.Priority != "" {
+		validPriorities := map[string]bool{
+			"high":   true,
+			"medium": true,
+			"low":    true,
+		}
+		if !validPriorities[plan.Priority] {
+			return fmt.Errorf("invalid priority: %s", plan.Priority)
+		}
+	}
+
+	return nil
+}
+
+// getDefaultRetrievalPlan returns a default retrieval plan based on entity type
+func (s *AIService) getDefaultRetrievalPlan(req *types.AIQueryRequest) *types.RetrievalPlan {
+	plan := &types.RetrievalPlan{
+		DataSources: []string{"member_data"},
+		Priority:    "medium",
+		Reasoning:   "Default plan based on entity type",
+	}
+
+	// Add time range for recent data
+	now := time.Now()
+	plan.Time = &types.TimeRange{
+		From:     now.AddDate(0, 0, -30).Format("2006-01-02"),
+		To:       now.Format("2006-01-02"),
+		Interval: "day",
+	}
+
+	// Add relevant data sources based on entity type
+	switch req.EntityType {
+	case "member":
+		plan.DataSources = []string{"member_data", "source_control", "conversations"}
+	case "team":
+		plan.DataSources = []string{"team_data", "member_data", "source_control"}
+	case "organization":
+		plan.DataSources = []string{"organization_data", "team_data", "member_data"}
+	}
+
+	return plan
+}
+
+// gatherBasicEntityData gathers basic entity information
+func (s *AIService) gatherBasicEntityData(ctx context.Context, req *types.AIQueryRequest, entityData *types.EntityData) error {
+	switch req.EntityType {
+	case "member":
+		return s.gatherMemberBasicData(ctx, req, entityData)
+	case "team":
+		return s.gatherTeamBasicData(ctx, req, entityData)
+	case "organization":
+		return s.gatherOrganizationBasicData(ctx, req, entityData)
+	default:
+		return fmt.Errorf("unsupported entity type: %s", req.EntityType)
+	}
+}
+
+// gatherMemberBasicData gathers basic member information
+func (s *AIService) gatherMemberBasicData(ctx context.Context, req *types.AIQueryRequest, entityData *types.EntityData) error {
+	members, err := s.memberAPI.GetOrganizationMembers(ctx, req.OrganizationID, nil)
+	if err != nil {
+		return err
+	}
+
+	var member *membertypes.OrganizationMember
+	for _, m := range members {
+		if m.ID == req.EntityID {
+			member = &m
+			break
+		}
+	}
+
+	if member == nil {
+		return fmt.Errorf("member not found")
+	}
+
+	entityData.Data["member"] = member
+	return nil
+}
+
+// gatherTeamBasicData gathers basic team information
+func (s *AIService) gatherTeamBasicData(ctx context.Context, req *types.AIQueryRequest, entityData *types.EntityData) error {
+	team, err := s.teamAPI.GetTeam(ctx, req.EntityID)
+	if err != nil {
+		return err
+	}
+
+	if team == nil {
+		return fmt.Errorf("team not found")
+	}
+
+	entityData.Data["team"] = team
+	return nil
+}
+
+// gatherOrganizationBasicData gathers basic organization information
+func (s *AIService) gatherOrganizationBasicData(ctx context.Context, req *types.AIQueryRequest, entityData *types.EntityData) error {
+	org, err := s.organizationAPI.GetOrganizationByID(ctx, req.OrganizationID)
+	if err != nil {
+		return err
+	}
+
+	if org == nil {
+		return fmt.Errorf("organization not found")
+	}
+
+	entityData.Data["organization"] = org
+	return nil
+}
+
+// gatherSourceControlData gathers source control data based on plan
+func (s *AIService) gatherSourceControlData(ctx context.Context, req *types.AIQueryRequest, entityData *types.EntityData, plan *types.RetrievalPlan) error {
+	// Get member's source control accounts
+	sourceControlAccounts, err := s.sourceControlAPI.GetSourceControlAccounts(ctx, &sourcecontroltypes.SourceControlAccountParams{
+		OrganizationID: req.OrganizationID,
+		MemberIDs:      []string{req.EntityID},
+	})
+	if err != nil || len(sourceControlAccounts) == 0 {
+		return err
+	}
+
+	entityData.Data["source_control_accounts"] = sourceControlAccounts
+
+	// Determine time range
+	startDate := time.Now().AddDate(0, 0, -90) // Default to 90 days
+	endDate := time.Now()
+	if plan.Time != nil {
+		if parsedStartTime, err := time.Parse("2006-01-02", plan.Time.From); err == nil {
+			startDate = parsedStartTime
+		}
+		if parsedEndTime, err := time.Parse("2006-01-02", plan.Time.To); err == nil {
+			endDate = parsedEndTime
+		}
+	}
+
+	// Get pull requests
+	pullRequests, err := s.sourceControlAPI.GetMemberPullRequests(ctx, &sourcecontroltypes.MemberPullRequestParams{
+		MemberID:        req.EntityID,
+		StartDate:       &startDate,
+		EndDate:         &endDate,
+		IncludeComments: &[]bool{true}[0],
+	})
+	if err == nil {
+		entityData.Data["pull_requests"] = pullRequests
+	}
+
+	// Get pull request reviews
+	reviews, err := s.sourceControlAPI.GetMemberPullRequestReviews(ctx, &sourcecontroltypes.MemberPullRequestReviewsParams{
+		MemberID:  req.EntityID,
+		StartDate: &startDate,
+		EndDate:   &endDate,
+		HasBody:   &[]bool{true}[0],
+	})
+	if err == nil {
+		entityData.Data["member_pull_request_reviews"] = reviews
+	}
+
+	// Calculate metrics for the target member
+	metricsResponse, err := s.memberAPI.CalculateSourceControlMemberMetrics(ctx, req.OrganizationID, req.EntityID, sourcecontroltypes.MemberMetricsParams{
+		StartDate: &startDate,
+		EndDate:   &endDate,
+		Interval:  plan.Time.Interval,
+	})
+
+	if err == nil {
+		entityData.Data["metrics"] = metricsResponse
+	}
+
+	return nil
+}
+
+// gatherConversationData gathers conversation data based on plan
+func (s *AIService) gatherConversationData(ctx context.Context, req *types.AIQueryRequest, entityData *types.EntityData, plan *types.RetrievalPlan) error {
+	conversations, err := s.conversationAPI.ListConversations(ctx, req.OrganizationID, &conversationtypes.ListConversationsQuery{
+		DirectMemberID: &req.EntityID,
+	})
+	if err != nil {
+		return err
+	}
+
+	entityData.Data["conversations"] = conversations
+	return nil
+}
+
+// gatherMemberData gathers member data based on plan (updated signature)
+func (s *AIService) gatherMemberData(ctx context.Context, req *types.AIQueryRequest, entityData *types.EntityData, plan *types.RetrievalPlan) error {
+	// This method can be expanded to include additional member-specific data gathering
+	// based on the retrieval plan filters and requirements
+	return nil
+}
+
+// gatherTeamData gathers team data based on plan (updated signature)
+func (s *AIService) gatherTeamData(ctx context.Context, req *types.AIQueryRequest, entityData *types.EntityData, plan *types.RetrievalPlan) error {
+	// Get team members
+	members, err := s.memberAPI.GetOrganizationMembers(ctx, req.OrganizationID, nil)
+	if err == nil {
+		entityData.Data["team_members"] = members
+	}
+	return err
+}
+
+// gatherOrganizationData gathers organization data based on plan (updated signature)
+func (s *AIService) gatherOrganizationData(ctx context.Context, req *types.AIQueryRequest, entityData *types.EntityData, plan *types.RetrievalPlan) error {
+	// Get organization members
+	members, err := s.memberAPI.GetOrganizationMembers(ctx, req.OrganizationID, nil)
+	if err == nil {
+		entityData.Data["members"] = members
+	}
+
+	// Get teams
+	teams, err := s.teamAPI.ListTeams(ctx, teamtypes.TeamSearchParams{})
+	if err == nil {
+		entityData.Data["teams"] = teams
+	}
+
+	return nil
+}
+
+// formatAccountIDsForJSON formats source control account IDs as JSON array string
+func (s *AIService) formatAccountIDsForJSON(accountIDs []string) string {
+	if len(accountIDs) == 0 {
+		return "[]"
+	}
+
+	jsonStr := "["
+	for i, id := range accountIDs {
+		if i > 0 {
+			jsonStr += ","
+		}
+		jsonStr += `"` + id + `"`
+	}
+	jsonStr += "]"
+
+	return jsonStr
 }

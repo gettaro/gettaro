@@ -255,20 +255,20 @@ func (h *SourceControlHandler) GetMemberPullRequests(c *gin.Context) {
 		PullRequests: make([]sourcecontrol.PullRequest, len(prs)),
 	}
 
-	for i, pr := range prs {
+	for i, prWithComments := range prs {
 		response.PullRequests[i] = sourcecontrol.PullRequest{
-			ID:             pr.ID,
-			Title:          pr.Title,
-			Description:    pr.Description,
-			URL:            pr.URL,
-			Status:         pr.Status,
-			CreatedAt:      pr.CreatedAt,
-			MergedAt:       pr.MergedAt,
-			Comments:       pr.Comments,
-			ReviewComments: pr.ReviewComments,
-			Additions:      pr.Additions,
-			Deletions:      pr.Deletions,
-			ChangedFiles:   pr.ChangedFiles,
+			ID:             prWithComments.PullRequest.ID,
+			Title:          prWithComments.PullRequest.Title,
+			Description:    prWithComments.PullRequest.Description,
+			URL:            prWithComments.PullRequest.URL,
+			Status:         prWithComments.PullRequest.Status,
+			CreatedAt:      prWithComments.PullRequest.CreatedAt,
+			MergedAt:       prWithComments.PullRequest.MergedAt,
+			Comments:       prWithComments.PullRequest.Comments,
+			ReviewComments: prWithComments.PullRequest.ReviewComments,
+			Additions:      prWithComments.PullRequest.Additions,
+			Deletions:      prWithComments.PullRequest.Deletions,
+			ChangedFiles:   prWithComments.PullRequest.ChangedFiles,
 		}
 	}
 
