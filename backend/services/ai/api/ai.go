@@ -87,6 +87,8 @@ func (s *AIService) Query(ctx context.Context, req *types.AIQueryRequest, userID
 	// Build prompt
 	prompt := s.buildPrompt(req.Query, contextData, req.EntityType, req.Context)
 
+	log.Printf("Prompt: %d", len(prompt))
+
 	// Call AI provider
 	aiResponse, err := s.provider.Query(ctx, prompt, s.config)
 	if err != nil {
@@ -210,8 +212,11 @@ func (s *AIService) executeRetrievalPlan(ctx context.Context, req *types.AIQuery
 
 // formatDataForAI formats the collected data for AI consumption
 func (s *AIService) formatDataForAI(entityData *types.EntityData, entityType string) string {
+	// Clean the data by removing IDs and metadata
+	cleanedData := s.cleanDataForAI(entityData.Data)
+
 	// Convert data to JSON for AI processing
-	jsonData, err := json.MarshalIndent(entityData.Data, "", "  ")
+	jsonData, err := json.MarshalIndent(cleanedData, "", "  ")
 	if err != nil {
 		log.Printf("Failed to marshal entity data: %v", err)
 		return "Data formatting error"
@@ -224,6 +229,152 @@ func (s *AIService) formatDataForAI(entityData *types.EntityData, entityType str
 	}
 
 	return dataStr
+}
+
+// cleanDataForAI removes IDs, metadata, and other unnecessary fields to reduce context size
+func (s *AIService) cleanDataForAI(data map[string]interface{}) map[string]interface{} {
+	cleaned := make(map[string]interface{})
+
+	for key, value := range data {
+		switch key {
+		case "source_control_accounts":
+			cleaned[key] = s.cleanSourceControlAccounts(value)
+		case "pull_requests":
+			cleaned[key] = s.cleanPullRequests(value)
+		case "member_pull_request_reviews":
+			cleaned[key] = s.cleanPRReviews(value)
+		case "conversations":
+			cleaned[key] = s.cleanConversations(value)
+		case "metrics":
+			cleaned[key] = value
+		case "member", "team", "organization":
+			cleaned[key] = s.cleanEntity(value)
+		default:
+			cleaned[key] = value
+		}
+	}
+
+	return cleaned
+}
+
+// cleanSourceControlAccounts removes unnecessary fields from source control accounts
+func (s *AIService) cleanSourceControlAccounts(value interface{}) interface{} {
+	accounts, ok := value.([]sourcecontroltypes.SourceControlAccount)
+	if !ok {
+		return value
+	}
+
+	cleaned := make([]map[string]interface{}, len(accounts))
+	for i, account := range accounts {
+		cleaned[i] = map[string]interface{}{
+			"provider_name": account.ProviderName,
+			"username":      account.Username,
+			"last_synced":   account.LastSyncedAt,
+		}
+	}
+	return cleaned
+}
+
+// cleanPullRequests removes unnecessary fields from pull requests
+func (s *AIService) cleanPullRequests(value interface{}) interface{} {
+	prs, ok := value.([]*sourcecontroltypes.PullRequestWithComments)
+	if !ok {
+		return value
+	}
+
+	cleaned := make([]map[string]interface{}, len(prs))
+	for i, pr := range prs {
+		prData := map[string]interface{}{
+			"title":                 pr.PullRequest.Title,
+			"description":           pr.PullRequest.Description,
+			"url":                   pr.PullRequest.URL,
+			"status":                pr.PullRequest.Status,
+			"created_at":            pr.PullRequest.CreatedAt,
+			"merged_at":             pr.PullRequest.MergedAt,
+			"repository_name":       pr.PullRequest.RepositoryName,
+			"additions":             pr.PullRequest.Additions,
+			"deletions":             pr.PullRequest.Deletions,
+			"changed_files":         pr.PullRequest.ChangedFiles,
+			"comments_count":        pr.PullRequest.Comments,
+			"review_comments_count": pr.PullRequest.ReviewComments,
+		}
+
+		// Include comments if present
+		if len(pr.Comments) > 0 {
+			comments := make([]map[string]interface{}, len(pr.Comments))
+			for j, comment := range pr.Comments {
+				comments[j] = map[string]interface{}{
+					"body":       comment.Body,
+					"type":       comment.Type,
+					"created_at": comment.CreatedAt,
+				}
+			}
+			prData["comments"] = comments
+		}
+
+		cleaned[i] = prData
+	}
+	return cleaned
+}
+
+// cleanPRReviews removes unnecessary fields from member activities
+func (s *AIService) cleanPRReviews(value interface{}) interface{} {
+	activities, ok := value.([]*sourcecontroltypes.MemberActivity)
+	if !ok {
+		return value
+	}
+
+	cleaned := make([]map[string]interface{}, len(activities))
+	for i, activity := range activities {
+		cleaned[i] = map[string]interface{}{
+			"type":               activity.Type,
+			"description":        activity.Description,
+			"url":                activity.URL,
+			"repository":         activity.Repository,
+			"created_at":         activity.CreatedAt,
+			"author_username":    activity.AuthorUsername,
+			"pr_title":           activity.PRTitle,
+			"pr_author_username": activity.PRAuthorUsername,
+		}
+	}
+	return cleaned
+}
+
+// cleanConversations removes unnecessary fields from conversations
+func (s *AIService) cleanConversations(value interface{}) interface{} {
+	conversations, ok := value.([]*conversationtypes.ConversationWithDetails)
+	if !ok {
+		return value
+	}
+
+	cleaned := make([]map[string]interface{}, len(conversations))
+	for i, conv := range conversations {
+		cleaned[i] = map[string]interface{}{
+			"conversation_date": conv.ConversationDate,
+			"status":            conv.Status,
+			"content":           conv.Content,
+			"created_at":        conv.CreatedAt,
+		}
+	}
+	return cleaned
+}
+
+// cleanEntity removes unnecessary fields from entity data
+func (s *AIService) cleanEntity(value interface{}) interface{} {
+	// This is a generic cleaner for member, team, organization data
+	// Remove common ID fields and metadata
+	if data, ok := value.(map[string]interface{}); ok {
+		cleaned := make(map[string]interface{})
+		for k, v := range data {
+			// Skip ID fields and metadata
+			if k == "id" || k == "ID" || k == "metadata" || k == "Metadata" {
+				continue
+			}
+			cleaned[k] = v
+		}
+		return cleaned
+	}
+	return value
 }
 
 // buildPrompt constructs the prompt for the AI service
@@ -241,20 +392,86 @@ func (s *AIService) buildPrompt(query, contextData, entityType, context string) 
 		systemPrompt = `You are an AI assistant providing insights based on organizational data. Provide helpful, actionable insights based on the available data.`
 	}
 
+	// Add schema description
+	schemaDescription := s.getSchemaDescription()
+
 	prompt := fmt.Sprintf(`%s
 
 Context: %s
 Entity Type: %s
+
+Data Schema:
+%s
 
 Available Data:
 %s
 
 User Query: %s
 
-Please provide a helpful response based on the available data. If you need more information, please specify what additional data would be helpful.`,
-		systemPrompt, context, entityType, contextData, query)
+Please provide a helpful response based on the available data.`,
+		systemPrompt, context, entityType, schemaDescription, contextData, query)
 
 	return prompt
+}
+
+// getSchemaDescription returns a description of the data schema for AI context
+func (s *AIService) getSchemaDescription() string {
+	return `The data is organized into the following categories:
+
+**source_control_accounts**: GitHub/GitLab accounts linked to the member
+- provider_name: The platform (e.g., "github", "gitlab")
+- username: The account username
+- last_synced: When the account was last synchronized
+
+**pull_requests**: Code contributions and pull request activity
+- title: PR title
+- description: PR description
+- url: Link to the PR
+- status: Current status (open, merged, closed)
+- created_at: When the PR was created
+- merged_at: When the PR was merged (if applicable)
+- repository_name: Name of the repository
+- additions: Lines of code added
+- deletions: Lines of code removed
+- changed_files: Number of files modified
+- comments_count: Number of comments on the PR
+- review_comments_count: Number of review comments
+- comments: Array of PR comments (if included)
+  - body: Comment content
+  - type: Type of comment
+  - created_at: When the comment was made
+
+**member_pull_request_reviews**: Code review activity and feedback performed by the member
+- type: Type of review activity (review, comment, approval, etc.)
+- description: Description of the review action
+- url: Link to the review
+- repository: Repository where the review occurred
+- created_at: When the review was made
+- author_username: Username of the reviewer
+- pr_title: Title of the PR being reviewed
+- pr_author_username: Username of the PR author
+
+**conversations**: Manager-direct report conversations and feedback
+- conversation_date: Date of the conversation
+- status: Status (draft, completed)
+- content: Conversation content and filled template data
+- created_at: When the conversation was created
+
+**metrics**: Calculated performance metrics and KPIs
+- Various performance indicators based on source control activity
+- Time-series data showing trends over time
+- Comparative metrics against peers or team averages
+
+**member/team/organization**: Basic entity information
+- Core details about the member, team, or organization
+- Hierarchical relationships and structure
+- Key attributes and metadata
+
+**peer_metrics**: Performance comparison with peers
+- peer_count: Number of peers with the same title
+- peer_member_ids: IDs of peer members
+- aggregated_metrics: Combined metrics for all peers
+- Comparative performance data`
 }
 
 // generateSuggestions generates follow-up question suggestions

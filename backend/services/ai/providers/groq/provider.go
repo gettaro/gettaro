@@ -26,7 +26,7 @@ func NewProvider(apiKey string) *Provider {
 		apiKey:  apiKey,
 		baseURL: "https://api.groq.com/openai/v1",
 		client: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 60 * time.Second,
 		},
 	}
 }
