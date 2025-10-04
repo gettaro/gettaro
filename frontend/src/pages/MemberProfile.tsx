@@ -15,6 +15,7 @@ import { ConversationSidebar } from '../components/ConversationSidebar'
 import { ConversationWithDetails } from '../types/conversation'
 import { AIChat } from '../components/AIChat'
 import { ChatContext } from '../types/ai'
+import MetricChart from '../components/MetricChart'
 
 type TabType = 'overview' | 'source-control-metrics' | 'management-tree' | 'conversations' | 'ai-chat'
 
@@ -50,6 +51,9 @@ export default function MemberProfilePage() {
   const [managementTree, setManagementTree] = useState<OrgChartNode[]>([])
   const [managementTreeLoading, setManagementTreeLoading] = useState(false)
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set())
+  
+  // Metrics view state
+  const [metricsViewMode, setMetricsViewMode] = useState<'snapshot' | 'graph'>('snapshot')
   
   // Conversation sidebar state
   const [showConversationSidebar, setShowConversationSidebar] = useState(false)
@@ -800,7 +804,36 @@ export default function MemberProfilePage() {
 
             {/* Metrics Section */}
             <div className="bg-card rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Metrics</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-foreground">Metrics</h3>
+                
+                {/* View Mode Toggle */}
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-muted-foreground">View:</span>
+                  <div className="flex bg-muted/20 rounded-lg p-1">
+                    <button
+                      onClick={() => setMetricsViewMode('snapshot')}
+                      className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                        metricsViewMode === 'snapshot'
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Snapshot
+                    </button>
+                    <button
+                      onClick={() => setMetricsViewMode('graph')}
+                      className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                        metricsViewMode === 'graph'
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Graph
+                    </button>
+                  </div>
+                </div>
+              </div>
               
               {metricsLoading ? (
                 <div className="flex items-center justify-center h-24">
@@ -814,32 +847,78 @@ export default function MemberProfilePage() {
                 </div>
               ) : metrics ? (
                 <div className="space-y-6">
-                  {(metrics.snapshot_metrics || []).map((category) => (
-                    <div key={category.category.name} className="space-y-3">
-                      <h4 className="text-md font-semibold text-foreground">{category.category.name}</h4>
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        {(category.metrics || []).map((metric) => (
-                          <div key={metric.label} className="text-center p-3 bg-muted/20 rounded border border-border/30">
-                            <div className="flex justify-end mb-1">
-                              <MetricIcon 
-                                iconIdentifier={metric.icon_identifier || 'default'} 
-                                iconColor={metric.icon_color || 'gray'} 
-                              />
-                            </div>
-                            <div className="text-xl font-bold text-foreground">
-                              {formatMetricValue(metric.value, metric.unit)}
-                            </div>
-                            <div className="text-xs text-muted-foreground">{metric.label}</div>
-                            {typeof metric.peers_value === 'number' && metric.peers_value > 0 && (
-                              <div className="text-xs text-muted-foreground mt-1">
-                                vs {formatMetricValue(metric.peers_value, metric.unit)} (peers)
+                  {metricsViewMode === 'snapshot' ? (
+                    // Snapshot View
+                    (metrics.snapshot_metrics || []).map((category) => (
+                      <div key={category.category.name} className="space-y-3">
+                        <h4 className="text-md font-semibold text-foreground">{category.category.name}</h4>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                          {(category.metrics || []).map((metric) => (
+                            <div key={metric.label} className="text-center p-3 bg-muted/20 rounded border border-border/30">
+                              <div className="flex justify-end mb-1">
+                                <MetricIcon 
+                                  iconIdentifier={metric.icon_identifier || 'default'} 
+                                  iconColor={metric.icon_color || 'gray'} 
+                                />
                               </div>
-                            )}
-                          </div>
-                        ))}
+                              <div className="text-xl font-bold text-foreground">
+                                {formatMetricValue(metric.value, metric.unit)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">{metric.label}</div>
+                              {typeof metric.peers_value === 'number' && metric.peers_value > 0 && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  vs {formatMetricValue(metric.peers_value, metric.unit)} (peers)
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    // Graph View
+                    (() => {
+                      const categoriesWithData = (metrics.graph_metrics || [])
+                        .filter(category => category.metrics && category.metrics.length > 0)
+                        .map(category => ({
+                          ...category,
+                          metrics: category.metrics.filter(metric => metric.time_series && metric.time_series.length > 0)
+                        }))
+                        .filter(category => category.metrics.length > 0)
+
+                      if (categoriesWithData.length === 0) {
+                        return (
+                          <div className="flex items-center justify-center h-24">
+                            <div className="text-center">
+                              <div className="text-muted-foreground mb-1 text-sm">No graph data available</div>
+                              <div className="text-xs text-muted-foreground">
+                                Graph data will appear here once you have time-series metrics
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      return categoriesWithData.map((category) => (
+                        <div key={category.category.name} className="space-y-3">
+                          <h4 className="text-md font-semibold text-foreground">{category.category.name}</h4>
+                          <div className="space-y-4">
+                            {category.metrics.map((metric) => (
+                              <div key={metric.label} className="bg-muted/10 rounded-lg p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                  <h5 className="font-medium text-foreground">{metric.label}</h5>
+                                  <span className="text-xs text-muted-foreground capitalize">{metric.type}</span>
+                                </div>
+                                <div className="bg-muted/5 rounded border border-border/30 p-4">
+                                  <MetricChart metric={metric} height={200} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))
+                    })()
+                  )}
                 </div>
               ) : (
                 <div className="flex items-center justify-center h-24">

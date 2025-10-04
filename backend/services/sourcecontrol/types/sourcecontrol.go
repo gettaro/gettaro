@@ -171,6 +171,7 @@ const (
 // GraphMetric represents a single metric in the graph data
 type GraphMetric struct {
 	Label      string            `json:"label"`
+	Type       string            `json:"type"`
 	Category   string            `json:"category"`
 	Unit       Unit              `json:"unit"`
 	TimeSeries []TimeSeriesEntry `json:"time_series"`

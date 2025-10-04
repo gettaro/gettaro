@@ -100,6 +100,7 @@ func (r *PRReviewComplexityRule) calculateGraphMetric(ctx context.Context, organ
 	// Create graph metric
 	graphMetric := types.GraphMetric{
 		Label:      r.Name,
+		Type:       "line", // PR review complexity is typically shown as a line chart
 		TimeSeries: timeSeriesData,
 	}
 

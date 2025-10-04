@@ -61,6 +61,7 @@ func (r *PRsReviewedRule) Calculate(ctx context.Context, params types.MetricRule
 
 	graphMetric := types.GraphMetric{
 		Label:      r.Name,
+		Type:       "bar",
 		Unit:       r.Unit,
 		TimeSeries: prsReviewedGraphValue,
 	}

@@ -61,6 +61,7 @@ func (r *LOCAddedRule) Calculate(ctx context.Context, params types.MetricRulePar
 
 	graphMetric := types.GraphMetric{
 		Label:      r.Name,
+		Type:       "line",
 		Unit:       r.Unit,
 		TimeSeries: locAddedGraphValue,
 	}

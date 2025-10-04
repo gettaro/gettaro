@@ -61,6 +61,7 @@ func (r *LOCRemovedRule) Calculate(ctx context.Context, params types.MetricRuleP
 
 	graphMetric := types.GraphMetric{
 		Label:      r.Name,
+		Type:       "line",
 		Unit:       r.Unit,
 		TimeSeries: locRemovedGraphValue,
 	}
