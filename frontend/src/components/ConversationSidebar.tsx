@@ -35,6 +35,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   const [templates, setTemplates] = useState<ConversationTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<ConversationTemplate | null>(null);
   const [title, setTitle] = useState('');
+  const [validationAttempted, setValidationAttempted] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -53,6 +54,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       setContent({});
       setTitle('');
       setSelectedTemplate(null);
+      setValidationAttempted(false); // Reset validation state when creating
     }
   }, [conversation, mode]);
 
@@ -77,7 +79,50 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     }
   };
 
+  const validateRequiredFields = (): { isValid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    
+    // Check title (always required)
+    if (!title.trim()) {
+      errors.push('Title is required');
+    }
+    
+    // Get template fields for validation
+    const savedTemplateFields = conversation?.content?._template_fields as TemplateField[] | undefined;
+    const fields = savedTemplateFields || conversation?.template?.template_fields || selectedTemplate?.template_fields;
+    
+    if (fields) {
+      fields.forEach(field => {
+        if (field.required) {
+          const value = content[field.id];
+          if (!value || (typeof value === 'string' && !value.trim()) || value === '') {
+            errors.push(`${field.label} is required`);
+          }
+        }
+      });
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  };
+
   const handleSave = async () => {
+    // Set validation attempted flag
+    setValidationAttempted(true);
+    
+    // Validate required fields
+    const validation = validateRequiredFields();
+    if (!validation.isValid) {
+      toast({
+        title: 'Validation Error',
+        description: validation.errors.join(', '),
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (mode === 'create') {
       await handleCreate();
     } else {
@@ -368,24 +413,29 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
 
         {/* Title */}
         <div>
-          <Label htmlFor="title" className="text-sm font-medium">
-            Conversation Title
+          <Label htmlFor="title" className={`text-sm font-medium ${validationAttempted && !title.trim() ? 'text-red-500' : 'text-foreground'}`}>
+            Conversation Title <span className="text-red-500 ml-1">*</span>
           </Label>
           {isEditing || mode === 'create' ? (
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter conversation title..."
-              className="text-sm mt-1"
-              required
-            />
+            <div className={validationAttempted && !title.trim() ? 'ring-1 ring-red-500 rounded' : ''}>
+              <Input
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Enter conversation title..."
+                className="text-sm mt-1"
+                required
+              />
+            </div>
           ) : (
             <div className="p-2 bg-muted/20 rounded border border-border/30 mt-1">
               <p className="text-sm text-muted-foreground">
                 {conversation?.title || 'Untitled Conversation'}
               </p>
             </div>
+          )}
+          {validationAttempted && !title.trim() && (
+            <p className="text-xs text-red-500 mt-1">Title is required</p>
           )}
         </div>
 
@@ -433,15 +483,27 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
             <h3 className="font-medium text-sm text-foreground">Conversation Details</h3>
             {fields
               .sort((a, b) => a.order - b.order)
-              .map((field) => (
-                <div key={field.id}>
-                  <Label htmlFor={field.id} className="text-sm font-medium">
-                    {field.label}
-                    {field.required && <span className="text-red-500 ml-1">*</span>}
-                  </Label>
-                  {renderField(field)}
-                </div>
-              ))}
+              .map((field) => {
+                const value = content[field.id];
+                const isEmpty = !value || (typeof value === 'string' && !value.trim()) || value === '';
+                const isRequiredAndEmpty = field.required && isEmpty;
+                const showValidation = validationAttempted && isRequiredAndEmpty;
+                
+                return (
+                  <div key={field.id}>
+                    <Label htmlFor={field.id} className={`text-sm font-medium ${showValidation ? 'text-red-500' : 'text-foreground'}`}>
+                      {field.label}
+                      {field.required && <span className="text-red-500 ml-1">*</span>}
+                    </Label>
+                    <div className={showValidation ? 'ring-1 ring-red-500 rounded' : ''}>
+                      {renderField(field)}
+                    </div>
+                    {showValidation && (
+                      <p className="text-xs text-red-500 mt-1">This field is required</p>
+                    )}
+                  </div>
+                );
+              })}
           </div>
         ) : mode === 'create' ? (
           <div className="p-3 bg-muted/20 rounded border border-border/30">
@@ -479,7 +541,10 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
               </>
             ) : !isEditing ? (
               <Button
-                onClick={() => setIsEditing(true)}
+                onClick={() => {
+                  setIsEditing(true);
+                  setValidationAttempted(false); // Reset validation state when starting to edit
+                }}
                 size="sm"
                 className="text-xs"
               >

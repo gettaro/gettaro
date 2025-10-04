@@ -27,6 +27,7 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
   const [conversationDate, setConversationDate] = useState('');
   const [content, setContent] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
+  const [validationAttempted, setValidationAttempted] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -57,6 +58,7 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
       initialContent[field.id] = '';
     });
     setContent(initialContent);
+    setValidationAttempted(false); // Reset validation state when template changes
   };
 
   const handleFieldChange = (fieldId: string, value: any) => {
@@ -66,13 +68,53 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
     }));
   };
 
+  const validateRequiredFields = (): { isValid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    
+    // Check title (always required)
+    if (!title.trim()) {
+      errors.push('Title is required');
+    }
+    
+    // Check template fields
+    if (selectedTemplate?.template_fields) {
+      selectedTemplate.template_fields.forEach(field => {
+        if (field.required) {
+          const value = content[field.id];
+          if (!value || (typeof value === 'string' && !value.trim()) || value === '') {
+            errors.push(`${field.label} is required`);
+          }
+        }
+      });
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Set validation attempted flag
+    setValidationAttempted(true);
     
     if (!selectedTemplate) {
       toast({
         title: 'Error',
         description: 'Please select a conversation template',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate required fields
+    const validation = validateRequiredFields();
+    if (!validation.isValid) {
+      toast({
+        title: 'Validation Error',
+        description: validation.errors.join(', '),
         variant: 'destructive',
       });
       return;
@@ -194,14 +236,21 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
 
             {/* Title */}
             <div>
-              <Label htmlFor="title">Conversation Title</Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Enter conversation title..."
-                required
-              />
+              <Label htmlFor="title" className={validationAttempted && !title.trim() ? 'text-red-500' : ''}>
+                Conversation Title <span className="text-red-500 ml-1">*</span>
+              </Label>
+              <div className={validationAttempted && !title.trim() ? 'ring-1 ring-red-500 rounded' : ''}>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Enter conversation title..."
+                  required
+                />
+              </div>
+              {validationAttempted && !title.trim() && (
+                <p className="text-xs text-red-500 mt-1">Title is required</p>
+              )}
             </div>
 
             {/* Conversation Date */}
@@ -221,15 +270,27 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
                 <h3 className="font-medium">Fill in the conversation details:</h3>
                 {selectedTemplate.template_fields
                   ?.sort((a, b) => a.order - b.order)
-                  .map((field) => (
-                    <div key={field.id}>
-                      <Label htmlFor={field.id}>
-                        {field.label}
-                        {field.required && <span className="text-red-500 ml-1">*</span>}
-                      </Label>
-                      {renderField(field)}
-                    </div>
-                  ))}
+                  .map((field) => {
+                    const value = content[field.id];
+                    const isEmpty = !value || (typeof value === 'string' && !value.trim()) || value === '';
+                    const isRequiredAndEmpty = field.required && isEmpty;
+                    const showValidation = validationAttempted && isRequiredAndEmpty;
+                    
+                    return (
+                      <div key={field.id}>
+                        <Label htmlFor={field.id} className={showValidation ? 'text-red-500' : ''}>
+                          {field.label}
+                          {field.required && <span className="text-red-500 ml-1">*</span>}
+                        </Label>
+                        <div className={showValidation ? 'ring-1 ring-red-500 rounded' : ''}>
+                          {renderField(field)}
+                        </div>
+                        {showValidation && (
+                          <p className="text-xs text-red-500 mt-1">This field is required</p>
+                        )}
+                      </div>
+                    );
+                  })}
               </div>
             )}
 
