@@ -313,37 +313,65 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
         };
         
         return (
-          <div className="p-2 bg-muted/20 rounded border border-border/30">
-            <div className="flex items-center space-x-2">
-              <div className="flex space-x-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <span
-                    key={star}
-                    className={`text-lg ${
-                      star <= ratingValue ? 'text-yellow-400' : 'text-muted-foreground/30'
-                    }`}
-                  >
-                    ★
-                  </span>
-                ))}
+          <div className="space-y-2">
+            <div className="p-2 bg-muted/20 rounded border border-border/30">
+              <div className="flex items-center space-x-2">
+                <div className="flex space-x-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span
+                      key={star}
+                      className={`text-lg ${
+                        star <= ratingValue ? 'text-yellow-400' : 'text-muted-foreground/30'
+                      }`}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  {getRatingLabel(ratingValue)} ({ratingValue}/5)
+                </span>
               </div>
-              <span className="text-sm text-muted-foreground">
-                {getRatingLabel(ratingValue)} ({ratingValue}/5)
-              </span>
             </div>
+            
+            {/* Display notes if they exist */}
+            {content[`${field.id}_notes`] && (
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                  Notes:
+                </label>
+                <div className="p-2 bg-muted/10 rounded border border-border/20">
+                  <p className="text-xs text-muted-foreground">{content[`${field.id}_notes`]}</p>
+                </div>
+              </div>
+            )}
           </div>
         );
       }
       
       return (
-        <div className="p-2 bg-muted/20 rounded border border-border/30">
-          <p className="text-sm text-muted-foreground">
-            {value ? (
-              typeof value === 'string' ? value : JSON.stringify(value)
-            ) : (
-              <span className="text-muted-foreground/60 italic">Not filled</span>
-            )}
-          </p>
+        <div className="space-y-2">
+          <div className="p-2 bg-muted/20 rounded border border-border/30">
+            <p className="text-sm text-muted-foreground">
+              {value ? (
+                typeof value === 'string' ? value : JSON.stringify(value)
+              ) : (
+                <span className="text-muted-foreground/60 italic">Not filled</span>
+              )}
+            </p>
+          </div>
+          
+          {/* Display notes if they exist */}
+          {content[`${field.id}_notes`] && (
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                Notes:
+              </label>
+              <div className="p-2 bg-muted/10 rounded border border-border/20">
+                <p className="text-xs text-muted-foreground">{content[`${field.id}_notes`]}</p>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -490,17 +518,34 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                 const showValidation = validationAttempted && isRequiredAndEmpty;
                 
                 return (
-                  <div key={field.id}>
-                    <Label htmlFor={field.id} className={`text-sm font-medium ${showValidation ? 'text-red-500' : 'text-foreground'}`}>
-                      {field.label}
-                      {field.required && <span className="text-red-500 ml-1">*</span>}
-                    </Label>
-                    <div className={showValidation ? 'ring-1 ring-red-500 rounded' : ''}>
-                      {renderField(field)}
+                  <div key={field.id} className="space-y-2">
+                    <div>
+                      <Label htmlFor={field.id} className={`text-sm font-medium ${showValidation ? 'text-red-500' : 'text-foreground'}`}>
+                        {field.label}
+                        {field.required && <span className="text-red-500 ml-1">*</span>}
+                      </Label>
+                      <div className={showValidation ? 'ring-1 ring-red-500 rounded' : ''}>
+                        {renderField(field)}
+                      </div>
+                      {showValidation && (
+                        <p className="text-xs text-red-500 mt-1">This field is required</p>
+                      )}
                     </div>
-                    {showValidation && (
-                      <p className="text-xs text-red-500 mt-1">This field is required</p>
-                    )}
+                    
+                    {/* Notes section for each field */}
+                    <div>
+                      <Label htmlFor={`${field.id}_notes`} className="text-xs font-medium text-muted-foreground">
+                        Notes (optional)
+                      </Label>
+                      <textarea
+                        id={`${field.id}_notes`}
+                        value={content[`${field.id}_notes`] || ''}
+                        onChange={(e) => handleFieldChange(`${field.id}_notes`, e.target.value)}
+                        placeholder="Add notes or observations about this field..."
+                        className="w-full px-3 py-2 border border-border/50 rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-xs mt-1"
+                        rows={2}
+                      />
+                    </div>
                   </div>
                 );
               })}

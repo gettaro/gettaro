@@ -212,15 +212,32 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
         <h4 className="font-medium text-sm text-muted-foreground">Conversation Details:</h4>
         {fields
           .sort((a, b) => a.order - b.order)
-          .map((field) => (
-            <div key={field.id}>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                {field.label}
-                {field.required && <span className="text-red-500 ml-1">*</span>}
-              </label>
-              {renderField(field, conversation.content || {})}
-            </div>
-          ))}
+          .map((field) => {
+            const notes = conversation.content?.[`${field.id}_notes`] || '';
+            return (
+              <div key={field.id} className="space-y-2">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    {field.label}
+                    {field.required && <span className="text-red-500 ml-1">*</span>}
+                  </label>
+                  {renderField(field, conversation.content || {})}
+                </div>
+                
+                {/* Display notes if they exist */}
+                {notes && (
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">
+                      Notes:
+                    </label>
+                    <div className="p-2 bg-muted/10 rounded border border-border/20">
+                      <p className="text-xs text-muted-foreground">{notes}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
       </div>
     );
   };

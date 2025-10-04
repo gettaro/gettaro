@@ -277,17 +277,34 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
                     const showValidation = validationAttempted && isRequiredAndEmpty;
                     
                     return (
-                      <div key={field.id}>
-                        <Label htmlFor={field.id} className={showValidation ? 'text-red-500' : ''}>
-                          {field.label}
-                          {field.required && <span className="text-red-500 ml-1">*</span>}
-                        </Label>
-                        <div className={showValidation ? 'ring-1 ring-red-500 rounded' : ''}>
-                          {renderField(field)}
+                      <div key={field.id} className="space-y-2">
+                        <div>
+                          <Label htmlFor={field.id} className={showValidation ? 'text-red-500' : ''}>
+                            {field.label}
+                            {field.required && <span className="text-red-500 ml-1">*</span>}
+                          </Label>
+                          <div className={showValidation ? 'ring-1 ring-red-500 rounded' : ''}>
+                            {renderField(field)}
+                          </div>
+                          {showValidation && (
+                            <p className="text-xs text-red-500 mt-1">This field is required</p>
+                          )}
                         </div>
-                        {showValidation && (
-                          <p className="text-xs text-red-500 mt-1">This field is required</p>
-                        )}
+                        
+                        {/* Notes section for each field */}
+                        <div>
+                          <Label htmlFor={`${field.id}_notes`} className="text-xs font-medium text-gray-600">
+                            Notes (optional)
+                          </Label>
+                          <textarea
+                            id={`${field.id}_notes`}
+                            value={content[`${field.id}_notes`] || ''}
+                            onChange={(e) => handleFieldChange(`${field.id}_notes`, e.target.value)}
+                            placeholder="Add notes or observations about this field..."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs mt-1"
+                            rows={2}
+                          />
+                        </div>
                       </div>
                     );
                   })}

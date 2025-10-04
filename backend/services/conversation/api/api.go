@@ -8,6 +8,7 @@ import (
 	"ems.dev/backend/services/conversation/types"
 	templateapi "ems.dev/backend/services/conversationtemplate/api"
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 )
 
 // ConversationAPIInterface defines the interface for conversation operations
@@ -36,12 +37,17 @@ func NewConversationAPI(db *database.ConversationDB, templateApi templateapi.Con
 // CreateConversation creates a new conversation
 func (a *ConversationAPI) CreateConversation(ctx context.Context, organizationID string, managerMemberID string, req *types.CreateConversationRequest) (*types.Conversation, error) {
 	// Start with the provided content
-	contentMap := make(map[string]interface{})
+	var contentJSON datatypes.JSON
 	if req.Content != nil {
-		// Convert existing content to map
-		if contentBytes, err := json.Marshal(req.Content); err == nil {
-			json.Unmarshal(contentBytes, &contentMap)
-		}
+		contentJSON = req.Content
+	} else {
+		contentJSON = datatypes.JSON("{}")
+	}
+
+	// Parse content to add template metadata if needed
+	var contentMap map[string]interface{}
+	if err := json.Unmarshal(contentJSON, &contentMap); err != nil {
+		contentMap = make(map[string]interface{})
 	}
 
 	// Determine the title - use provided title or default to template name
@@ -62,8 +68,9 @@ func (a *ConversationAPI) CreateConversation(ctx context.Context, organizationID
 		}
 	}
 
-	// Convert contentMap to datatypes.JSON
-	contentJSON, err := json.Marshal(contentMap)
+	// Convert contentMap back to datatypes.JSON
+	var err error
+	contentJSON, err = json.Marshal(contentMap)
 	if err != nil {
 		return nil, err
 	}
