@@ -5,6 +5,7 @@ import { Label } from './ui/label';
 import { useToast } from '../hooks/useToast';
 import Api from '../api/api';
 import { ConversationWithDetails, UpdateConversationRequest, CreateConversationRequest, TemplateField, ConversationTemplate } from '../types/conversation';
+import RatingSlider from './RatingSlider';
 
 interface ConversationSidebarProps {
   conversation: ConversationWithDetails | null;
@@ -93,7 +94,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
         template_id: selectedTemplate.id,
         title: title,
         direct_member_id: memberId,
-        conversation_date: conversationDate ? new Date(conversationDate).toISOString() : undefined,
+        conversation_date: conversationDate ? new Date(conversationDate).toISOString().split('T')[0] : undefined,
         content: content
       };
 
@@ -127,7 +128,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     setLoading(true);
     try {
       const updateData: UpdateConversationRequest = {
-        conversation_date: conversationDate ? new Date(conversationDate).toISOString() : undefined,
+        conversation_date: conversationDate ? new Date(conversationDate).toISOString().split('T')[0] : undefined,
         content: content
       };
 
@@ -229,6 +230,17 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
               className="text-sm"
             />
           );
+        case 'rating':
+          return (
+            <RatingSlider
+              id={field.id}
+              value={typeof value === 'number' ? value : 1}
+              onChange={(rating) => handleFieldChange(field.id, rating)}
+              min={1}
+              max={5}
+              step={1}
+            />
+          );
         default:
           return (
             <Input
@@ -242,6 +254,42 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
           );
       }
     } else {
+      if (field.type === 'rating') {
+        const ratingValue = typeof value === 'number' ? value : (typeof value === 'string' ? parseInt(value) : 0);
+        const getRatingLabel = (rating: number) => {
+          switch (rating) {
+            case 1: return 'Poor'
+            case 2: return 'Fair'
+            case 3: return 'Good'
+            case 4: return 'Very Good'
+            case 5: return 'Excellent'
+            default: return `${rating}/5`
+          }
+        };
+        
+        return (
+          <div className="p-2 bg-muted/20 rounded border border-border/30">
+            <div className="flex items-center space-x-2">
+              <div className="flex space-x-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <span
+                    key={star}
+                    className={`text-lg ${
+                      star <= ratingValue ? 'text-yellow-400' : 'text-muted-foreground/30'
+                    }`}
+                  >
+                    ★
+                  </span>
+                ))}
+              </div>
+              <span className="text-sm text-muted-foreground">
+                {getRatingLabel(ratingValue)} ({ratingValue}/5)
+              </span>
+            </div>
+          </div>
+        );
+      }
+      
       return (
         <div className="p-2 bg-muted/20 rounded border border-border/30">
           <p className="text-sm text-muted-foreground">

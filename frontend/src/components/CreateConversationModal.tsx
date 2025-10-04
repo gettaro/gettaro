@@ -6,6 +6,7 @@ import { Label } from './ui/label';
 import { useToast } from '../hooks/useToast';
 import Api from '../api/api';
 import { CreateConversationRequest, ConversationTemplate } from '../types/conversation';
+import RatingSlider from './RatingSlider';
 
 interface CreateConversationModalProps {
   organizationId: string;
@@ -131,6 +132,17 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
             onChange={(e) => handleFieldChange(field.id, e.target.value)}
             placeholder={field.placeholder}
             required={field.required}
+          />
+        );
+      case 'rating':
+        return (
+          <RatingSlider
+            id={field.id}
+            value={typeof value === 'number' ? value : 1}
+            onChange={(rating) => handleFieldChange(field.id, rating)}
+            min={1}
+            max={5}
+            step={1}
           />
         );
       default:

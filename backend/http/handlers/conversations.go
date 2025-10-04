@@ -193,6 +193,7 @@ func (h *ConversationHandler) CreateConversation(c *gin.Context) {
 	// Convert to service types
 	serviceReq := &types.CreateConversationRequest{
 		TemplateID:       req.TemplateID,
+		Title:            req.Title,
 		DirectMemberID:   req.DirectMemberID,
 		ConversationDate: conversationDate,
 		Content:          req.Content,

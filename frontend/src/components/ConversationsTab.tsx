@@ -145,6 +145,42 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
   const renderField = (field: any, content: Record<string, any>) => {
     const value = content[field.id] || '';
     
+    if (field.type === 'rating') {
+      const ratingValue = typeof value === 'number' ? value : (typeof value === 'string' ? parseInt(value) : 0);
+      const getRatingLabel = (rating: number) => {
+        switch (rating) {
+          case 1: return 'Poor'
+          case 2: return 'Fair'
+          case 3: return 'Good'
+          case 4: return 'Very Good'
+          case 5: return 'Excellent'
+          default: return `${rating}/5`
+        }
+      };
+      
+      return (
+        <div className="p-2 bg-muted/20 rounded border border-border/30">
+          <div className="flex items-center space-x-2">
+            <div className="flex space-x-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <span
+                  key={star}
+                  className={`text-lg ${
+                    star <= ratingValue ? 'text-yellow-400' : 'text-muted-foreground/30'
+                  }`}
+                >
+                  ★
+                </span>
+              ))}
+            </div>
+            <span className="text-sm text-muted-foreground">
+              {getRatingLabel(ratingValue)} ({ratingValue}/5)
+            </span>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div className="p-2 bg-muted/20 rounded border border-border/30">
         <p className="text-sm text-muted-foreground">

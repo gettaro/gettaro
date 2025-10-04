@@ -23,6 +23,7 @@ type GetConversationWithDetailsResponse struct {
 // CreateConversationRequest represents the request to create a conversation
 type CreateConversationRequest struct {
 	TemplateID       *string        `json:"template_id,omitempty"`
+	Title            string         `json:"title" binding:"required"`
 	DirectMemberID   string         `json:"direct_member_id" binding:"required"`
 	ConversationDate *string        `json:"conversation_date,omitempty"` // ISO date string
 	Content          datatypes.JSON `json:"content,omitempty"`
