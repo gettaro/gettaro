@@ -16,7 +16,7 @@ type DB interface {
 	UpdateTeam(ctx context.Context, id string, team *types.Team) error
 	DeleteTeam(ctx context.Context, id string) error
 	AddTeamMember(ctx context.Context, teamID string, member *types.TeamMember) error
-	RemoveTeamMember(ctx context.Context, teamID string, userID string) error
+	RemoveTeamMember(ctx context.Context, teamID string, memberID string) error
 }
 
 type TeamDB struct {
@@ -91,17 +91,17 @@ func (t *TeamDB) AddTeamMember(ctx context.Context, teamID string, member *types
 	return t.db.WithContext(ctx).Create(member).Error
 }
 
-// RemoveTeamMember removes a user from a team
-func (t *TeamDB) RemoveTeamMember(ctx context.Context, teamID, userID string) error {
+// RemoveTeamMember removes a member from a team
+func (t *TeamDB) RemoveTeamMember(ctx context.Context, teamID, memberID string) error {
 	return t.db.WithContext(ctx).
-		Delete(&types.TeamMember{}, "team_id = ? AND user_id = ?", teamID, userID).Error
+		Delete(&types.TeamMember{}, "team_id = ? AND member_id = ?", teamID, memberID).Error
 }
 
 // GetTeamMember retrieves a team member
-func (t *TeamDB) GetTeamMember(ctx context.Context, teamID, userID string) (*types.TeamMember, error) {
+func (t *TeamDB) GetTeamMember(ctx context.Context, teamID, memberID string) (*types.TeamMember, error) {
 	var member types.TeamMember
 	err := t.db.WithContext(ctx).
-		First(&member, "team_id = ? AND user_id = ?", teamID, userID).Error
+		First(&member, "team_id = ? AND member_id = ?", teamID, memberID).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil

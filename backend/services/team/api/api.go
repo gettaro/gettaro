@@ -29,7 +29,7 @@ type TeamAPI interface {
 	AddTeamMember(ctx context.Context, teamID string, member *types.TeamMember) error
 
 	// RemoveTeamMember removes a member from a team
-	RemoveTeamMember(ctx context.Context, teamID string, userID string) error
+	RemoveTeamMember(ctx context.Context, teamID string, memberID string) error
 }
 
 type Api struct {

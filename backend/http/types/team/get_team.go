@@ -18,7 +18,7 @@ type TeamResponse struct {
 
 type MemberResponse struct {
 	ID        string    `json:"id"`
-	UserID    string    `json:"user_id"`
+	MemberID  string    `json:"member_id"`
 	Role      string    `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -34,7 +34,7 @@ func GetTeamResponse(t *types.Team) TeamResponse {
 	for i, m := range t.Members {
 		members[i] = MemberResponse{
 			ID:        m.ID,
-			UserID:    m.UserID,
+			MemberID:  m.MemberID,
 			Role:      m.Role,
 			CreatedAt: m.CreatedAt,
 			UpdatedAt: m.UpdatedAt,

@@ -8,6 +8,7 @@ import Members from './pages/Members'
 import Titles from './pages/Titles'
 import MemberProfile from './pages/MemberProfile'
 import ConversationTemplates from './pages/ConversationTemplates'
+import Teams from './pages/Teams'
 
 export const router = createBrowserRouter([
   {
@@ -41,6 +42,10 @@ export const router = createBrowserRouter([
       {
         path: "settings/conversation-templates",
         element: <ConversationTemplates />,
+      },
+      {
+        path: "settings/teams",
+        element: <Teams />,
       },
       {
         path: "members/:memberId/profile",

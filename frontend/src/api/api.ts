@@ -30,6 +30,15 @@ import {
   AIQueryHistoryItem,
   AIQueryStats
 } from '../types/ai'
+import {
+  CreateTeamRequest,
+  UpdateTeamRequest,
+  AddTeamMemberRequest,
+  ListTeamsResponse,
+  GetTeamResponse,
+  CreateTeamResponse,
+  UpdateTeamResponse
+} from '../types/team'
 
 export default class Api {
   private static API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
@@ -476,6 +485,40 @@ export default class Api {
     const queryParams = days ? `?days=${days}` : ''
     const response = await this.get(`/organizations/${organizationId}/ai/stats${queryParams}`)
     return response.stats
+  }
+
+  // Team Management
+  static async listTeams(organizationId: string, params?: { name?: string }): Promise<ListTeamsResponse> {
+    const queryParams = new URLSearchParams()
+    if (params?.name) {
+      queryParams.append('name', params.name)
+    }
+    const queryString = queryParams.toString()
+    return this.get(`/teams?organizationId=${organizationId}${queryString ? `&${queryString}` : ''}`)
+  }
+
+  static async getTeam(teamId: string): Promise<GetTeamResponse> {
+    return this.get(`/teams/${teamId}`)
+  }
+
+  static async createTeam(organizationId: string, team: CreateTeamRequest): Promise<CreateTeamResponse> {
+    return this.post(`/teams`, { ...team, organization_id: organizationId })
+  }
+
+  static async updateTeam(teamId: string, team: UpdateTeamRequest): Promise<UpdateTeamResponse> {
+    return this.put(`/teams/${teamId}`, team)
+  }
+
+  static async deleteTeam(teamId: string): Promise<void> {
+    return this.delete(`/teams/${teamId}`)
+  }
+
+  static async addTeamMember(teamId: string, member: AddTeamMemberRequest): Promise<void> {
+    return this.post(`/teams/${teamId}/members`, member)
+  }
+
+  static async removeTeamMember(teamId: string, memberId: string): Promise<void> {
+    return this.delete(`/teams/${teamId}/members/${memberId}`)
   }
 }
 

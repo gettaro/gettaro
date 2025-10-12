@@ -35,17 +35,17 @@ func NewTeamHandler(teamApi teamapi.TeamAPI, orgApi orgapi.OrganizationAPI) *Tea
 // - PUT /api/teams/:id - Update a team
 // - DELETE /api/teams/:id - Delete a team
 // - POST /api/teams/:id/members - Add a team member
-// - DELETE /api/teams/:id/members/:userId - Remove a team member
+// - DELETE /api/teams/:id/members/:memberId - Remove a team member
 func (h *TeamHandler) RegisterRoutes(router *gin.RouterGroup) {
 	teams := router.Group("/teams")
 	{
 		teams.POST("", h.CreateTeam)
-		// teams.GET("", h.ListTeams)
-		// teams.GET("/:id", h.GetTeam)
-		// teams.PUT("/:id", h.UpdateTeam)
-		// teams.DELETE("/:id", h.DeleteTeam)
-		// teams.POST("/:id/members", h.AddTeamMember)
-		// teams.DELETE("/:id/members/:userId", h.RemoveTeamMember)
+		teams.GET("", h.ListTeams)
+		teams.GET("/:id", h.GetTeam)
+		teams.PUT("/:id", h.UpdateTeam)
+		teams.DELETE("/:id", h.DeleteTeam)
+		teams.POST("/:id/members", h.AddTeamMember)
+		teams.DELETE("/:id/members/:memberId", h.RemoveTeamMember)
 	}
 }
 
@@ -252,9 +252,9 @@ func (h *TeamHandler) AddTeamMember(c *gin.Context) {
 	}
 
 	member := &types.TeamMember{
-		TeamID: teamID,
-		UserID: req.UserID,
-		Role:   req.Role,
+		TeamID:   teamID,
+		MemberID: req.MemberID,
+		Role:     req.Role,
 	}
 
 	if err := h.teamApi.AddTeamMember(c.Request.Context(), teamID, member); err != nil {
@@ -265,17 +265,17 @@ func (h *TeamHandler) AddTeamMember(c *gin.Context) {
 	c.Status(http.StatusCreated)
 }
 
-// RemoveTeamMember handles the DELETE /api/teams/:id/members/:userId endpoint.
-// It removes a user from a team's members.
+// RemoveTeamMember handles the DELETE /api/teams/:id/members/:memberId endpoint.
+// It removes a member from a team's members.
 // Returns:
 // - 204: If the member was successfully removed
-// - 400: If the team ID or user ID is missing
+// - 400: If the team ID or member ID is missing
 // - 500: If there's a database error
 func (h *TeamHandler) RemoveTeamMember(c *gin.Context) {
 	teamID := c.Param("id")
-	userID := c.Param("userId")
-	if teamID == "" || userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "team ID and user ID are required"})
+	memberID := c.Param("memberId")
+	if teamID == "" || memberID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "team ID and member ID are required"})
 		return
 	}
 
@@ -290,7 +290,7 @@ func (h *TeamHandler) RemoveTeamMember(c *gin.Context) {
 		return
 	}
 
-	if err := h.teamApi.RemoveTeamMember(c.Request.Context(), teamID, userID); err != nil {
+	if err := h.teamApi.RemoveTeamMember(c.Request.Context(), teamID, memberID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
