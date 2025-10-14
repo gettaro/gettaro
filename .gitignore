@@ -57,3 +57,6 @@ __debug*
 /frontend2/temp-vite
 
 backend/main
+
+/node-modules
+/dist
