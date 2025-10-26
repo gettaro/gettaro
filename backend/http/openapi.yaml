@@ -1145,15 +1145,16 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /teams:
+  /organizations/{id}/teams:
     get:
-      summary: Get all teams
-      description: Returns a list of teams with optional filters
+      summary: Get all teams for an organization
+      description: Returns a list of teams for the specified organization with optional filters
       parameters:
-        - in: query
-          name: organizationId
+        - in: path
+          name: id
           schema: { type: string }
-          description: Filter teams by organization ID
+          required: true
+          description: Organization ID
         - in: query
           name: name
           schema: { type: string }
@@ -1164,15 +1165,30 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Team"
+                type: object
+                properties:
+                  teams:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Team"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
       security:
         - bearerAuth: []
 
     post:
       summary: Create team
       description: Creates a new team in an organization
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+          description: Organization ID
       requestBody:
         required: true
         content:
@@ -1182,10 +1198,8 @@ paths:
               properties:
                 name: { type: string }
                 description: { type: string }
-                organizationId: { type: string }
               required:
                 - name
-                - organizationId
       responses:
         "201":
           description: Team created
@@ -1193,10 +1207,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Team"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
       security:
         - bearerAuth: []
 
-  /teams/{id}:
+  /organizations/{id}/teams/{teamId}:
     get:
       summary: Get team by ID
       description: Returns details about a specific team
@@ -1205,6 +1225,12 @@ paths:
           name: id
           schema: { type: string }
           required: true
+          description: Organization ID
+        - in: path
+          name: teamId
+          schema: { type: string }
+          required: true
+          description: Team ID
       responses:
         "200":
           description: Team details
@@ -1212,6 +1238,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Team"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
       security:
         - bearerAuth: []
 
@@ -1223,6 +1257,12 @@ paths:
           name: id
           schema: { type: string }
           required: true
+          description: Organization ID
+        - in: path
+          name: teamId
+          schema: { type: string }
+          required: true
+          description: Team ID
       requestBody:
         required: true
         content:
@@ -1239,6 +1279,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Team"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
       security:
         - bearerAuth: []
 
@@ -1250,13 +1298,27 @@ paths:
           name: id
           schema: { type: string }
           required: true
+          description: Organization ID
+        - in: path
+          name: teamId
+          schema: { type: string }
+          required: true
+          description: Team ID
       responses:
         "204":
           description: Team deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
       security:
         - bearerAuth: []
 
-  /teams/{id}/members:
+  /organizations/{id}/teams/{teamId}/members:
     post:
       summary: Add team member
       description: Adds a user to a team
@@ -1265,6 +1327,12 @@ paths:
           name: id
           schema: { type: string }
           required: true
+          description: Organization ID
+        - in: path
+          name: teamId
+          schema: { type: string }
+          required: true
+          description: Team ID
       requestBody:
         required: true
         content:
@@ -1272,17 +1340,24 @@ paths:
             schema:
               type: object
               properties:
-                userId: { type: string }
-                role: { type: string }
+                memberId: { type: string }
               required:
-                - userId
+                - memberId
       responses:
         "201":
           description: Member added
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
       security:
         - bearerAuth: []
 
-  /teams/{id}/members/{userId}:
+  /organizations/{id}/teams/{teamId}/members/{memberId}:
     delete:
       summary: Remove team member
       description: Removes a user from a team
@@ -1291,13 +1366,28 @@ paths:
           name: id
           schema: { type: string }
           required: true
+          description: Organization ID
         - in: path
-          name: userId
+          name: teamId
           schema: { type: string }
           required: true
+          description: Team ID
+        - in: path
+          name: memberId
+          schema: { type: string }
+          required: true
+          description: Member ID
       responses:
         "204":
           description: Member removed
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
       security:
         - bearerAuth: []
 

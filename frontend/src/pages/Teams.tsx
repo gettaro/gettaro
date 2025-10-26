@@ -33,8 +33,7 @@ export default function Teams() {
   })
 
   const [addMemberFormData, setAddMemberFormData] = useState<AddTeamMemberRequest>({
-    member_id: '',
-    role: ''
+    member_id: ''
   })
 
   useEffect(() => {
@@ -103,7 +102,7 @@ export default function Teams() {
 
     try {
       setIsUpdating(true)
-      await Api.updateTeam(selectedTeam.id, updateFormData)
+      await Api.updateTeam(currentOrganization.id, selectedTeam.id, updateFormData)
       
       toast({
         title: 'Success',
@@ -132,7 +131,7 @@ export default function Teams() {
     }
 
     try {
-      await Api.deleteTeam(team.id)
+      await Api.deleteTeam(currentOrganization.id, team.id)
       
       toast({
         title: 'Success',
@@ -155,7 +154,7 @@ export default function Teams() {
 
     try {
       setIsAddingMember(true)
-      await Api.addTeamMember(selectedTeam.id, addMemberFormData)
+      await Api.addTeamMember(currentOrganization.id, selectedTeam.id, addMemberFormData)
       
       toast({
         title: 'Success',
@@ -164,7 +163,7 @@ export default function Teams() {
       
       setIsAddMemberModalOpen(false)
       setSelectedTeam(null)
-      setAddMemberFormData({ member_id: '', role: '' })
+      setAddMemberFormData({ member_id: '' })
       loadTeams()
     } catch (err) {
       console.error('Error adding member to team:', err)
@@ -184,7 +183,7 @@ export default function Teams() {
     }
 
     try {
-      await Api.removeTeamMember(teamId, memberId)
+      await Api.removeTeamMember(currentOrganization.id, teamId, memberId)
       
       toast({
         title: 'Success',
@@ -213,7 +212,7 @@ export default function Teams() {
 
   const openAddMemberModal = (team: Team) => {
     setSelectedTeam(team)
-    setAddMemberFormData({ member_id: '', role: '' })
+    setAddMemberFormData({ member_id: '' })
     setIsAddMemberModalOpen(true)
   }
 
@@ -352,9 +351,6 @@ export default function Teams() {
                             <div key={member.id} className="flex justify-between items-center text-sm">
                               <span>{getMemberName(member.member_id)}</span>
                               <div className="flex items-center space-x-2">
-                                <span className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded">
-                                  {member.role}
-                                </span>
                                 <button
                                   onClick={() => handleRemoveMember(team.id, member.member_id)}
                                   className="text-xs text-destructive hover:text-destructive/80"
@@ -531,17 +527,6 @@ export default function Teams() {
                       ))}
                   </select>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-2">Role</label>
-                  <input
-                    type="text"
-                    value={addMemberFormData.role}
-                    onChange={(e) => setAddMemberFormData({ ...addMemberFormData, role: e.target.value })}
-                    className="w-full px-3 py-2 border border-border rounded-md"
-                    placeholder="e.g., Developer, Lead, Manager"
-                  />
-                </div>
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
@@ -553,7 +538,7 @@ export default function Teams() {
                 </button>
                 <button
                   onClick={handleAddMember}
-                  disabled={isAddingMember || !addMemberFormData.member_id || !addMemberFormData.role}
+                  disabled={isAddingMember || !addMemberFormData.member_id}
                   className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
                 >
                   {isAddingMember ? 'Adding...' : 'Add Member'}

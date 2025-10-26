@@ -33,9 +33,9 @@ func (s *Server) setupRoutes() {
 		sourceControlHandler := handlers.NewSourceControlHandler(s.sourcecontrolApi, s.orgApi)
 		sourceControlHandler.RegisterRoutes(protected)
 
-		// // Team routes
-		// teamHandler := handlers.NewTeamHandler(s.teamApi, s.orgApi)
-		// teamHandler.RegisterRoutes(protected)
+		// Team routes
+		teamHandler := handlers.NewTeamHandler(s.teamApi, s.orgApi)
+		teamHandler.RegisterRoutes(protected)
 
 		// Title routes
 		titleHandler := handlers.NewTitleHandler(s.titleApi, s.orgApi)

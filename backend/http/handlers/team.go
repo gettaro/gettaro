@@ -29,33 +29,39 @@ func NewTeamHandler(teamApi teamapi.TeamAPI, orgApi orgapi.OrganizationAPI) *Tea
 
 // RegisterRoutes registers all team-related routes with the provided router group.
 // It sets up the following routes:
-// - POST /api/teams - Create a new team
-// - GET /api/teams - List all teams
-// - GET /api/teams/:id - Get a specific team
-// - PUT /api/teams/:id - Update a team
-// - DELETE /api/teams/:id - Delete a team
-// - POST /api/teams/:id/members - Add a team member
-// - DELETE /api/teams/:id/members/:memberId - Remove a team member
+// - POST /api/organizations/:id/teams - Create a new team
+// - GET /api/organizations/:id/teams - List all teams for an organization
+// - GET /api/organizations/:id/teams/:teamId - Get a specific team
+// - PUT /api/organizations/:id/teams/:teamId - Update a team
+// - DELETE /api/organizations/:id/teams/:teamId - Delete a team
+// - POST /api/organizations/:id/teams/:teamId/members - Add a team member
+// - DELETE /api/organizations/:id/teams/:teamId/members/:memberId - Remove a team member
 func (h *TeamHandler) RegisterRoutes(router *gin.RouterGroup) {
-	teams := router.Group("/teams")
+	organizations := router.Group("/organizations")
 	{
-		teams.POST("", h.CreateTeam)
-		teams.GET("", h.ListTeams)
-		teams.GET("/:id", h.GetTeam)
-		teams.PUT("/:id", h.UpdateTeam)
-		teams.DELETE("/:id", h.DeleteTeam)
-		teams.POST("/:id/members", h.AddTeamMember)
-		teams.DELETE("/:id/members/:memberId", h.RemoveTeamMember)
+		organizations.POST("/:id/teams", h.CreateTeam)
+		organizations.GET("/:id/teams", h.ListTeams)
+		organizations.GET("/:id/teams/:teamId", h.GetTeam)
+		organizations.PUT("/:id/teams/:teamId", h.UpdateTeam)
+		organizations.DELETE("/:id/teams/:teamId", h.DeleteTeam)
+		organizations.POST("/:id/teams/:teamId/members", h.AddTeamMember)
+		organizations.DELETE("/:id/teams/:teamId/members/:memberId", h.RemoveTeamMember)
 	}
 }
 
-// CreateTeam handles the POST /api/teams endpoint.
+// CreateTeam handles the POST /api/organizations/:id/teams endpoint.
 // It creates a new team with the provided information.
 // Returns:
 // - 201: The created team
 // - 400: If the request body is invalid
 // - 500: If there's a database error
 func (h *TeamHandler) CreateTeam(c *gin.Context) {
+	orgID := c.Param("id")
+	if orgID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "organization ID is required"})
+		return
+	}
+
 	var req types.CreateTeamRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -63,14 +69,14 @@ func (h *TeamHandler) CreateTeam(c *gin.Context) {
 	}
 
 	// Check if user is an owner of the organization
-	if !utils.CheckOrganizationOwnership(c, h.orgApi, req.OrganizationID) {
+	if !utils.CheckOrganizationOwnership(c, h.orgApi, orgID) {
 		return
 	}
 
 	team := &types.Team{
 		Name:           req.Name,
 		Description:    req.Description,
-		OrganizationID: req.OrganizationID,
+		OrganizationID: orgID,
 	}
 
 	if err := h.teamApi.CreateTeam(c.Request.Context(), team); err != nil {
@@ -81,7 +87,7 @@ func (h *TeamHandler) CreateTeam(c *gin.Context) {
 	c.JSON(http.StatusCreated, teamtypes.GetTeamResponse(team))
 }
 
-// GetTeam handles the GET /api/teams/:id endpoint.
+// GetTeam handles the GET /api/organizations/:id/teams/:teamId endpoint.
 // It retrieves a specific team by its ID.
 // Returns:
 // - 200: The team details
@@ -89,44 +95,54 @@ func (h *TeamHandler) CreateTeam(c *gin.Context) {
 // - 404: If the team is not found
 // - 500: If there's a database error
 func (h *TeamHandler) GetTeam(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "team ID is required"})
+	orgID := c.Param("id")
+	teamID := c.Param("teamId")
+	if orgID == "" || teamID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "organization ID and team ID are required"})
 		return
 	}
 
-	team, err := h.teamApi.GetTeam(c.Request.Context(), id)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// Check if user is a member of the organization
+	if !utils.CheckOrganizationMembership(c, h.orgApi, &orgID) {
 		return
 	}
-	if team == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "team not found"})
+
+	team, err := h.teamApi.GetTeamByOrganization(c.Request.Context(), teamID, orgID)
+	if err != nil {
+		if err.Error() == "team not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "team not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, teamtypes.GetTeamResponse(team))
 }
 
-// ListTeams handles the GET /api/teams endpoint.
-// It returns a list of teams, optionally filtered by organization ID or name.
+// ListTeams handles the GET /api/organizations/:id/teams endpoint.
+// It returns a list of teams for the specified organization, optionally filtered by name.
 // Returns:
 // - 200: List of teams
 // - 500: If there's a database error
 func (h *TeamHandler) ListTeams(c *gin.Context) {
-	params := types.TeamSearchParams{}
+	orgID := c.Param("id")
+	if orgID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "organization ID is required"})
+		return
+	}
 
-	if orgID := c.Query("organizationId"); orgID != "" {
-		params.OrganizationID = &orgID
+	// Check if user is a member of the organization
+	if !utils.CheckOrganizationMembership(c, h.orgApi, &orgID) {
+		return
+	}
+
+	params := types.TeamSearchParams{
+		OrganizationID: &orgID,
 	}
 
 	if name := c.Query("name"); name != "" {
 		params.Name = &name
-	}
-
-	// Check if user is a member of the organization
-	if !utils.CheckOrganizationMembership(c, h.orgApi, params.OrganizationID) {
-		return
 	}
 
 	teams, err := h.teamApi.ListTeams(c.Request.Context(), params)
@@ -145,7 +161,7 @@ func (h *TeamHandler) ListTeams(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// UpdateTeam handles the PUT /api/teams/:id endpoint.
+// UpdateTeam handles the PUT /api/organizations/:id/teams/:teamId endpoint.
 // It updates an existing team's information.
 // Returns:
 // - 200: The updated team
@@ -153,20 +169,15 @@ func (h *TeamHandler) ListTeams(c *gin.Context) {
 // - 404: If the team is not found
 // - 500: If there's a database error
 func (h *TeamHandler) UpdateTeam(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "team ID is required"})
+	orgID := c.Param("id")
+	teamID := c.Param("teamId")
+	if orgID == "" || teamID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "organization ID and team ID are required"})
 		return
 	}
 
 	// Check if user is an owner of the organization
-	team, err := h.teamApi.GetTeam(c.Request.Context(), id)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	if !utils.CheckOrganizationOwnership(c, h.orgApi, team.OrganizationID) {
+	if !utils.CheckOrganizationOwnership(c, h.orgApi, orgID) {
 		return
 	}
 
@@ -181,7 +192,11 @@ func (h *TeamHandler) UpdateTeam(c *gin.Context) {
 		Description: *req.Description,
 	}
 
-	if err := h.teamApi.UpdateTeam(c.Request.Context(), id, teamParams); err != nil {
+	if err := h.teamApi.UpdateTeam(c.Request.Context(), teamID, teamParams); err != nil {
+		if err.Error() == "team not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "team not found"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -189,31 +204,30 @@ func (h *TeamHandler) UpdateTeam(c *gin.Context) {
 	c.JSON(http.StatusOK, teamtypes.GetTeamResponse(teamParams))
 }
 
-// DeleteTeam handles the DELETE /api/teams/:id endpoint.
+// DeleteTeam handles the DELETE /api/organizations/:id/teams/:teamId endpoint.
 // It deletes a team from the system.
 // Returns:
 // - 204: If the team was successfully deleted
 // - 400: If the team ID is missing
 // - 500: If there's a database error
 func (h *TeamHandler) DeleteTeam(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "team ID is required"})
+	orgID := c.Param("id")
+	teamID := c.Param("teamId")
+	if orgID == "" || teamID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "organization ID and team ID are required"})
 		return
 	}
 
 	// Check if user is an owner of the organization
-	team, err := h.teamApi.GetTeam(c.Request.Context(), id)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if !utils.CheckOrganizationOwnership(c, h.orgApi, orgID) {
 		return
 	}
 
-	if !utils.CheckOrganizationOwnership(c, h.orgApi, team.OrganizationID) {
-		return
-	}
-
-	if err := h.teamApi.DeleteTeam(c.Request.Context(), id); err != nil {
+	if err := h.teamApi.DeleteTeam(c.Request.Context(), teamID); err != nil {
+		if err.Error() == "team not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "team not found"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -221,27 +235,22 @@ func (h *TeamHandler) DeleteTeam(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// AddTeamMember handles the POST /api/teams/:id/members endpoint.
+// AddTeamMember handles the POST /api/organizations/:id/teams/:teamId/members endpoint.
 // It adds a user as a member to a team.
 // Returns:
 // - 201: If the member was added successfully
 // - 400: If the request body is invalid or team ID is missing
 // - 500: If there's a database error
 func (h *TeamHandler) AddTeamMember(c *gin.Context) {
-	teamID := c.Param("id")
-	if teamID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "team ID is required"})
+	orgID := c.Param("id")
+	teamID := c.Param("teamId")
+	if orgID == "" || teamID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "organization ID and team ID are required"})
 		return
 	}
 
 	// Check if user is an owner of the organization
-	team, err := h.teamApi.GetTeam(c.Request.Context(), teamID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	if !utils.CheckOrganizationOwnership(c, h.orgApi, team.OrganizationID) {
+	if !utils.CheckOrganizationOwnership(c, h.orgApi, orgID) {
 		return
 	}
 
@@ -252,12 +261,14 @@ func (h *TeamHandler) AddTeamMember(c *gin.Context) {
 	}
 
 	member := &types.TeamMember{
-		TeamID:   teamID,
 		MemberID: req.MemberID,
-		Role:     req.Role,
 	}
 
 	if err := h.teamApi.AddTeamMember(c.Request.Context(), teamID, member); err != nil {
+		if err.Error() == "team not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "team not found"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -265,32 +276,31 @@ func (h *TeamHandler) AddTeamMember(c *gin.Context) {
 	c.Status(http.StatusCreated)
 }
 
-// RemoveTeamMember handles the DELETE /api/teams/:id/members/:memberId endpoint.
+// RemoveTeamMember handles the DELETE /api/organizations/:id/teams/:teamId/members/:memberId endpoint.
 // It removes a member from a team's members.
 // Returns:
 // - 204: If the member was successfully removed
 // - 400: If the team ID or member ID is missing
 // - 500: If there's a database error
 func (h *TeamHandler) RemoveTeamMember(c *gin.Context) {
-	teamID := c.Param("id")
+	orgID := c.Param("id")
+	teamID := c.Param("teamId")
 	memberID := c.Param("memberId")
-	if teamID == "" || memberID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "team ID and member ID are required"})
+	if orgID == "" || teamID == "" || memberID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "organization ID, team ID and member ID are required"})
 		return
 	}
 
 	// Check if user is an owner of the organization
-	team, err := h.teamApi.GetTeam(c.Request.Context(), teamID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	if !utils.CheckOrganizationOwnership(c, h.orgApi, team.OrganizationID) {
+	if !utils.CheckOrganizationOwnership(c, h.orgApi, orgID) {
 		return
 	}
 
 	if err := h.teamApi.RemoveTeamMember(c.Request.Context(), teamID, memberID); err != nil {
+		if err.Error() == "team not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "team not found"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

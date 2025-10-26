@@ -19,6 +19,9 @@ type TeamAPI interface {
 	// GetTeam returns a team by ID
 	GetTeam(ctx context.Context, id string) (*types.Team, error)
 
+	// GetTeamByOrganization returns a team by ID and validates it belongs to the organization
+	GetTeamByOrganization(ctx context.Context, teamID, organizationID string) (*types.Team, error)
+
 	// UpdateTeam updates a team
 	UpdateTeam(ctx context.Context, id string, team *types.Team) error
 

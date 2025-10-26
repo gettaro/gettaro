@@ -11,7 +11,6 @@ export interface Team {
 export interface TeamMember {
   id: string
   member_id: string
-  role: string
   created_at: string
   updated_at: string
 }
@@ -29,7 +28,6 @@ export interface UpdateTeamRequest {
 
 export interface AddTeamMemberRequest {
   member_id: string
-  role: string
 }
 
 export interface ListTeamsResponse {

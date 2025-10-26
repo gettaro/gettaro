@@ -26,7 +26,6 @@ type TeamMember struct {
 	ID        string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	TeamID    string    `json:"team_id" gorm:"type:uuid"`
 	MemberID  string    `json:"member_id" gorm:"type:uuid"`
-	Role      string    `json:"role"`
 	CreatedAt time.Time `json:"created_at" gorm:"default:now()"`
 	UpdatedAt time.Time `json:"updated_at"`
 
@@ -58,7 +57,6 @@ type UpdateTeamRequest struct {
 // AddTeamMemberRequest represents the request body for adding a member to a team
 type AddTeamMemberRequest struct {
 	MemberID string `json:"member_id" binding:"required"`
-	Role     string `json:"role" binding:"required"`
 }
 
 // RemoveTeamMemberRequest represents the request body for removing a member from a team

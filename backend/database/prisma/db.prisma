@@ -62,6 +62,7 @@ model OrganizationMember {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   title        Title?       @relation(fields: [titleId], references: [id], onDelete: SetNull) // New relation
   sourceControlAccounts SourceControlAccount[]
+  teamMembers  TeamMember[]
 
   @@unique([userId, organizationId])
 }
@@ -106,18 +107,16 @@ model Team {
 }
 
 model TeamMember {
-  id             String   @id @default(uuid())
-  userId         String
-  teamId         String
-  organizationId String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime
+  id        String   @id @default(uuid())
+  memberId  String
+  teamId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
 
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  team         Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  member OrganizationMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  team   Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, teamId, organizationId])
+  @@unique([memberId, teamId])
 }
 
 model DirectReport {

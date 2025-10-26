@@ -85,7 +85,14 @@ export default class Api {
       throw new Error('Failed to create data')
     }
 
-    return response.json()
+    // Handle empty responses (like 201 Created with no body)
+    const contentType = response.headers.get('content-type')
+    if (contentType && contentType.includes('application/json')) {
+      return response.json()
+    }
+    
+    // Return null for empty responses
+    return null
   }
 
   private static async put(path: string, data: any): Promise<any> {
@@ -106,7 +113,14 @@ export default class Api {
       throw new Error('Failed to update data')
     }
 
-    return response.json()
+    // Handle empty responses (like 200 OK with no body)
+    const contentType = response.headers.get('content-type')
+    if (contentType && contentType.includes('application/json')) {
+      return response.json()
+    }
+    
+    // Return null for empty responses
+    return null
   }
 
   private static async delete(path: string): Promise<void> {
@@ -494,31 +508,31 @@ export default class Api {
       queryParams.append('name', params.name)
     }
     const queryString = queryParams.toString()
-    return this.get(`/teams?organizationId=${organizationId}${queryString ? `&${queryString}` : ''}`)
+    return this.get(`/organizations/${organizationId}/teams${queryString ? `?${queryString}` : ''}`)
   }
 
-  static async getTeam(teamId: string): Promise<GetTeamResponse> {
-    return this.get(`/teams/${teamId}`)
+  static async getTeam(organizationId: string, teamId: string): Promise<GetTeamResponse> {
+    return this.get(`/organizations/${organizationId}/teams/${teamId}`)
   }
 
   static async createTeam(organizationId: string, team: CreateTeamRequest): Promise<CreateTeamResponse> {
-    return this.post(`/teams`, { ...team, organization_id: organizationId })
+    return this.post(`/organizations/${organizationId}/teams`, team)
   }
 
-  static async updateTeam(teamId: string, team: UpdateTeamRequest): Promise<UpdateTeamResponse> {
-    return this.put(`/teams/${teamId}`, team)
+  static async updateTeam(organizationId: string, teamId: string, team: UpdateTeamRequest): Promise<UpdateTeamResponse> {
+    return this.put(`/organizations/${organizationId}/teams/${teamId}`, team)
   }
 
-  static async deleteTeam(teamId: string): Promise<void> {
-    return this.delete(`/teams/${teamId}`)
+  static async deleteTeam(organizationId: string, teamId: string): Promise<void> {
+    return this.delete(`/organizations/${organizationId}/teams/${teamId}`)
   }
 
-  static async addTeamMember(teamId: string, member: AddTeamMemberRequest): Promise<void> {
-    return this.post(`/teams/${teamId}/members`, member)
+  static async addTeamMember(organizationId: string, teamId: string, member: AddTeamMemberRequest): Promise<void> {
+    return this.post(`/organizations/${organizationId}/teams/${teamId}/members`, member)
   }
 
-  static async removeTeamMember(teamId: string, memberId: string): Promise<void> {
-    return this.delete(`/teams/${teamId}/members/${memberId}`)
+  static async removeTeamMember(organizationId: string, teamId: string, memberId: string): Promise<void> {
+    return this.delete(`/organizations/${organizationId}/teams/${teamId}/members/${memberId}`)
   }
 }
 
