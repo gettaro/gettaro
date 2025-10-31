@@ -4,55 +4,72 @@
 
 @layer base {
   :root {
+    /* Light mode - Material UI default */
+    /* Purple Primary: #412485 */
     --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    --foreground: 0 0% 13%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 0 0% 13%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 260 60% 55%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --popover-foreground: 0 0% 13%;
+    --primary: 258 65% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 258 30% 85%;
+    --secondary-foreground: 258 65% 50%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 258 65% 95%;
+    --accent-foreground: 258 65% 50%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 260 60% 55%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 258 65% 50%;
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 260 60% 55%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    /* Dark mode - Material UI exact palette */
+    /* Background: #121212 (Material UI dark theme default) */
+    /* Paper/Card: #1e1e1e (Material UI elevated surface) */
+    /* Text: #fff (white) */
+    /* Purple Primary: #412485 (same as light theme) */
+    --background: 0 0% 7%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 258 65% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 19%;
+    --secondary-foreground: 0 0% 70%;
+    --muted: 0 0% 19%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 258 50% 40%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 260 60% 55%;
+    --border: 0 0% 27%;
+    --input: 0 0% 27%;
+    --ring: 258 65% 50%;
   }
 }
 
 @layer base {
   * {
+    @apply border-border;
+  }
+  html {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
   body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+  h1, h2, h3, h4, h5, h6, p, span, div, a, button, input, select, textarea, label {
+    color: inherit;
   }
 }
 
