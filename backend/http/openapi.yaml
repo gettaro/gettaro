@@ -168,6 +168,27 @@ components:
           type: integer
         changed_files:
           type: integer
+        repository_name:
+          type: string
+        author:
+          $ref: "#/components/schemas/PullRequestAuthor"
+          nullable: true
+          description: Author/member information for the pull request
+
+    PullRequestAuthor:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Member ID
+        username:
+          type: string
+          description: Member username
+        email:
+          type: string
+          description: Member email
+      description: Author/member information for a pull request
 
     PullRequestMetrics:
       type: object

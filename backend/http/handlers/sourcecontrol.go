@@ -7,6 +7,8 @@ import (
 
 	"ems.dev/backend/http/types/sourcecontrol"
 	"ems.dev/backend/http/utils"
+	memberapi "ems.dev/backend/services/member/api"
+	membertypes "ems.dev/backend/services/member/types"
 	metricsapi "ems.dev/backend/services/metrics/api"
 	metricsTypes "ems.dev/backend/services/metrics/types"
 	organizationapi "ems.dev/backend/services/organization/api"
@@ -20,13 +22,15 @@ type SourceControlHandler struct {
 	scApi      sourcecontrolapi.SourceControlAPI
 	orgApi     organizationapi.OrganizationAPI
 	metricsApi metricsapi.MetricsAPI
+	memberApi  memberapi.MemberAPI
 }
 
-func NewSourceControlHandler(scApi sourcecontrolapi.SourceControlAPI, orgApi organizationapi.OrganizationAPI, metricsApi metricsapi.MetricsAPI) *SourceControlHandler {
+func NewSourceControlHandler(scApi sourcecontrolapi.SourceControlAPI, orgApi organizationapi.OrganizationAPI, metricsApi metricsapi.MetricsAPI, memberApi memberapi.MemberAPI) *SourceControlHandler {
 	return &SourceControlHandler{
 		scApi:      scApi,
 		orgApi:     orgApi,
 		metricsApi: metricsApi,
+		memberApi:  memberApi,
 	}
 }
 
@@ -106,6 +110,44 @@ func (h *SourceControlHandler) ListOrganizationPullRequests(c *gin.Context) {
 		return
 	}
 
+	// Get source control account IDs and fetch accounts to get member IDs
+	sourceControlAccountIDs := make([]string, 0, len(prs))
+	for _, pr := range prs {
+		sourceControlAccountIDs = append(sourceControlAccountIDs, pr.SourceControlAccountID)
+	}
+
+	// Get source control accounts to find member IDs
+	accounts, err := h.scApi.GetSourceControlAccounts(c.Request.Context(), &servicetypes.SourceControlAccountParams{
+		SourceControlAccountIDs: sourceControlAccountIDs,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Create a map of source control account ID to member ID
+	accountToMemberID := make(map[string]*string)
+	memberIDs := make([]string, 0)
+	for _, account := range accounts {
+		if account.MemberID != nil {
+			accountToMemberID[account.ID] = account.MemberID
+			memberIDs = append(memberIDs, *account.MemberID)
+		}
+	}
+
+	// Get all members in one query
+	membersMap := make(map[string]*membertypes.OrganizationMember)
+	if len(memberIDs) > 0 {
+		members, err := h.memberApi.GetOrganizationMembers(c.Request.Context(), orgID, &membertypes.OrganizationMemberParams{
+			IDs: memberIDs,
+		})
+		if err == nil {
+			for i := range members {
+				membersMap[members[i].ID] = &members[i]
+			}
+		}
+	}
+
 	response := sourcecontrol.ListOrganizationPullRequestsResponse{
 		PullRequests: make([]sourcecontrol.PullRequest, len(prs)),
 	}
@@ -125,6 +167,17 @@ func (h *SourceControlHandler) ListOrganizationPullRequests(c *gin.Context) {
 			Additions:      pr.Additions,
 			Deletions:      pr.Deletions,
 			ChangedFiles:   pr.ChangedFiles,
+		}
+
+		// Add author information if available
+		if memberID, ok := accountToMemberID[pr.SourceControlAccountID]; ok && memberID != nil {
+			if member, ok := membersMap[*memberID]; ok {
+				response.PullRequests[i].Author = &sourcecontrol.PullRequestAuthor{
+					ID:       member.ID,
+					Username: member.Username,
+					Email:    member.Email,
+				}
+			}
 		}
 	}
 

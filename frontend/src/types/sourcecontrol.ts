@@ -8,6 +8,12 @@ export interface SourceControlAccount {
   last_synced_at?: string
 }
 
+export interface PullRequestAuthor {
+  id?: string
+  username?: string
+  email?: string
+}
+
 export interface PullRequest {
   id: string
   title: string
@@ -22,6 +28,7 @@ export interface PullRequest {
   deletions: number
   changed_files: number
   repository_name?: string
+  author?: PullRequestAuthor
 }
 
 export interface GetMemberPullRequestsParams {

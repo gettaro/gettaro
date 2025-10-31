@@ -99,6 +99,19 @@ type PullRequestWithComments struct {
 	Comments []*PRComment `json:"comments,omitempty"`
 }
 
+// PullRequestAuthor represents the author/member information for a pull request
+type PullRequestAuthor struct {
+	ID       string `json:"id,omitempty"`
+	Username string `json:"username,omitempty"`
+	Email    string `json:"email,omitempty"`
+}
+
+// PullRequestWithAuthor represents a pull request with author information
+type PullRequestWithAuthor struct {
+	*PullRequest
+	Author *PullRequestAuthor `json:"author,omitempty"`
+}
+
 // MemberPullRequestParams represents the parameters for getting member pull requests
 type MemberPullRequestParams struct {
 	MemberID        string     `json:"member_id"`

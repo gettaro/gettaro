@@ -30,7 +30,7 @@ func (s *Server) setupRoutes() {
 		integrationHandler.RegisterRoutes(protected)
 
 		// Source control routes
-		sourceControlHandler := handlers.NewSourceControlHandler(s.sourcecontrolApi, s.orgApi, s.metricsApi)
+		sourceControlHandler := handlers.NewSourceControlHandler(s.sourcecontrolApi, s.orgApi, s.metricsApi, s.memberApi)
 		sourceControlHandler.RegisterRoutes(protected)
 
 		// Team routes

@@ -18,20 +18,27 @@ type ListOrganizationPullRequestsResponse struct {
 	PullRequests []PullRequest `json:"pull_requests"`
 }
 
+type PullRequestAuthor struct {
+	ID       string `json:"id,omitempty"`
+	Username string `json:"username,omitempty"`
+	Email    string `json:"email,omitempty"`
+}
+
 type PullRequest struct {
-	ID             string     `json:"id"`
-	Title          string     `json:"title"`
-	Description    string     `json:"description"`
-	URL            string     `json:"url"`
-	Status         string     `json:"status"`
-	RepositoryName string     `json:"repository_name"`
-	CreatedAt      time.Time  `json:"created_at"`
-	MergedAt       *time.Time `json:"merged_at,omitempty"`
-	Comments       int        `json:"comments"`
-	ReviewComments int        `json:"review_comments"`
-	Additions      int        `json:"additions"`
-	Deletions      int        `json:"deletions"`
-	ChangedFiles   int        `json:"changed_files"`
+	ID             string              `json:"id"`
+	Title          string              `json:"title"`
+	Description    string              `json:"description"`
+	URL            string              `json:"url"`
+	Status         string              `json:"status"`
+	RepositoryName string              `json:"repository_name"`
+	CreatedAt      time.Time           `json:"created_at"`
+	MergedAt       *time.Time          `json:"merged_at,omitempty"`
+	Comments       int                 `json:"comments"`
+	ReviewComments int                 `json:"review_comments"`
+	Additions      int                 `json:"additions"`
+	Deletions      int                 `json:"deletions"`
+	ChangedFiles   int                 `json:"changed_files"`
+	Author         *PullRequestAuthor  `json:"author,omitempty"`
 }
 
 type ListOrganizationPullRequestsMetricsQuery struct {
