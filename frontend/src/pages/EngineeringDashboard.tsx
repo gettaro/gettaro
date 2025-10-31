@@ -22,7 +22,7 @@ export default function EngineeringDashboard() {
     return {
       startDate: startDate.toISOString().split('T')[0], // YYYY-MM-DD format
       endDate: endDate.toISOString().split('T')[0],
-      interval: 'monthly' as 'daily' | 'weekly' | 'monthly'
+      interval: 'weekly' as 'daily' | 'weekly' | 'monthly'
     }
   })
 
@@ -136,6 +136,14 @@ export default function EngineeringDashboard() {
     )
   }
 
+  const handleTeamBreakdownToggle = (checked: boolean) => {
+    setShowTeamBreakdown(checked)
+    if (checked && teams.length > 0) {
+      // When enabling team breakdown, select all teams by default
+      setSelectedTeams(teams.map(team => team.id))
+    }
+  }
+
   const toggleRepoExpansion = (repoName: string) => {
     setExpandedRepos(prev => {
       const newSet = new Set(prev)
@@ -227,7 +235,7 @@ export default function EngineeringDashboard() {
                 <input
                   type="checkbox"
                   checked={showTeamBreakdown}
-                  onChange={(e) => setShowTeamBreakdown(e.target.checked)}
+                  onChange={(e) => handleTeamBreakdownToggle(e.target.checked)}
                   className="rounded"
                 />
                 <span className="text-sm">Break down by team</span>
