@@ -8,7 +8,7 @@ import MetricChart from '../components/MetricChart'
 import MetricInfoButton from '../components/MetricInfoButton'
 import { formatMetricValue } from '../utils/formatMetrics'
 
-type TabType = 'engineering-productivity'
+type TabType = 'engineering-productivity' | 'tech-health'
 
 export default function EngineeringDashboard() {
   const { currentOrganization } = useOrganizationStore()
@@ -37,6 +37,7 @@ export default function EngineeringDashboard() {
   const [error, setError] = useState<string | null>(null)
   const [expandedRepos, setExpandedRepos] = useState<Set<string>>(new Set())
   const [showRepositories, setShowRepositories] = useState(false)
+  const [activeTab, setActiveTab] = useState<TabType>('engineering-productivity')
 
   // Load teams
   useEffect(() => {
@@ -188,9 +189,24 @@ export default function EngineeringDashboard() {
         <div className="border-b border-border mb-6">
           <nav className="flex space-x-8">
             <button
-              className="py-4 px-1 border-b-2 border-primary text-primary font-medium"
+              onClick={() => setActiveTab('engineering-productivity')}
+              className={`py-4 px-1 border-b-2 transition-colors ${
+                activeTab === 'engineering-productivity'
+                  ? 'border-primary text-primary font-medium'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
             >
               Engineering Productivity
+            </button>
+            <button
+              onClick={() => setActiveTab('tech-health')}
+              className={`py-4 px-1 border-b-2 transition-colors ${
+                activeTab === 'tech-health'
+                  ? 'border-primary text-primary font-medium'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Tech Health
             </button>
           </nav>
         </div>
@@ -201,110 +217,11 @@ export default function EngineeringDashboard() {
           </div>
         )}
 
-        {/* Open PRs Widget */}
-        <div className="bg-card rounded-lg p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Open Pull Requests</h2>
-            {openPRsLoading && <span className="text-sm text-muted-foreground">Loading...</span>}
-          </div>
-          
-          {!openPRsLoading && (
-            <>
-              <div className="mb-4">
-                <span className="text-3xl font-bold">{openPRs.length}</span>
-                <span className="text-muted-foreground ml-2">total open PRs</span>
-              </div>
-              
-              {Object.keys(prsByRepository).length > 0 ? (
-                <div className="space-y-2">
-                  <button
-                    onClick={() => setShowRepositories(!showRepositories)}
-                    className="w-full flex items-center justify-between p-2 hover:bg-muted/30 rounded transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <svg
-                        className={`w-4 h-4 transition-transform ${showRepositories ? 'rotate-90' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                      <h3 className="text-sm font-medium text-muted-foreground">Repositories</h3>
-                      <span className="text-xs text-muted-foreground">
-                        ({Object.keys(prsByRepository).length} {Object.keys(prsByRepository).length === 1 ? 'repository' : 'repositories'})
-                      </span>
-                    </div>
-                  </button>
-                  {showRepositories && (
-                    <div className="space-y-2 pl-6">
-                      {Object.entries(prsByRepository)
-                        .sort((a, b) => b[1].length - a[1].length)
-                        .map(([repo, prs]) => (
-                          <div key={repo} className="bg-muted/30 rounded">
-                            <button
-                              onClick={() => toggleRepoExpansion(repo)}
-                              className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
-                            >
-                              <div className="flex items-center gap-2">
-                                <svg
-                                  className={`w-4 h-4 transition-transform ${expandedRepos.has(repo) ? 'rotate-90' : ''}`}
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
-                                <span className="font-medium">{repo}</span>
-                              </div>
-                              <span className="text-lg font-semibold">{prs.length}</span>
-                            </button>
-                            {expandedRepos.has(repo) && (
-                              <div className="px-3 pb-3 space-y-2 border-t border-border/50 pt-3">
-                                {prs.map((pr) => (
-                                  <a
-                                    key={pr.id}
-                                    href={pr.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="block p-2 bg-background rounded hover:bg-muted/50 transition-colors"
-                                  >
-                                    <div className="flex items-start justify-between gap-2">
-                                      <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm truncate">{pr.title}</p>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                          {new Date(pr.created_at).toLocaleDateString()}
-                                        </p>
-                                      </div>
-                                      <svg
-                                        className="w-4 h-4 text-muted-foreground flex-shrink-0"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                      >
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                      </svg>
-                                    </div>
-                                  </a>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-muted-foreground">No open pull requests</p>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Metrics Section */}
-        <div className="bg-card rounded-lg p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Coding Contribution Metrics</h2>
+        {/* Engineering Productivity Tab Content */}
+        {activeTab === 'engineering-productivity' && (
+          <div className="bg-card rounded-lg p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Coding Contribution Metrics</h2>
             <div className="flex items-center gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -494,7 +411,110 @@ export default function EngineeringDashboard() {
           ) : (
             <p className="text-muted-foreground py-8 text-center">No metrics available</p>
           )}
-        </div>
+          </div>
+        )}
+
+        {/* Tech Health Tab Content */}
+        {activeTab === 'tech-health' && (
+          <div className="bg-card rounded-lg p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Open Pull Requests</h2>
+              {openPRsLoading && <span className="text-sm text-muted-foreground">Loading...</span>}
+            </div>
+            
+            {!openPRsLoading && (
+              <>
+                <div className="mb-4">
+                  <span className="text-3xl font-bold">{openPRs.length}</span>
+                  <span className="text-muted-foreground ml-2">total open PRs</span>
+                </div>
+                
+                {Object.keys(prsByRepository).length > 0 ? (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setShowRepositories(!showRepositories)}
+                      className="w-full flex items-center justify-between p-2 hover:bg-muted/30 rounded transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <svg
+                          className={`w-4 h-4 transition-transform ${showRepositories ? 'rotate-90' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                        <h3 className="text-sm font-medium text-muted-foreground">Repositories</h3>
+                        <span className="text-xs text-muted-foreground">
+                          ({Object.keys(prsByRepository).length} {Object.keys(prsByRepository).length === 1 ? 'repository' : 'repositories'})
+                        </span>
+                      </div>
+                    </button>
+                    {showRepositories && (
+                      <div className="space-y-2 pl-6">
+                        {Object.entries(prsByRepository)
+                          .sort((a, b) => b[1].length - a[1].length)
+                          .map(([repo, prs]) => (
+                            <div key={repo} className="bg-muted/30 rounded">
+                              <button
+                                onClick={() => toggleRepoExpansion(repo)}
+                                className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <svg
+                                    className={`w-4 h-4 transition-transform ${expandedRepos.has(repo) ? 'rotate-90' : ''}`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                  </svg>
+                                  <span className="font-medium">{repo}</span>
+                                </div>
+                                <span className="text-lg font-semibold">{prs.length}</span>
+                              </button>
+                              {expandedRepos.has(repo) && (
+                                <div className="px-3 pb-3 space-y-2 border-t border-border/50 pt-3">
+                                  {prs.map((pr) => (
+                                    <a
+                                      key={pr.id}
+                                      href={pr.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="block p-2 bg-background rounded hover:bg-muted/50 transition-colors"
+                                    >
+                                      <div className="flex items-start justify-between gap-2">
+                                        <div className="flex-1 min-w-0">
+                                          <p className="font-medium text-sm truncate">{pr.title}</p>
+                                          <p className="text-xs text-muted-foreground mt-1">
+                                            {new Date(pr.created_at).toLocaleDateString()}
+                                          </p>
+                                        </div>
+                                        <svg
+                                          className="w-4 h-4 text-muted-foreground flex-shrink-0"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                        </svg>
+                                      </div>
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No open pull requests</p>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
