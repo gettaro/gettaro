@@ -1,49 +1,120 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts'
 import { GraphMetric } from '../types/memberMetrics'
+import { formatTimeMetric } from '../utils/formatMetrics'
+
+interface TeamMetricData {
+  teamName: string
+  metric: GraphMetric
+}
 
 interface MetricChartProps {
-  metric: GraphMetric
+  metric?: GraphMetric
+  teamMetrics?: TeamMetricData[]
   height?: number
 }
 
-export default function MetricChart({ metric, height = 200 }: MetricChartProps) {
-  // Transform the time series data for Recharts
-  const chartData = metric.time_series?.map(entry => {
-    const dataPoint: any = { date: entry.date }
+export default function MetricChart({ metric, teamMetrics, height = 200 }: MetricChartProps) {
+  // If team breakdown is enabled, combine team metrics
+  let chartData: any[] = []
+  let dataKeys: string[] = []
+  
+  if (teamMetrics && teamMetrics.length > 0) {
+    // Combine multiple teams' metrics into one chart
+    const allDates = new Set<string>()
     
-    // Flatten the data points into the main object
-    entry.data.forEach(point => {
-      dataPoint[point.key] = point.value
+    // Collect all dates from all teams
+    teamMetrics.forEach(team => {
+      team.metric.time_series?.forEach(entry => {
+        allDates.add(entry.date)
+      })
     })
     
-    return dataPoint
-  }) || []
+    // Sort dates
+    const sortedDates = Array.from(allDates).sort((a, b) => 
+      new Date(a).getTime() - new Date(b).getTime()
+    )
+    
+    // Create data points for each date with values from each team
+    chartData = sortedDates.map(date => {
+      const dataPoint: any = { date }
+      
+      teamMetrics.forEach(team => {
+        const teamKey = team.teamName.replace(/\s+/g, '_').toLowerCase()
+        const entry = team.metric.time_series?.find(e => e.date === date)
+        if (entry && entry.data.length > 0) {
+          // Use the first data point's value (assuming one value per date per team)
+          dataPoint[teamKey] = entry.data[0]?.value ?? 0
+        } else {
+          // Set to null for missing data (Recharts will connect lines across nulls)
+          dataPoint[teamKey] = null
+        }
+      })
+      
+      return dataPoint
+    })
+    
+    // Data keys are team names
+    dataKeys = teamMetrics.map(team => 
+      team.teamName.replace(/\s+/g, '_').toLowerCase()
+    )
+  } else if (metric) {
+    // Single metric (cumulative)
+    chartData = metric.time_series?.map(entry => {
+      const dataPoint: any = { date: entry.date }
+      
+      entry.data.forEach(point => {
+        dataPoint[point.key] = point.value
+      })
+      
+      return dataPoint
+    }) || []
 
-  // Get all unique keys from the data points
-  const dataKeys = Array.from(new Set(
-    metric.time_series?.flatMap(entry => entry.data.map(point => point.key)) || []
-  ))
+    dataKeys = Array.from(new Set(
+      metric.time_series?.flatMap(entry => entry.data.map(point => point.key)) || []
+    ))
+  }
 
-  // Determine chart type based on metric type
-  const isBarChart = metric.type?.toLowerCase().includes('bar') || 
-                     metric.type?.toLowerCase().includes('count') ||
-                     metric.type?.toLowerCase().includes('total')
+  // Determine chart type
+  const referenceMetric = teamMetrics?.[0]?.metric || metric
+  const isBarChart = referenceMetric?.type?.toLowerCase().includes('bar') || 
+                     referenceMetric?.type?.toLowerCase().includes('count') ||
+                     referenceMetric?.type?.toLowerCase().includes('total')
+
+  // Check if this is a time-based metric (seconds unit)
+  const isTimeMetric = referenceMetric?.unit === 'seconds' || referenceMetric?.unit === 'time'
+  
+  // Y-axis formatter for time metrics
+  const formatYAxisTick = (value: number) => {
+    if (isTimeMetric) {
+      return formatTimeMetric(value)
+    }
+    return value.toLocaleString()
+  }
+
+  // Tooltip formatter for time metrics
+  const formatTooltipValue = (value: number, name: string) => {
+    if (isTimeMetric && value !== null && value !== undefined) {
+      return [formatTimeMetric(value), name]
+    }
+    return [value.toLocaleString(), name]
+  }
 
   const colors = [
-    '#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00', '#ff00ff', '#00ffff'
+    '#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00', '#ff00ff', '#00ffff',
+    '#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b', '#6c5ce7'
   ]
 
-  if (chartData.length === 0) {
-    return (
-      <div className="h-32 flex items-center justify-center bg-muted/5 rounded border border-border/30">
-        <div className="text-center">
-          <svg className="w-8 h-8 text-muted-foreground mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-          <p className="text-sm text-muted-foreground">No data available</p>
-        </div>
-      </div>
-    )
+  // Check if there's any actual data (not all null/undefined values)
+  // Note: 0 is a valid value for metrics, so we only check for null/undefined
+  const hasData = chartData.length > 0 && chartData.some(point => {
+    return dataKeys.some(key => {
+      const value = point[key]
+      return value !== null && value !== undefined
+    })
+  })
+
+  if (!hasData) {
+    return null
   }
 
   return (
@@ -61,7 +132,11 @@ export default function MetricChart({ metric, height = 200 }: MetricChartProps) 
                 return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
               }}
             />
-            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+            <YAxis 
+              stroke="hsl(var(--muted-foreground))" 
+              fontSize={12}
+              tickFormatter={formatYAxisTick}
+            />
             <Tooltip 
               contentStyle={{
                 backgroundColor: 'hsl(var(--background))',
@@ -77,15 +152,30 @@ export default function MetricChart({ metric, height = 200 }: MetricChartProps) 
                   day: 'numeric' 
                 })
               }}
+              formatter={formatTooltipValue}
             />
             {dataKeys.map((key, index) => (
               <Bar 
                 key={key} 
                 dataKey={key} 
                 fill={colors[index % colors.length]}
-                name={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                name={teamMetrics 
+                  ? teamMetrics[index]?.teamName || key
+                  : key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                }
               />
             ))}
+            {teamMetrics && teamMetrics.length > 0 && (
+              <Legend 
+                wrapperStyle={{ paddingTop: '20px' }}
+                formatter={(value) => {
+                  const team = teamMetrics.find(t => 
+                    t.teamName.replace(/\s+/g, '_').toLowerCase() === value
+                  )
+                  return team?.teamName || value
+                }}
+              />
+            )}
           </BarChart>
         ) : (
           <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
@@ -99,7 +189,11 @@ export default function MetricChart({ metric, height = 200 }: MetricChartProps) 
                 return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
               }}
             />
-            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+            <YAxis 
+              stroke="hsl(var(--muted-foreground))" 
+              fontSize={12}
+              tickFormatter={formatYAxisTick}
+            />
             <Tooltip 
               contentStyle={{
                 backgroundColor: 'hsl(var(--background))',
@@ -115,6 +209,7 @@ export default function MetricChart({ metric, height = 200 }: MetricChartProps) 
                   day: 'numeric' 
                 })
               }}
+              formatter={formatTooltipValue}
             />
             {dataKeys.map((key, index) => (
               <Line 
@@ -124,9 +219,24 @@ export default function MetricChart({ metric, height = 200 }: MetricChartProps) 
                 stroke={colors[index % colors.length]}
                 strokeWidth={2}
                 dot={{ fill: colors[index % colors.length], strokeWidth: 2, r: 4 }}
-                name={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                connectNulls={true}
+                name={teamMetrics 
+                  ? teamMetrics[index]?.teamName || key
+                  : key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                }
               />
             ))}
+            {teamMetrics && teamMetrics.length > 0 && (
+              <Legend 
+                wrapperStyle={{ paddingTop: '20px' }}
+                formatter={(value) => {
+                  const team = teamMetrics.find(t => 
+                    t.teamName.replace(/\s+/g, '_').toLowerCase() === value
+                  )
+                  return team?.teamName || value
+                }}
+              />
+            )}
           </LineChart>
         )}
       </ResponsiveContainer>

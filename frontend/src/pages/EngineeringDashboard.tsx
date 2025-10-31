@@ -5,7 +5,7 @@ import { PullRequest } from '../types/sourcecontrol'
 import { OrganizationMetricsResponse } from '../types/organizationMetrics'
 import { Team } from '../types/team'
 import MetricChart from '../components/MetricChart'
-import MetricIcon from '../components/MetricIcon'
+import MetricInfoButton from '../components/MetricInfoButton'
 import { formatMetricValue } from '../utils/formatMetrics'
 
 type TabType = 'engineering-productivity'
@@ -35,6 +35,8 @@ export default function EngineeringDashboard() {
   const [selectedTeams, setSelectedTeams] = useState<string[]>([])
   const [showTeamBreakdown, setShowTeamBreakdown] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [expandedRepos, setExpandedRepos] = useState<Set<string>>(new Set())
+  const [showRepositories, setShowRepositories] = useState(false)
 
   // Load teams
   useEffect(() => {
@@ -133,6 +135,18 @@ export default function EngineeringDashboard() {
     )
   }
 
+  const toggleRepoExpansion = (repoName: string) => {
+    setExpandedRepos(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(repoName)) {
+        newSet.delete(repoName)
+      } else {
+        newSet.add(repoName)
+      }
+      return newSet
+    })
+  }
+
   // Group open PRs by repository
   const prsByRepository = openPRs.reduce((acc, pr) => {
     // Use repository_name if available, otherwise extract from URL
@@ -181,48 +195,6 @@ export default function EngineeringDashboard() {
           </nav>
         </div>
 
-        {/* Date Range Picker */}
-        <div className="bg-card rounded-lg p-4 mb-6">
-          <div className="flex flex-wrap items-end gap-4">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                Start Date
-              </label>
-              <input
-                type="date"
-                value={dateParams.startDate || ''}
-                onChange={(e) => handleDateChange('startDate', e.target.value)}
-                className="px-3 py-2 border border-border/50 rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                End Date
-              </label>
-              <input
-                type="date"
-                value={dateParams.endDate || ''}
-                onChange={(e) => handleDateChange('endDate', e.target.value)}
-                className="px-3 py-2 border border-border/50 rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                Interval
-              </label>
-              <select
-                value={dateParams.interval}
-                onChange={(e) => handleIntervalChange(e.target.value as 'daily' | 'weekly' | 'monthly')}
-                className="px-3 py-2 border border-border/50 rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-sm"
-              >
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
         {error && (
           <div className="bg-destructive/10 text-destructive px-4 py-3 rounded mb-6">
             {error}
@@ -244,18 +216,83 @@ export default function EngineeringDashboard() {
               </div>
               
               {Object.keys(prsByRepository).length > 0 ? (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">By Repository</h3>
-                  {Object.entries(prsByRepository)
-                    .sort((a, b) => b[1].length - a[1].length)
-                    .map(([repo, prs]) => (
-                      <div key={repo} className="flex items-center justify-between p-3 bg-muted/30 rounded">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{repo}</span>
-                        </div>
-                        <span className="text-lg font-semibold">{prs.length}</span>
-                      </div>
-                    ))}
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setShowRepositories(!showRepositories)}
+                    className="w-full flex items-center justify-between p-2 hover:bg-muted/30 rounded transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <svg
+                        className={`w-4 h-4 transition-transform ${showRepositories ? 'rotate-90' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                      <h3 className="text-sm font-medium text-muted-foreground">Repositories</h3>
+                      <span className="text-xs text-muted-foreground">
+                        ({Object.keys(prsByRepository).length} {Object.keys(prsByRepository).length === 1 ? 'repository' : 'repositories'})
+                      </span>
+                    </div>
+                  </button>
+                  {showRepositories && (
+                    <div className="space-y-2 pl-6">
+                      {Object.entries(prsByRepository)
+                        .sort((a, b) => b[1].length - a[1].length)
+                        .map(([repo, prs]) => (
+                          <div key={repo} className="bg-muted/30 rounded">
+                            <button
+                              onClick={() => toggleRepoExpansion(repo)}
+                              className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
+                            >
+                              <div className="flex items-center gap-2">
+                                <svg
+                                  className={`w-4 h-4 transition-transform ${expandedRepos.has(repo) ? 'rotate-90' : ''}`}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                                <span className="font-medium">{repo}</span>
+                              </div>
+                              <span className="text-lg font-semibold">{prs.length}</span>
+                            </button>
+                            {expandedRepos.has(repo) && (
+                              <div className="px-3 pb-3 space-y-2 border-t border-border/50 pt-3">
+                                {prs.map((pr) => (
+                                  <a
+                                    key={pr.id}
+                                    href={pr.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block p-2 bg-background rounded hover:bg-muted/50 transition-colors"
+                                  >
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-sm truncate">{pr.title}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          {new Date(pr.created_at).toLocaleDateString()}
+                                        </p>
+                                      </div>
+                                      <svg
+                                        className="w-4 h-4 text-muted-foreground flex-shrink-0"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                      </svg>
+                                    </div>
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-muted-foreground">No open pull requests</p>
@@ -278,6 +315,48 @@ export default function EngineeringDashboard() {
                 />
                 <span className="text-sm">Break down by team</span>
               </label>
+            </div>
+          </div>
+
+          {/* Date Range Picker */}
+          <div className="bg-muted/30 rounded-lg p-4 mb-6">
+            <div className="flex flex-wrap items-end gap-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  value={dateParams.startDate || ''}
+                  onChange={(e) => handleDateChange('startDate', e.target.value)}
+                  className="px-3 py-2 border border-border/50 rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  value={dateParams.endDate || ''}
+                  onChange={(e) => handleDateChange('endDate', e.target.value)}
+                  className="px-3 py-2 border border-border/50 rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Interval
+                </label>
+                <select
+                  value={dateParams.interval}
+                  onChange={(e) => handleIntervalChange(e.target.value as 'daily' | 'weekly' | 'monthly')}
+                  className="px-3 py-2 border border-border/50 rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                >
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -311,101 +390,103 @@ export default function EngineeringDashboard() {
             </div>
           ) : metrics ? (
             <div className="space-y-8">
-              {/* Snapshot Metrics */}
-              {metrics.snapshot_metrics && metrics.snapshot_metrics.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Summary</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {metrics.snapshot_metrics.map((category) =>
-                      category.metrics.map((metric) => (
-                        <div key={metric.label} className="p-4 bg-muted/30 rounded-lg">
-                          <div className="flex items-center gap-2 mb-2">
-                            <MetricIcon identifier={metric.icon_identifier} color={metric.icon_color} />
-                            <span className="font-medium text-sm">{metric.label}</span>
-                          </div>
-                          <div className="text-2xl font-bold">
-                            {formatMetricValue(metric.value, metric.unit)}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">{metric.description}</p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Graph Metrics */}
+              {/* Graph Metrics - Single graph per metric with team lines when breakdown enabled */}
               {metrics.graph_metrics && metrics.graph_metrics.length > 0 && (
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Trends</h3>
                   <div className="space-y-6">
-                    {metrics.graph_metrics.map((category) => (
-                      <div key={category.category.name} className="space-y-4">
-                        <h4 className="font-medium text-muted-foreground">{category.category.name}</h4>
-                        {category.metrics.map((metric) => (
-                          <div key={metric.label} className="bg-muted/30 rounded-lg p-4">
-                            <h5 className="font-medium mb-3">{metric.label}</h5>
-                            <MetricChart metric={metric} height={300} />
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Team Breakdown */}
-              {metrics.teams_breakdown && metrics.teams_breakdown.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Breakdown by Team</h3>
-                  <div className="space-y-6">
-                    {metrics.teams_breakdown.map((teamMetrics) => (
-                      <div key={teamMetrics.team_id} className="bg-muted/30 rounded-lg p-6">
-                        <h4 className="text-lg font-semibold mb-4">{teamMetrics.team_name}</h4>
+                    {metrics.graph_metrics.map((category) => {
+                      // Filter metrics that have data
+                      const metricsWithData = category.metrics.filter((metric) => {
+                        // Check if metric has time series data
+                        if (!metric.time_series || metric.time_series.length === 0) {
+                          return false
+                        }
                         
-                        {/* Team Snapshot Metrics */}
-                        {teamMetrics.snapshot_metrics && teamMetrics.snapshot_metrics.length > 0 && (
-                          <div className="mb-6">
-                            <h5 className="text-sm font-medium text-muted-foreground mb-3">Summary</h5>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                              {teamMetrics.snapshot_metrics.map((category) =>
-                                category.metrics.map((metric) => (
-                                  <div key={metric.label} className="p-3 bg-background rounded-lg">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <MetricIcon identifier={metric.icon_identifier} color={metric.icon_color} />
-                                      <span className="font-medium text-xs">{metric.label}</span>
-                                    </div>
-                                    <div className="text-xl font-bold">
-                                      {formatMetricValue(metric.value, metric.unit)}
-                                    </div>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Team Graph Metrics */}
-                        {teamMetrics.graph_metrics && teamMetrics.graph_metrics.length > 0 && (
-                          <div>
-                            <h5 className="text-sm font-medium text-muted-foreground mb-3">Trends</h5>
-                            <div className="space-y-4">
-                              {teamMetrics.graph_metrics.map((category) => (
-                                <div key={category.category.name} className="space-y-3">
-                                  <h6 className="text-xs font-medium text-muted-foreground">{category.category.name}</h6>
-                                  {category.metrics.map((metric) => (
-                                    <div key={metric.label} className="bg-background rounded-lg p-3">
-                                      <h6 className="text-sm font-medium mb-2">{metric.label}</h6>
-                                      <MetricChart metric={metric} height={200} />
-                                    </div>
-                                  ))}
+                        // Check if team breakdown should be checked
+                        if (showTeamBreakdown && metrics.teams_breakdown && metrics.teams_breakdown.length > 0) {
+                          const teamMetricsData = metrics.teams_breakdown
+                            .map(teamData => {
+                              const teamMetric = teamData.graph_metrics
+                                ?.flatMap(cat => cat.metrics)
+                                .find(m => m.label === metric.label)
+                              return teamMetric ? {
+                                teamName: teamData.team_name,
+                                metric: teamMetric
+                              } : null
+                            })
+                            .filter((item): item is { teamName: string; metric: typeof metric } => item !== null)
+                          
+                          // Check if any team has data (0 is a valid value)
+                          return teamMetricsData.some(team => 
+                            team.metric.time_series && 
+                            team.metric.time_series.length > 0 &&
+                            team.metric.time_series.some(entry => 
+                              entry.data && entry.data.length > 0
+                            )
+                          )
+                        }
+                        
+                        // Check cumulative metric has data (0 is a valid value)
+                        return metric.time_series.some(entry => 
+                          entry.data && entry.data.length > 0
+                        )
+                      })
+                      
+                      if (metricsWithData.length === 0) {
+                        return null
+                      }
+                      
+                      return (
+                        <div key={category.category.name} className="space-y-4">
+                          <h4 className="font-medium text-muted-foreground">{category.category.name}</h4>
+                          {metricsWithData.map((metric) => {
+                            // Find description from snapshot metrics if available
+                            const snapshotMetric = metrics.snapshot_metrics
+                              ?.flatMap(cat => cat.metrics)
+                              .find(m => m.label === metric.label)
+                            const description = snapshotMetric?.description || ''
+                            
+                            // If team breakdown is enabled, collect metrics from all teams for this metric
+                            let teamMetricsData: { teamName: string; metric: typeof metric }[] | undefined
+                            if (showTeamBreakdown && metrics.teams_breakdown && metrics.teams_breakdown.length > 0) {
+                              teamMetricsData = metrics.teams_breakdown
+                                .map(teamData => {
+                                  const teamMetric = teamData.graph_metrics
+                                    ?.flatMap(cat => cat.metrics)
+                                    .find(m => m.label === metric.label)
+                                  return teamMetric ? {
+                                    teamName: teamData.team_name,
+                                    metric: teamMetric
+                                  } : null
+                                })
+                                .filter((item): item is { teamName: string; metric: typeof metric } => item !== null)
+                            }
+                            
+                            const chartElement = teamMetricsData && teamMetricsData.length > 0 ? (
+                              <MetricChart teamMetrics={teamMetricsData} height={300} />
+                            ) : (
+                              <MetricChart metric={metric} height={300} />
+                            )
+                            
+                            // Only render if chart component returns something (has data)
+                            if (!chartElement) {
+                              return null
+                            }
+                            
+                            return (
+                              <div key={metric.label} className="bg-muted/30 rounded-lg p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <h5 className="font-medium">{metric.label}</h5>
+                                  {description && <MetricInfoButton description={description} />}
                                 </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                                {chartElement}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    }).filter((element) => element !== null)}
                   </div>
                 </div>
               )}
