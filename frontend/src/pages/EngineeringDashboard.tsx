@@ -254,7 +254,7 @@ export default function EngineeringDashboard() {
                   type="date"
                   value={dateParams.startDate || ''}
                   onChange={(e) => handleDateChange('startDate', e.target.value)}
-                  className="px-3 py-2 border border-border/50 rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                  className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
                 />
               </div>
               <div>
@@ -265,7 +265,7 @@ export default function EngineeringDashboard() {
                   type="date"
                   value={dateParams.endDate || ''}
                   onChange={(e) => handleDateChange('endDate', e.target.value)}
-                  className="px-3 py-2 border border-border/50 rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                  className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
                 />
               </div>
               <div>
@@ -275,7 +275,7 @@ export default function EngineeringDashboard() {
                 <select
                   value={dateParams.interval}
                   onChange={(e) => handleIntervalChange(e.target.value as 'daily' | 'weekly' | 'monthly')}
-                  className="px-3 py-2 border border-border/50 rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                  className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
                 >
                   <option value="daily">Daily</option>
                   <option value="weekly">Weekly</option>
