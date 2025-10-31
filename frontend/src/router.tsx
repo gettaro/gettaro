@@ -1,13 +1,13 @@
 import { createBrowserRouter } from "react-router-dom";
 import RootLayout from "./layouts/RootLayout";
 import Home from "./pages/Home";
-import Dashboard from "./pages/Dashboard";
 import Integrations from './pages/Integrations'
 import Settings from './pages/Settings'
 import MembersAndTeams from './pages/MembersAndTeams'
 import Titles from './pages/Titles'
 import MemberProfile from './pages/MemberProfile'
 import ConversationTemplates from './pages/ConversationTemplates'
+import EngineeringDashboard from './pages/EngineeringDashboard'
 
 export const router = createBrowserRouter([
   {
@@ -20,7 +20,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "dashboard",
-        element: <Dashboard />,
+        element: <EngineeringDashboard />,
       },
       {
         path: "settings",

@@ -32,6 +32,18 @@ export default function Dashboard() {
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl font-bold mb-8">Welcome to {currentOrganization.name}</h2>
           
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            <Link
+              to="/dashboard/engineering"
+              className="bg-card rounded-lg p-6 border border-border hover:border-primary transition-colors"
+            >
+              <h3 className="text-lg font-semibold mb-2">Engineering Dashboard</h3>
+              <p className="text-sm text-muted-foreground">
+                View organization-wide metrics, open PRs, and team productivity insights
+              </p>
+            </Link>
+          </div>
+          
           {integrations.length === 0 && (
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8">
               <div className="flex">

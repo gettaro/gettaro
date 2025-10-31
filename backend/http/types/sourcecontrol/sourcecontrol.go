@@ -24,6 +24,7 @@ type PullRequest struct {
 	Description    string     `json:"description"`
 	URL            string     `json:"url"`
 	Status         string     `json:"status"`
+	RepositoryName string     `json:"repository_name"`
 	CreatedAt      time.Time  `json:"created_at"`
 	MergedAt       *time.Time `json:"merged_at,omitempty"`
 	Comments       int        `json:"comments"`
@@ -60,4 +61,11 @@ type GetMemberPullRequestReviewsQuery struct {
 
 type GetMemberPullRequestReviewsResponse struct {
 	Reviews []MemberActivity `json:"reviews"`
+}
+
+type GetOrganizationMetricsQuery struct {
+	StartDate string   `form:"startDate" binding:"omitempty,datetime=2006-01-02"`
+	EndDate   string   `form:"endDate" binding:"omitempty,datetime=2006-01-02"`
+	Interval  string   `form:"interval" binding:"omitempty,oneof=daily weekly monthly"`
+	TeamIDs   []string `form:"teamIds" binding:"omitempty"`
 }

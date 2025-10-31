@@ -44,6 +44,8 @@ export interface TimeSeriesEntry {
 export interface GraphMetric {
   label: string
   type: string
+  category?: string
+  unit?: string
   time_series: TimeSeriesEntry[]
 }
 

@@ -60,6 +60,7 @@ type PullRequestParams struct {
 	UserIDs        []string
 	StartDate      *time.Time
 	EndDate        *time.Time
+	Status         string // "open", "closed", "merged"
 }
 
 type PullRequestMetrics struct {

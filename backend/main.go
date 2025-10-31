@@ -33,6 +33,7 @@ import (
 	integrationdb "ems.dev/backend/services/integration/database"
 	memberapi "ems.dev/backend/services/member/api"
 	memberdb "ems.dev/backend/services/member/database"
+	metricsapi "ems.dev/backend/services/metrics/api"
 	orgapi "ems.dev/backend/services/organization/api"
 	orgdb "ems.dev/backend/services/organization/database"
 	sourcecontrolapi "ems.dev/backend/services/sourcecontrol/api"
@@ -80,6 +81,7 @@ func main() {
 	memberApi := memberapi.NewApi(memberDb, userApi, sourcecontrolApi, titleApi, directsApi)
 	teamDb := teamdb.NewTeamDB(database.DB)
 	teamApi := teamapi.NewApi(teamDb, orgApi)
+	metricsApi := metricsapi.NewApi(memberApi, teamApi, sourcecontrolApi)
 	conversationTemplateDb := conversationtemplatedb.NewConversationTemplateDatabase(database.DB)
 	conversationTemplateApi := conversationtemplateapi.NewConversationTemplateAPI(conversationTemplateDb)
 	conversationDb := conversationdb.NewConversationDB(database.DB)
@@ -115,7 +117,7 @@ func main() {
 	}
 
 	// Initialize and run server
-	srv := server.New(database.DB, userApi, orgApi, teamApi, titleApi, authApi, integrationApi, sourcecontrolApi, memberApi, directsApi, conversationTemplateApi, conversationApi, aiApi)
+	srv := server.New(database.DB, userApi, orgApi, teamApi, titleApi, authApi, integrationApi, sourcecontrolApi, memberApi, metricsApi, directsApi, conversationTemplateApi, conversationApi, aiApi)
 	if err := srv.Run(":8080"); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}

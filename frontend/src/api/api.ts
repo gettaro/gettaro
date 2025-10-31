@@ -6,6 +6,7 @@ import { Member, AddMemberRequest, UpdateMemberRequest } from '../types/member'
 import { SourceControlAccount, PullRequest, GetMemberPullRequestsParams, GetMemberPullRequestReviewsParams, MemberActivity } from '../types/sourcecontrol'
 import { GetManagerTreeResponse } from '../types/directs'
 import { GetMemberMetricsParams, GetMemberMetricsResponse } from '../types/memberMetrics'
+import { OrganizationMetricsResponse } from '../types/organizationMetrics'
 import { 
   CreateConversationTemplateRequest, 
   UpdateConversationTemplateRequest, 
@@ -397,6 +398,87 @@ export default class Api {
 
     const data = await response.json()
     return data.reviews
+  }
+
+  // Organization Pull Requests API functions
+  static async getOrganizationPullRequests(organizationId: string, params?: {
+    userIds?: string[]
+    repositoryName?: string
+    startDate?: string
+    endDate?: string
+    status?: string
+  }): Promise<PullRequest[]> {
+    const token = this.accessToken
+    const queryParams = new URLSearchParams()
+    
+    if (params?.userIds && params.userIds.length > 0) {
+      params.userIds.forEach(id => queryParams.append('userIds', id))
+    }
+    if (params?.repositoryName) {
+      queryParams.append('repositoryName', params.repositoryName)
+    }
+    if (params?.startDate) {
+      queryParams.append('startDate', params.startDate)
+    }
+    if (params?.endDate) {
+      queryParams.append('endDate', params.endDate)
+    }
+    if (params?.status) {
+      queryParams.append('status', params.status)
+    }
+
+    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/pull-requests?${queryParams}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to get organization pull requests: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    return data.pull_requests
+  }
+
+  // Organization Metrics API functions
+  static async getOrganizationMetrics(organizationId: string, params: {
+    startDate?: string
+    endDate?: string
+    interval?: string
+    teamIds?: string[]
+  }): Promise<OrganizationMetricsResponse> {
+    const token = this.accessToken
+    const queryParams = new URLSearchParams()
+    
+    if (params.startDate) {
+      queryParams.append('startDate', params.startDate)
+    }
+    if (params.endDate) {
+      queryParams.append('endDate', params.endDate)
+    }
+    if (params.interval) {
+      queryParams.append('interval', params.interval)
+    }
+    if (params.teamIds && params.teamIds.length > 0) {
+      params.teamIds.forEach(id => queryParams.append('teamIds', id))
+    }
+
+    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/sourcecontrol/metrics?${queryParams}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to get organization metrics: ${response.statusText}`)
+    }
+
+    return response.json()
   }
 
   static async getManagerTree(organizationId: string, managerId: string): Promise<GetManagerTreeResponse> {

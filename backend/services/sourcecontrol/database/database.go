@@ -138,6 +138,10 @@ func (d *SourceControlDB) GetPullRequests(ctx context.Context, params *types.Pul
 	if params.RepositoryName != "" {
 		query = query.Where("repository_name = ?", params.RepositoryName)
 	}
+	// Add status filter if provided
+	if params.Status != "" {
+		query = query.Where("pull_requests.status = ?", params.Status)
+	}
 	// Add user IDs filter if provided - convert to member IDs
 	if len(params.UserIDs) > 0 {
 		query = query.Where("om.user_id IN ?", params.UserIDs)

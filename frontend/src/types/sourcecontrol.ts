@@ -21,6 +21,7 @@ export interface PullRequest {
   additions: number
   deletions: number
   changed_files: number
+  repository_name?: string
 }
 
 export interface GetMemberPullRequestsParams {

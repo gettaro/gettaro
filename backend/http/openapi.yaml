@@ -236,12 +236,45 @@ components:
           items:
             $ref: "#/components/schemas/GraphCategory"
 
+    OrganizationMetricsResponse:
+      type: object
+      description: Organization-level metrics with optional team breakdown
+      allOf:
+        - $ref: "#/components/schemas/GetMemberMetricsResponse"
+      properties:
+        teams_breakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamMetricsBreakdown"
+          description: Optional breakdown of metrics by team (only included when teams are specified)
+
+    TeamMetricsBreakdown:
+      type: object
+      description: Metrics breakdown for a specific team
+      properties:
+        team_id:
+          type: string
+          format: uuid
+          description: Team ID
+        team_name:
+          type: string
+          description: Team name
+        snapshot_metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/SnapshotCategory"
+          description: Snapshot metrics for this team
+        graph_metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphCategory"
+          description: Graph metrics for this team
+
     SnapshotCategory:
       type: object
       properties:
         category:
-          type: string
-          description: Category name (e.g., "Activity", "Efficiency", "Collaboration")
+          $ref: "#/components/schemas/MetricRuleCategory"
         metrics:
           type: array
           items:
@@ -253,21 +286,33 @@ components:
         label:
           type: string
           description: Metric label (e.g., "Merged PRs", "LoC Added")
+        description:
+          type: string
+          description: Metric description
         value:
           type: number
           format: float
           description: Member's metric value
-        peersValue:
+        peers_value:
           type: number
           format: float
           description: Average peer metric value for comparison
+        unit:
+          type: string
+          description: Unit of measurement (e.g., "count", "seconds")
+          example: "count"
+        icon_identifier:
+          type: string
+          description: Icon identifier for the metric
+        icon_color:
+          type: string
+          description: Icon color for the metric
 
     GraphCategory:
       type: object
       properties:
         category:
-          type: string
-          description: Category name for graph metrics
+          $ref: "#/components/schemas/MetricRuleCategory"
         metrics:
           type: array
           items:
@@ -283,10 +328,27 @@ components:
           type: string
           enum: [timeseries]
           description: Type of graph visualization
-        timeSeries:
+        category:
+          type: string
+          description: Category name
+        unit:
+          type: string
+          description: Unit of measurement (e.g., "count", "seconds")
+          example: "count"
+        time_series:
           type: array
           items:
             $ref: "#/components/schemas/TimeSeriesEntry"
+
+    MetricRuleCategory:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Category name (e.g., "Activity", "Efficiency", "Collaboration")
+        priority:
+          type: integer
+          description: Display priority (lower numbers shown first)
 
     TimeSeriesEntry:
       type: object
@@ -1041,6 +1103,116 @@ paths:
           description: Forbidden - User is not an organization member
         "500":
           description: Internal server error
+      security:
+        - bearerAuth: []
+
+  /organizations/{id}/pull-requests:
+    get:
+      summary: List organization pull requests
+      description: Returns a list of pull requests for an organization. Organization members can view pull requests.
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+          description: Organization ID
+        - in: query
+          name: userIds
+          schema:
+            type: array
+            items: { type: string }
+          description: Optional list of user IDs to filter pull requests by
+        - in: query
+          name: repositoryName
+          schema: { type: string }
+          description: Optional repository name to filter pull requests by
+        - in: query
+          name: startDate
+          schema: { type: string, format: date }
+          description: Optional start date in format YYYY-MM-DD to filter pull requests by
+        - in: query
+          name: endDate
+          schema: { type: string, format: date }
+          description: Optional end date in format YYYY-MM-DD to filter pull requests by
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [open, closed, merged]
+          description: Optional status to filter pull requests by (open, closed, or merged)
+      responses:
+        "200":
+          description: List of pull requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListOrganizationPullRequestsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+
+  /organizations/{id}/sourcecontrol/metrics:
+    get:
+      summary: Get organization source control metrics
+      description: Retrieves aggregated source control metrics for an organization, optionally filtered by teams
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Organization ID
+        - name: startDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Start date for filtering (YYYY-MM-DD)
+        - name: endDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: End date for filtering (YYYY-MM-DD)
+        - name: interval
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [daily, weekly, monthly]
+          description: Time interval for graph metrics
+        - name: teamIds
+          in: query
+          required: false
+          schema:
+            type: array
+            items: { type: string }
+          description: Optional array of team IDs to filter metrics by
+      responses:
+        "200":
+          description: Organization metrics retrieved successfully. Includes cumulative metrics and optional team breakdown when teams are specified.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationMetricsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
       security:
         - bearerAuth: []
 
