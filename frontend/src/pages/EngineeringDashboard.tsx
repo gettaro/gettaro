@@ -46,6 +46,7 @@ export default function EngineeringDashboard() {
   const [teamMetrics, setTeamMetrics] = useState<Map<string, OrganizationMetricsResponse>>(new Map())
   const [teamMetricsLoading, setTeamMetricsLoading] = useState<Set<string>>(new Set())
   const [teamGraphIndices, setTeamGraphIndices] = useState<Map<string, number>>(new Map())
+  const [currentGraphIndex, setCurrentGraphIndex] = useState(0)
 
   // Load teams
   useEffect(() => {
@@ -271,6 +272,119 @@ export default function EngineeringDashboard() {
     setTeamGraphIndex(teamId, newIndex)
   }
 
+  // Get all graphs for main organization metrics (handles team breakdown)
+  const getAllMainGraphs = (metricsData: OrganizationMetricsResponse) => {
+    if (!metricsData.graph_metrics || metricsData.graph_metrics.length === 0) {
+      return []
+    }
+
+    const allGraphs: Array<{ 
+      metric: any
+      category: string
+      description: string
+      teamMetrics?: { teamName: string; metric: any }[]
+    }> = []
+
+    metricsData.graph_metrics.forEach((category) => {
+      // Filter metrics that have data
+      const metricsWithData = category.metrics.filter((metric) => {
+        if (!metric.time_series || metric.time_series.length === 0) {
+          return false
+        }
+        
+        // Check if team breakdown should be checked
+        if (showTeamBreakdown && metricsData.teams_breakdown && metricsData.teams_breakdown.length > 0) {
+          const teamMetricsData = metricsData.teams_breakdown
+            .map(teamData => {
+              const teamMetric = teamData.graph_metrics
+                ?.flatMap(cat => cat.metrics)
+                .find(m => m.label === metric.label)
+              return teamMetric ? {
+                teamName: teamData.team_name,
+                metric: teamMetric
+              } : null
+            })
+            .filter((item): item is { teamName: string; metric: typeof metric } => item !== null)
+          
+          // Check if any selected team has data
+          const selectedTeamMetrics = teamMetricsData.filter(team => 
+            selectedTeams.includes(teams.find(t => t.name === team.teamName)?.id || '')
+          )
+          
+          return selectedTeamMetrics.some(team => 
+            team.metric.time_series && 
+            team.metric.time_series.length > 0 &&
+            team.metric.time_series.some(entry => 
+              entry.data && entry.data.length > 0
+            )
+          )
+        }
+        
+        // Check cumulative metric has data
+        return metric.time_series.some(entry => 
+          entry.data && entry.data.length > 0
+        )
+      })
+
+      metricsWithData.forEach((metric) => {
+        const snapshotMetric = metricsData.snapshot_metrics
+          ?.flatMap(cat => cat.metrics)
+          .find(m => m.label === metric.label)
+        const description = snapshotMetric?.description || ''
+        
+        // If team breakdown is enabled, collect metrics from selected teams
+        let teamMetricsData: { teamName: string; metric: typeof metric }[] | undefined
+        if (showTeamBreakdown && metricsData.teams_breakdown && metricsData.teams_breakdown.length > 0 && selectedTeams.length > 0) {
+          const selectedTeamIds = new Set(selectedTeams)
+          teamMetricsData = metricsData.teams_breakdown
+            .filter(teamData => selectedTeamIds.has(teamData.team_id))
+            .map(teamData => {
+              const teamMetric = teamData.graph_metrics
+                ?.flatMap(cat => cat.metrics)
+                .find(m => m.label === metric.label)
+              return teamMetric ? {
+                teamName: teamData.team_name,
+                metric: teamMetric
+              } : null
+            })
+            .filter((item): item is { teamName: string; metric: typeof metric } => item !== null)
+        }
+        
+        allGraphs.push({
+          metric,
+          category: category.category.name,
+          description,
+          teamMetrics: teamMetricsData
+        })
+      })
+    })
+
+    return allGraphs
+  }
+
+  const navigateMainGraph = (direction: 'prev' | 'next', totalGraphs: number) => {
+    let newIndex: number
+    
+    if (direction === 'prev') {
+      newIndex = currentGraphIndex > 0 ? currentGraphIndex - 1 : totalGraphs - 1
+    } else {
+      newIndex = currentGraphIndex < totalGraphs - 1 ? currentGraphIndex + 1 : 0
+    }
+    
+    setCurrentGraphIndex(newIndex)
+  }
+
+  // Reset graph index when metrics or team breakdown changes
+  useEffect(() => {
+    if (metrics) {
+      const allGraphs = getAllMainGraphs(metrics)
+      if (allGraphs.length > 0 && currentGraphIndex >= allGraphs.length) {
+        setCurrentGraphIndex(0)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metrics, showTeamBreakdown, selectedTeams])
+
   const toggleRepoExpansion = (repoName: string) => {
     setExpandedRepos(prev => {
       const newSet = new Set(prev)
@@ -450,110 +564,98 @@ export default function EngineeringDashboard() {
             <div className="flex justify-center items-center py-12">
               <span>Loading metrics...</span>
             </div>
-          ) : metrics ? (
-            <div className="space-y-8">
-              {/* Graph Metrics - Single graph per metric with team lines when breakdown enabled */}
-              {metrics.graph_metrics && metrics.graph_metrics.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Trends</h3>
-                  <div className="space-y-6">
-                    {metrics.graph_metrics.map((category) => {
-                      // Filter metrics that have data
-                      const metricsWithData = category.metrics.filter((metric) => {
-                        // Check if metric has time series data
-                        if (!metric.time_series || metric.time_series.length === 0) {
-                          return false
-                        }
-                        
-                        // Check if team breakdown should be checked
-                        if (showTeamBreakdown && metrics.teams_breakdown && metrics.teams_breakdown.length > 0) {
-                          const teamMetricsData = metrics.teams_breakdown
-                            .map(teamData => {
-                              const teamMetric = teamData.graph_metrics
-                                ?.flatMap(cat => cat.metrics)
-                                .find(m => m.label === metric.label)
-                              return teamMetric ? {
-                                teamName: teamData.team_name,
-                                metric: teamMetric
-                              } : null
-                            })
-                            .filter((item): item is { teamName: string; metric: typeof metric } => item !== null)
-                          
-                          // Check if any team has data (0 is a valid value)
-                          return teamMetricsData.some(team => 
-                            team.metric.time_series && 
-                            team.metric.time_series.length > 0 &&
-                            team.metric.time_series.some(entry => 
-                              entry.data && entry.data.length > 0
-                            )
-                          )
-                        }
-                        
-                        // Check cumulative metric has data (0 is a valid value)
-                        return metric.time_series.some(entry => 
-                          entry.data && entry.data.length > 0
-                        )
-                      })
+          ) : metrics ? (() => {
+            const allGraphs = getAllMainGraphs(metrics)
+            
+            if (allGraphs.length === 0) {
+              return (
+                <p className="text-muted-foreground py-8 text-center">No metrics available</p>
+              )
+            }
+            
+            const currentGraph = allGraphs[currentGraphIndex] || allGraphs[0]
+            const chartElement = currentGraph.teamMetrics && currentGraph.teamMetrics.length > 0 ? (
+              <MetricChart teamMetrics={currentGraph.teamMetrics} height={300} />
+            ) : (
+              <MetricChart metric={currentGraph.metric} height={300} />
+            )
+            
+            if (!chartElement) {
+              return (
+                <p className="text-muted-foreground py-8 text-center">No metrics available</p>
+              )
+            }
+            
+            return (
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Trends</h3>
+                <div className="bg-muted/30 rounded-lg p-4">
+                  <div className="relative">
+                    {/* Navigation Buttons */}
+                    <div className="flex items-center justify-between mb-4">
+                      <button
+                        onClick={() => navigateMainGraph('prev', allGraphs.length)}
+                        className="p-2 rounded hover:bg-muted/50 transition-colors"
+                        aria-label="Previous graph"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 19l-7-7 7-7"
+                          />
+                        </svg>
+                      </button>
                       
-                      if (metricsWithData.length === 0) {
-                        return null
-                      }
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {currentGraphIndex + 1} of {allGraphs.length}
+                        </span>
+                      </div>
                       
-                      return (
-                        <div key={category.category.name} className="space-y-4">
-                          <h4 className="font-medium text-muted-foreground">{category.category.name}</h4>
-                          {metricsWithData.map((metric) => {
-                            // Find description from snapshot metrics if available
-                            const snapshotMetric = metrics.snapshot_metrics
-                              ?.flatMap(cat => cat.metrics)
-                              .find(m => m.label === metric.label)
-                            const description = snapshotMetric?.description || ''
-                            
-                            // If team breakdown is enabled, collect metrics from all teams for this metric
-                            let teamMetricsData: { teamName: string; metric: typeof metric }[] | undefined
-                            if (showTeamBreakdown && metrics.teams_breakdown && metrics.teams_breakdown.length > 0) {
-                              teamMetricsData = metrics.teams_breakdown
-                                .map(teamData => {
-                                  const teamMetric = teamData.graph_metrics
-                                    ?.flatMap(cat => cat.metrics)
-                                    .find(m => m.label === metric.label)
-                                  return teamMetric ? {
-                                    teamName: teamData.team_name,
-                                    metric: teamMetric
-                                  } : null
-                                })
-                                .filter((item): item is { teamName: string; metric: typeof metric } => item !== null)
-                            }
-                            
-                            const chartElement = teamMetricsData && teamMetricsData.length > 0 ? (
-                              <MetricChart teamMetrics={teamMetricsData} height={300} />
-                            ) : (
-                              <MetricChart metric={metric} height={300} />
-                            )
-                            
-                            // Only render if chart component returns something (has data)
-                            if (!chartElement) {
-                              return null
-                            }
-                            
-                            return (
-                              <div key={metric.label} className="bg-muted/30 rounded-lg p-4">
-                                <div className="flex items-center gap-2 mb-3">
-                                  <h5 className="font-medium">{metric.label}</h5>
-                                  {description && <MetricInfoButton description={description} />}
-                                </div>
-                                {chartElement}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )
-                    }).filter((element) => element !== null)}
+                      <button
+                        onClick={() => navigateMainGraph('next', allGraphs.length)}
+                        className="p-2 rounded hover:bg-muted/50 transition-colors"
+                        aria-label="Next graph"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    
+                    {/* Current Graph */}
+                    <div className="mb-2">
+                      <p className="text-xs text-muted-foreground mb-1">{currentGraph.category}</p>
+                      <div className="flex items-center gap-2 mb-3">
+                        <h5 className="font-medium">{currentGraph.metric.label}</h5>
+                        {currentGraph.description && (
+                          <MetricInfoButton description={currentGraph.description} />
+                        )}
+                      </div>
+                      {chartElement}
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
-          ) : (
+              </div>
+            )
+          })() : (
             <p className="text-muted-foreground py-8 text-center">No metrics available</p>
           )}
           </div>
