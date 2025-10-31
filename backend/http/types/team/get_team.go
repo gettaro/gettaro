@@ -49,3 +49,15 @@ func GetTeamResponse(t *types.Team) TeamResponse {
 		Members:        members,
 	}
 }
+
+// GetTeamResponseWrapper wraps a TeamResponse in a "team" property for API consistency
+type GetTeamResponseWrapper struct {
+	Team TeamResponse `json:"team"`
+}
+
+// GetTeamResponseWrapped wraps a TeamResponse for the GetTeam endpoint
+func GetTeamResponseWrapped(t *types.Team) GetTeamResponseWrapper {
+	return GetTeamResponseWrapper{
+		Team: GetTeamResponse(t),
+	}
+}

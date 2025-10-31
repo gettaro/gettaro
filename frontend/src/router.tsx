@@ -6,6 +6,7 @@ import Settings from './pages/Settings'
 import MembersAndTeams from './pages/MembersAndTeams'
 import Titles from './pages/Titles'
 import MemberProfile from './pages/MemberProfile'
+import TeamProfile from './pages/TeamProfile'
 import ConversationTemplates from './pages/ConversationTemplates'
 import EngineeringDashboard from './pages/EngineeringDashboard'
 
@@ -49,6 +50,10 @@ export const router = createBrowserRouter([
       {
         path: "members/:memberId/profile",
         element: <MemberProfile />,
+      },
+      {
+        path: "teams/:teamId/profile",
+        element: <TeamProfile />,
       }
     ],
   },

@@ -16,6 +16,7 @@ import { ConversationWithDetails } from '../types/conversation'
 import { AIChat } from '../components/AIChat'
 import { ChatContext } from '../types/ai'
 import MetricChart from '../components/MetricChart'
+import PullRequestItem from '../components/PullRequestItem'
 
 type TabType = 'overview' | 'source-control-metrics' | 'management-tree' | 'conversations' | 'ai-chat'
 
@@ -219,123 +220,6 @@ export default function MemberProfilePage() {
           </svg>
         )
     }
-  }
-
-  const renderPullRequestContent = (pr: PullRequest) => {
-    return (
-      <div>
-        <h3 className="text-lg font-medium text-foreground mb-3">
-          {pr.title}
-        </h3>
-        
-        {/* PR Statistics */}
-        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-3">
-          {/* PR Status */}
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            pr.status === 'open' 
-              ? 'bg-green-100 text-green-800' 
-              : pr.status === 'closed' && pr.merged_at
-              ? 'bg-purple-100 text-purple-800'
-              : pr.status === 'closed'
-              ? 'bg-red-100 text-red-800'
-              : 'bg-gray-100 text-gray-800'
-          }`}>
-            {pr.status === 'open' ? 'Open' : 
-             pr.status === 'closed' && pr.merged_at ? 'Merged' :
-             pr.status === 'closed' ? 'Closed' : 
-             pr.status}
-          </span>
-          
-          <span className="flex items-center space-x-1">
-            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            <span>+{pr.additions}</span>
-          </span>
-          
-          <span className="flex items-center space-x-1">
-            <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-            </svg>
-            <span>-{pr.deletions}</span>
-          </span>
-          
-          <span className="flex items-center space-x-1">
-            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-            <span>{pr.comments} comments</span>
-          </span>
-          
-          <span className="flex items-center space-x-1">
-            <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-            <span>{pr.review_comments} review comments</span>
-          </span>
-          
-          <span className="flex items-center space-x-1">
-            <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <span>{pr.changed_files} files</span>
-          </span>
-          
-          {pr.merged_at && (
-            <span className="flex items-center space-x-1">
-              <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>{(() => {
-                const created = new Date(pr.created_at)
-                const merged = new Date(pr.merged_at)
-                const diffMs = merged.getTime() - created.getTime()
-                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-                const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-                
-                if (diffDays > 0) {
-                  return `${diffDays}d ${diffHours}h`
-                } else if (diffHours > 0) {
-                  return `${diffHours}h`
-                } else {
-                  const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
-                  return `${diffMinutes}m`
-                }
-              })()} to merge</span>
-            </span>
-          )}
-        </div>
-        
-        {/* Expandable PR Description */}
-        {pr.description && (
-          <div className="mb-3">
-            <button
-              onClick={() => toggleExpanded(`${pr.id}-description`)}
-              className="flex items-center space-x-2 text-sm text-primary hover:text-primary/80 transition-colors"
-            >
-              <svg 
-                className={`w-4 h-4 transition-transform ${expandedItems.has(`${pr.id}-description`) ? 'rotate-90' : ''}`}
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-              <span>
-                {expandedItems.has(`${pr.id}-description`) ? 'Hide description' : 'Show description'}
-              </span>
-            </button>
-            {expandedItems.has(`${pr.id}-description`) && (
-              <div className="mt-2 p-3 bg-muted/30 rounded-md border border-border">
-                <p className="text-muted-foreground text-sm whitespace-pre-wrap">
-                  {pr.description}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    )
   }
 
   const renderActivityContent = (activity: MemberActivity) => {
@@ -990,7 +874,7 @@ export default function MemberProfilePage() {
                               </svg>
                             </div>
                             <div className="flex-1 min-w-0">
-                              {renderPullRequestContent(pr)}
+                              <PullRequestItem pr={pr} />
                               
                               <div className="flex items-center space-x-3 text-xs text-muted-foreground mt-2">
                                 <span>

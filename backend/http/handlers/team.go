@@ -84,7 +84,7 @@ func (h *TeamHandler) CreateTeam(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, teamtypes.GetTeamResponse(team))
+	c.JSON(http.StatusCreated, teamtypes.GetTeamResponseWrapped(team))
 }
 
 // GetTeam handles the GET /api/organizations/:id/teams/:teamId endpoint.
@@ -117,7 +117,7 @@ func (h *TeamHandler) GetTeam(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, teamtypes.GetTeamResponse(team))
+	c.JSON(http.StatusOK, teamtypes.GetTeamResponseWrapped(team))
 }
 
 // ListTeams handles the GET /api/organizations/:id/teams endpoint.
@@ -201,7 +201,14 @@ func (h *TeamHandler) UpdateTeam(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, teamtypes.GetTeamResponse(teamParams))
+	// Fetch the updated team to return complete data including members
+	updatedTeam, err := h.teamApi.GetTeamByOrganization(c.Request.Context(), teamID, orgID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, teamtypes.GetTeamResponseWrapped(updatedTeam))
 }
 
 // DeleteTeam handles the DELETE /api/organizations/:id/teams/:teamId endpoint.

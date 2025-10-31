@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useOrganizationStore } from '../stores/organization'
 import Api from '../api/api'
 import { PullRequest } from '../types/sourcecontrol'
@@ -7,11 +8,13 @@ import { Team } from '../types/team'
 import { Member } from '../types/member'
 import MetricChart from '../components/MetricChart'
 import MetricInfoButton from '../components/MetricInfoButton'
+import PullRequestItem from '../components/PullRequestItem'
 import { formatMetricValue } from '../utils/formatMetrics'
 
 type TabType = 'engineering-productivity' | 'tech-health' | 'teams'
 
 export default function EngineeringDashboard() {
+  const navigate = useNavigate()
   const { currentOrganization } = useOrganizationStore()
   
   // Date filter state
@@ -616,116 +619,18 @@ export default function EngineeringDashboard() {
                                 <span className="text-lg font-semibold">{prs.length}</span>
                               </button>
                               {expandedRepos.has(repo) && (
-                                <div className="px-3 pb-3 space-y-2 border-t border-border/50 pt-3">
+                                <div className="px-3 pb-3 space-y-4 border-t border-border/50 pt-3">
                                   {prs.map((pr) => (
-                                    <a
-                                      key={pr.id}
-                                      href={pr.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="block p-3 bg-background rounded hover:bg-muted/50 transition-colors"
-                                    >
-                                      <div className="flex items-start justify-between gap-2 mb-2">
-                                        <div className="flex-1 min-w-0">
-                                          <p className="font-medium text-sm truncate">{pr.title}</p>
-                                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                                            <span>{new Date(pr.created_at).toLocaleDateString()}</span>
-                                            {pr.author && (
-                                              <span className="flex items-center gap-1">
-                                                <svg
-                                                  className="w-3 h-3"
-                                                  fill="none"
-                                                  stroke="currentColor"
-                                                  viewBox="0 0 24 24"
-                                                >
-                                                  <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                                                  />
-                                                </svg>
-                                                {pr.author.username || pr.author.email || 'Unknown'}
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                        <svg
-                                          className="w-4 h-4 text-muted-foreground flex-shrink-0"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                        </svg>
+                                    <div key={pr.id} className="bg-background rounded p-3">
+                                      <PullRequestItem pr={pr} showRepository={false} showAuthor={true} />
+                                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2 pt-2 border-t border-border/30">
+                                        <span>{new Date(pr.created_at).toLocaleDateString('en-US', {
+                                          year: 'numeric',
+                                          month: 'short',
+                                          day: 'numeric'
+                                        })}</span>
                                       </div>
-                                      
-                                      {/* Stats */}
-                                      <div className="flex flex-wrap gap-3 mt-2 pt-2 border-t border-border/30">
-                                        {pr.additions !== undefined && (
-                                          <div className="flex items-center gap-1 text-xs">
-                                            <span className="text-green-600 dark:text-green-400">+{pr.additions}</span>
-                                            {pr.deletions !== undefined && (
-                                              <span className="text-red-600 dark:text-red-400">-{pr.deletions}</span>
-                                            )}
-                                          </div>
-                                        )}
-                                        {pr.changed_files !== undefined && (
-                                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                            <svg
-                                              className="w-3 h-3"
-                                              fill="none"
-                                              stroke="currentColor"
-                                              viewBox="0 0 24 24"
-                                            >
-                                              <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                              />
-                                            </svg>
-                                            {pr.changed_files} file{pr.changed_files !== 1 ? 's' : ''}
-                                          </div>
-                                        )}
-                                        {pr.comments !== undefined && pr.comments > 0 && (
-                                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                            <svg
-                                              className="w-3 h-3"
-                                              fill="none"
-                                              stroke="currentColor"
-                                              viewBox="0 0 24 24"
-                                            >
-                                              <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                                              />
-                                            </svg>
-                                            {pr.comments} comment{pr.comments !== 1 ? 's' : ''}
-                                          </div>
-                                        )}
-                                        {pr.review_comments !== undefined && pr.review_comments > 0 && (
-                                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                            <svg
-                                              className="w-3 h-3"
-                                              fill="none"
-                                              stroke="currentColor"
-                                              viewBox="0 0 24 24"
-                                            >
-                                              <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                                              />
-                                            </svg>
-                                            {pr.review_comments} review{pr.review_comments !== 1 ? 's' : ''}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </a>
+                                    </div>
                                   ))}
                                 </div>
                               )}
@@ -799,13 +704,18 @@ export default function EngineeringDashboard() {
                   const isLoading = teamMetricsLoading.has(team.id)
                   
                   return (
-                    <div key={team.id} className="bg-card rounded-lg p-6 border border-border">
+                    <div key={team.id} className="bg-card rounded-lg p-6 border border-border hover:border-primary/50 transition-colors">
                       {/* Team Header */}
                       <div className="mb-4">
-                        <h3 className="text-xl font-semibold mb-2">{team.name}</h3>
-                        {team.description && (
-                          <p className="text-sm text-muted-foreground">{team.description}</p>
-                        )}
+                        <button
+                          onClick={() => navigate(`/teams/${team.id}/profile`)}
+                          className="text-left w-full"
+                        >
+                          <h3 className="text-xl font-semibold mb-2 hover:text-primary transition-colors">{team.name}</h3>
+                          {team.description && (
+                            <p className="text-sm text-muted-foreground">{team.description}</p>
+                          )}
+                        </button>
                       </div>
 
                       {/* Team Members */}

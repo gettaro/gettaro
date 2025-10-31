@@ -148,10 +148,10 @@ func (d *SourceControlDB) GetPullRequests(ctx context.Context, params *types.Pul
 	}
 	// Add date range filters if provided
 	if params.StartDate != nil {
-		query = query.Where("created_at >= ?", params.StartDate)
+		query = query.Where("pull_requests.created_at >= ?", params.StartDate)
 	}
 	if params.EndDate != nil {
-		query = query.Where("created_at <= ?", params.EndDate)
+		query = query.Where("pull_requests.created_at <= ?", params.EndDate)
 	}
 
 	if err := query.Find(&prs).Error; err != nil {
