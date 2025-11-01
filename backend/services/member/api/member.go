@@ -26,6 +26,12 @@ type MemberAPI interface {
 	IsOrganizationOwner(ctx context.Context, orgID string, userID string) (bool, error)
 	UpdateOrganizationMember(ctx context.Context, orgID string, memberID string, req types.UpdateMemberRequest) error
 	CalculateSourceControlMemberMetrics(ctx context.Context, organizationID string, memberID string, params sourcecontroltypes.MemberMetricsParams) (*sourcecontroltypes.MetricsResponse, error)
+
+	// External Accounts
+	GetExternalAccounts(ctx context.Context, params *types.ExternalAccountParams) ([]types.ExternalAccount, error)
+	CreateExternalAccounts(ctx context.Context, accounts []*types.ExternalAccount) error
+	GetExternalAccount(ctx context.Context, id string) (*types.ExternalAccount, error)
+	UpdateExternalAccount(ctx context.Context, account *types.ExternalAccount) error
 }
 
 type Api struct {
@@ -49,10 +55,13 @@ func NewApi(memberDb memberdb.DB, userApi userapi.UserAPI, sourceControlApi sour
 // AddOrganizationMember adds a user as a member to an organization
 func (a *Api) AddOrganizationMember(ctx context.Context, req types.AddMemberRequest, member *types.OrganizationMember) error {
 	// Note: Title validation will be handled by the database foreign key constraint
-	// Get the source control account
-	sourceControlAccount, err := a.sourceControlApi.GetSourceControlAccount(ctx, req.SourceControlAccountID)
+	// Get the external account
+	externalAccount, err := a.GetExternalAccount(ctx, req.ExternalAccountID)
 	if err != nil {
-		return errors.NewNotFoundError("source control account not found")
+		return err
+	}
+	if externalAccount == nil {
+		return errors.NewNotFoundError("external account not found")
 	}
 
 	// Look up user by email
@@ -97,8 +106,8 @@ func (a *Api) AddOrganizationMember(ctx context.Context, req types.AddMemberRequ
 	}
 
 	if createdMember != nil {
-		sourceControlAccount.MemberID = &createdMember.ID
-		err = a.sourceControlApi.UpdateSourceControlAccount(ctx, sourceControlAccount)
+		externalAccount.MemberID = &createdMember.ID
+		err = a.UpdateExternalAccount(ctx, externalAccount)
 		if err != nil {
 			return err
 		}
@@ -181,15 +190,18 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, member
 		return errors.NewNotFoundError("member not found in this organization")
 	}
 
-	// Verify the new source control account exists and belongs to the organization
-	newSourceControlAccount, err := a.sourceControlApi.GetSourceControlAccount(ctx, req.SourceControlAccountID)
+	// Verify the new external account exists and belongs to the organization
+	newExternalAccount, err := a.GetExternalAccount(ctx, req.ExternalAccountID)
 	if err != nil {
-		return errors.NewNotFoundError("source control account not found")
+		return err
+	}
+	if newExternalAccount == nil {
+		return errors.NewNotFoundError("external account not found")
 	}
 
-	// Check if the source control account belongs to the organization
-	if newSourceControlAccount.OrganizationID == nil || *newSourceControlAccount.OrganizationID != orgID {
-		return errors.NewNotFoundError("source control account does not belong to this organization")
+	// Check if the external account belongs to the organization
+	if newExternalAccount.OrganizationID == nil || *newExternalAccount.OrganizationID != orgID {
+		return errors.NewNotFoundError("external account does not belong to this organization")
 	}
 
 	// Update the username and title_id in the organization_members table
@@ -198,10 +210,13 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, member
 		return err
 	}
 
-	// First, remove the member_id from any existing source control accounts for this member
+	// First, remove the member_id from any existing external accounts for this member
 	// This ensures we don't have multiple accounts pointing to the same member
-	existingAccounts, err := a.sourceControlApi.GetSourceControlAccounts(ctx, &sourcecontroltypes.SourceControlAccountParams{
+	// Filter by account type sourcecontrol since that's what we're managing here
+	sourceControlType := "sourcecontrol"
+	existingAccounts, err := a.GetExternalAccounts(ctx, &types.ExternalAccountParams{
 		OrganizationID: orgID,
+		AccountType:     &sourceControlType,
 	})
 	if err != nil {
 		return err
@@ -211,16 +226,16 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, member
 		if account.MemberID != nil && *account.MemberID == memberID {
 			// Clear the member_id from this account
 			account.MemberID = nil
-			err = a.sourceControlApi.UpdateSourceControlAccount(ctx, &account)
+			err = a.UpdateExternalAccount(ctx, &account)
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	// Now assign the new source control account to this member
-	newSourceControlAccount.MemberID = &memberID
-	err = a.sourceControlApi.UpdateSourceControlAccount(ctx, newSourceControlAccount)
+	// Now assign the new external account to this member
+	newExternalAccount.MemberID = &memberID
+	err = a.UpdateExternalAccount(ctx, newExternalAccount)
 	if err != nil {
 		return err
 	}
@@ -293,16 +308,19 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, member
 
 // CalculateSourceControlMemberMetrics retrieves source control metrics for a specific member
 func (a *Api) CalculateSourceControlMemberMetrics(ctx context.Context, organizationID string, memberID string, params sourcecontroltypes.MemberMetricsParams) (*sourcecontroltypes.MetricsResponse, error) {
-	sourceControlAccounts, err := a.sourceControlApi.GetSourceControlAccounts(ctx, &sourcecontroltypes.SourceControlAccountParams{
+	// Get external accounts for this member (filter by sourcecontrol type)
+	sourceControlType := "sourcecontrol"
+	externalAccounts, err := a.GetExternalAccounts(ctx, &types.ExternalAccountParams{
 		OrganizationID: organizationID,
 		MemberIDs:      []string{memberID},
+		AccountType:    &sourceControlType,
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	sourceControlAccountIDs := []string{}
-	for _, account := range sourceControlAccounts {
+	for _, account := range externalAccounts {
 		sourceControlAccountIDs = append(sourceControlAccountIDs, account.ID)
 	}
 
@@ -323,16 +341,17 @@ func (a *Api) CalculateSourceControlMemberMetrics(ctx context.Context, organizat
 		peerMemberIDs = append(peerMemberIDs, orgMember.ID)
 	}
 
-	peerSourceControlAccounts, err := a.sourceControlApi.GetSourceControlAccounts(ctx, &sourcecontroltypes.SourceControlAccountParams{
+	peerExternalAccounts, err := a.GetExternalAccounts(ctx, &types.ExternalAccountParams{
 		OrganizationID: organizationID,
 		MemberIDs:      peerMemberIDs,
+		AccountType:    &sourceControlType,
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	peerSourceControlAccountIDs := []string{}
-	for _, account := range peerSourceControlAccounts {
+	for _, account := range peerExternalAccounts {
 		peerSourceControlAccountIDs = append(peerSourceControlAccountIDs, account.ID)
 	}
 	// Create the metric params with the source control account IDs

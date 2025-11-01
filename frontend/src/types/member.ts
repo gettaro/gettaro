@@ -19,13 +19,13 @@ export interface AddMemberRequest {
   email: string
   username: string
   title_id: string
-  source_control_account_id: string
+  external_account_id: string // Renamed from source_control_account_id
   manager_id?: string
 }
 
 export interface UpdateMemberRequest {
   username: string
   title_id: string
-  source_control_account_id: string
+  external_account_id: string // Renamed from source_control_account_id
   manager_id?: string
 } 

@@ -5,9 +5,9 @@
 
 UPDATE pull_requests pr
 SET prefix = t.pr_prefix
-FROM source_control_accounts sca
+FROM member_external_accounts sca
 INNER JOIN teams t ON t.organization_id = sca.organization_id
-WHERE pr.source_control_account_id = sca.id
+WHERE pr.external_account_id = sca.id
   AND t.pr_prefix IS NOT NULL
   AND t.pr_prefix != ''
   AND pr.prefix IS NULL

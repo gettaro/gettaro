@@ -16,6 +16,12 @@ type DB interface {
 	GetOrganizationMemberByID(ctx context.Context, memberID string) (*types.OrganizationMember, error)
 	IsOrganizationOwner(orgID string, userID string) (bool, error)
 	UpdateOrganizationMember(orgID string, userID string, username string, titleID *string) error
+
+	// External Accounts
+	GetExternalAccounts(ctx context.Context, params *types.ExternalAccountParams) ([]types.ExternalAccount, error)
+	CreateExternalAccounts(ctx context.Context, accounts []*types.ExternalAccount) error
+	GetExternalAccount(ctx context.Context, id string) (*types.ExternalAccount, error)
+	UpdateExternalAccount(ctx context.Context, account *types.ExternalAccount) error
 }
 
 type MemberDB struct {

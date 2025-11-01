@@ -1,3 +1,17 @@
+// ExternalAccount represents an external account (e.g., source control, Jira, Slack)
+export interface ExternalAccount {
+  id: string
+  member_id?: string
+  organization_id?: string
+  account_type: string // e.g., "sourcecontrol"
+  provider_name: string
+  provider_id: string
+  username: string
+  last_synced_at?: string
+}
+
+// SourceControlAccount is kept for backward compatibility
+// @deprecated Use ExternalAccount instead
 export interface SourceControlAccount {
   id: string
   member_id?: string

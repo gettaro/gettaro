@@ -706,13 +706,30 @@ func (s *AIService) gatherOrganizationBasicData(ctx context.Context, req *types.
 
 // gatherSourceControlData gathers source control data based on plan
 func (s *AIService) gatherSourceControlData(ctx context.Context, req *types.AIQueryRequest, entityData *types.EntityData, plan *types.RetrievalPlan) error {
-	// Get member's source control accounts
-	sourceControlAccounts, err := s.sourceControlAPI.GetSourceControlAccounts(ctx, &sourcecontroltypes.SourceControlAccountParams{
+	// Get member's external accounts (filter by sourcecontrol type)
+	sourceControlType := "sourcecontrol"
+	externalAccounts, err := s.memberAPI.GetExternalAccounts(ctx, &membertypes.ExternalAccountParams{
 		OrganizationID: req.OrganizationID,
 		MemberIDs:      []string{req.EntityID},
+		AccountType:    &sourceControlType,
 	})
-	if err != nil || len(sourceControlAccounts) == 0 {
+	if err != nil || len(externalAccounts) == 0 {
 		return err
+	}
+
+	// Convert ExternalAccount to SourceControlAccount for backward compatibility
+	sourceControlAccounts := make([]sourcecontroltypes.SourceControlAccount, len(externalAccounts))
+	for i, extAccount := range externalAccounts {
+		sourceControlAccounts[i] = sourcecontroltypes.SourceControlAccount{
+			ID:             extAccount.ID,
+			MemberID:       extAccount.MemberID,
+			OrganizationID: extAccount.OrganizationID,
+			ProviderName:   extAccount.ProviderName,
+			ProviderID:     extAccount.ProviderID,
+			Username:       extAccount.Username,
+			Metadata:       extAccount.Metadata,
+			LastSyncedAt:   extAccount.LastSyncedAt,
+		}
 	}
 
 	entityData.Data["source_control_accounts"] = sourceControlAccounts

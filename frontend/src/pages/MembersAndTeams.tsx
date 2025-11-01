@@ -119,14 +119,14 @@ export default function MembersAndTeams() {
     email: '',
     username: '',
     title_id: '',
-    source_control_account_id: '',
+    external_account_id: '',
     manager_id: undefined
   })
 
   const [updateMemberFormData, setUpdateMemberFormData] = useState<UpdateMemberRequest>({
     username: '',
     title_id: '',
-    source_control_account_id: '',
+    external_account_id: '',
     manager_id: undefined
   })
 
@@ -360,7 +360,7 @@ export default function MembersAndTeams() {
         email: '',
         username: '',
         title_id: '',
-        source_control_account_id: '',
+        external_account_id: '',
         manager_id: undefined
       })
       setIsAddMemberModalOpen(false)
@@ -384,7 +384,7 @@ export default function MembersAndTeams() {
       setUpdateMemberFormData({
         username: '',
         title_id: '',
-        source_control_account_id: '',
+        external_account_id: '',
         manager_id: undefined
       })
       setSelectedMember(null)
@@ -403,7 +403,7 @@ export default function MembersAndTeams() {
     setUpdateMemberFormData({
       username: member.username,
       title_id: member.title_id || '',
-      source_control_account_id: sourceControlAccounts.find(acc => acc.member_id === member.id)?.id || '',
+      external_account_id: sourceControlAccounts.find(acc => acc.member_id === member.id)?.id || '',
       manager_id: member.manager_id
     })
     setIsUpdateMemberModalOpen(true)
@@ -842,8 +842,8 @@ export default function MembersAndTeams() {
                   <div>
                     <label className="block text-sm font-medium mb-2">Source Control Account</label>
                     <select
-                      value={addMemberFormData.source_control_account_id}
-                      onChange={(e) => setAddMemberFormData({ ...addMemberFormData, source_control_account_id: e.target.value })}
+                      value={addMemberFormData.external_account_id}
+                      onChange={(e) => setAddMemberFormData({ ...addMemberFormData, external_account_id: e.target.value })}
                       className="w-full px-3 py-2 border border-border rounded-md"
                     >
                       <option value="">Select an account</option>
@@ -928,8 +928,8 @@ export default function MembersAndTeams() {
                   <div>
                     <label className="block text-sm font-medium mb-2">Source Control Account</label>
                     <select
-                      value={updateMemberFormData.source_control_account_id}
-                      onChange={(e) => setUpdateMemberFormData({ ...updateMemberFormData, source_control_account_id: e.target.value })}
+                      value={updateMemberFormData.external_account_id}
+                      onChange={(e) => setUpdateMemberFormData({ ...updateMemberFormData, external_account_id: e.target.value })}
                       className="w-full px-3 py-2 border border-border rounded-md"
                     >
                       <option value="">Select an account</option>

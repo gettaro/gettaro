@@ -6,8 +6,11 @@ import (
 	"gorm.io/datatypes"
 )
 
+// SourceControlAccount represents a source control account.
+// Note: This type is kept for backward compatibility in API responses.
+// Account management has been moved to the member service (ExternalAccount).
 type SourceControlAccount struct {
-	ID             string         `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	ID             string         `json:"id"`
 	MemberID       *string        `json:"member_id,omitempty"`
 	OrganizationID *string        `json:"organization_id,omitempty"`
 	ProviderName   string         `json:"provider_name"`
@@ -19,38 +22,38 @@ type SourceControlAccount struct {
 
 // PullRequest represents a pull request in our system
 type PullRequest struct {
-	ID                     string         `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	SourceControlAccountID string         `json:"source_control_account_id"`
-	ProviderID             string         `json:"provider_id"`
-	RepositoryName         string         `json:"repository_name"`
-	Title                  string         `json:"title"`
-	Description            string         `json:"description"`
-	URL                    string         `json:"url"`
-	Status                 string         `json:"status"`
-	CreatedAt              time.Time      `json:"created_at"`
-	UpdatedAt              time.Time      `json:"updated_at"`
-	MergedAt               *time.Time     `json:"merged_at"`
-	LastUpdatedAt          time.Time      `json:"last_updated_at"`
-	Comments               int            `json:"comments"`
-	ReviewComments         int            `json:"review_comments"`
-	Additions              int            `json:"additions"`
-	Deletions              int            `json:"deletions"`
-	ChangedFiles           int            `json:"changed_files"`
-	Prefix                 *string        `json:"prefix"`
-	Metrics                datatypes.JSON `json:"metrics"`
-	Metadata               datatypes.JSON `json:"metadata"`
+	ID                string         `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	ExternalAccountID string         `gorm:"column:external_account_id" json:"external_account_id"` // Renamed from SourceControlAccountID
+	ProviderID        string         `json:"provider_id"`
+	RepositoryName    string         `json:"repository_name"`
+	Title             string         `json:"title"`
+	Description       string         `json:"description"`
+	URL               string         `json:"url"`
+	Status            string         `json:"status"`
+	CreatedAt         time.Time      `json:"created_at"`
+	UpdatedAt         time.Time      `json:"updated_at"`
+	MergedAt          *time.Time     `json:"merged_at"`
+	LastUpdatedAt     time.Time      `json:"last_updated_at"`
+	Comments          int            `json:"comments"`
+	ReviewComments    int            `json:"review_comments"`
+	Additions         int            `json:"additions"`
+	Deletions         int            `json:"deletions"`
+	ChangedFiles      int            `json:"changed_files"`
+	Prefix            *string        `json:"prefix"`
+	Metrics           datatypes.JSON `json:"metrics"`
+	Metadata          datatypes.JSON `json:"metadata"`
 }
 
 // PRComment represents a comment on a pull request
 type PRComment struct {
-	ID                     string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	PRID                   string
-	SourceControlAccountID string
-	ProviderID             string
-	Body                   string
-	Type                   string
-	CreatedAt              time.Time
-	UpdatedAt              *time.Time
+	ID                string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	PRID              string
+	ExternalAccountID string `gorm:"column:external_account_id"` // Renamed from SourceControlAccountID
+	ProviderID        string
+	Body              string
+	Type              string
+	CreatedAt         time.Time
+	UpdatedAt         *time.Time
 }
 
 // PullRequestParams represents the parameters for querying pull requests

@@ -119,19 +119,21 @@ func (h *SourceControlHandler) ListOrganizationPullRequests(c *gin.Context) {
 	// Get source control account IDs and fetch accounts to get member IDs
 	sourceControlAccountIDs := make([]string, 0, len(prs))
 	for _, pr := range prs {
-		sourceControlAccountIDs = append(sourceControlAccountIDs, pr.SourceControlAccountID)
+		sourceControlAccountIDs = append(sourceControlAccountIDs, pr.ExternalAccountID)
 	}
 
-	// Get source control accounts to find member IDs
-	accounts, err := h.scApi.GetSourceControlAccounts(c.Request.Context(), &servicetypes.SourceControlAccountParams{
-		SourceControlAccountIDs: sourceControlAccountIDs,
+	// Get external accounts to find member IDs (filter by sourcecontrol type)
+	sourceControlType := "sourcecontrol"
+	accounts, err := h.memberApi.GetExternalAccounts(c.Request.Context(), &membertypes.ExternalAccountParams{
+		ExternalAccountIDs: sourceControlAccountIDs,
+		AccountType:        &sourceControlType,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Create a map of source control account ID to member ID
+	// Create a map of external account ID to member ID
 	accountToMemberID := make(map[string]*string)
 	memberIDs := make([]string, 0)
 	for _, account := range accounts {
@@ -176,7 +178,7 @@ func (h *SourceControlHandler) ListOrganizationPullRequests(c *gin.Context) {
 		}
 
 		// Add author information if available
-		if memberID, ok := accountToMemberID[pr.SourceControlAccountID]; ok && memberID != nil {
+		if memberID, ok := accountToMemberID[pr.ExternalAccountID]; ok && memberID != nil {
 			if member, ok := membersMap[*memberID]; ok {
 				response.PullRequests[i].Author = &sourcecontrol.PullRequestAuthor{
 					ID:       member.ID,
@@ -219,21 +221,35 @@ func (h *SourceControlHandler) ListOrganizationSourceControlAccounts(c *gin.Cont
 		return
 	}
 
-	// Get source control accounts from service
-	accounts, err := h.scApi.GetSourceControlAccounts(c.Request.Context(), &servicetypes.SourceControlAccountParams{
+	// Get external accounts from member service (filter by sourcecontrol type)
+	sourceControlType := "sourcecontrol"
+	externalAccounts, err := h.memberApi.GetExternalAccounts(c.Request.Context(), &membertypes.ExternalAccountParams{
 		OrganizationID: orgID,
+		AccountType:    &sourceControlType,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	response := sourcecontrol.ListOrganizationSourceControlAccountsResponse{
-		SourceControlAccounts: make([]servicetypes.SourceControlAccount, len(accounts)),
+	// Convert ExternalAccount to SourceControlAccount for backward compatibility in response
+	sourceControlAccounts := make([]servicetypes.SourceControlAccount, len(externalAccounts))
+	for i, extAccount := range externalAccounts {
+		sourceControlAccounts[i] = servicetypes.SourceControlAccount{
+			ID:             extAccount.ID,
+			MemberID:       extAccount.MemberID,
+			OrganizationID: extAccount.OrganizationID,
+			ProviderName:   extAccount.ProviderName,
+			ProviderID:     extAccount.ProviderID,
+			Username:       extAccount.Username,
+			Metadata:       extAccount.Metadata,
+			LastSyncedAt:   extAccount.LastSyncedAt,
+		}
 	}
 
-	// Copy accounts to response
-	copy(response.SourceControlAccounts, accounts)
+	response := sourcecontrol.ListOrganizationSourceControlAccountsResponse{
+		SourceControlAccounts: sourceControlAccounts,
+	}
 
 	c.JSON(http.StatusOK, response)
 }

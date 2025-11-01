@@ -90,11 +90,11 @@ func (h *MemberHandler) AddOrganizationMember(c *gin.Context) {
 	}
 
 	if err := h.memberApi.AddOrganizationMember(c.Request.Context(), membertypes.AddMemberRequest{
-		Email:                  req.Email,
-		Username:               req.Username,
-		TitleID:                req.TitleID,
-		SourceControlAccountID: req.SourceControlAccountID,
-		ManagerID:              req.ManagerID,
+		Email:            req.Email,
+		Username:         req.Username,
+		TitleID:          req.TitleID,
+		ExternalAccountID: req.ExternalAccountID,
+		ManagerID:        req.ManagerID,
 	}, &membertypes.OrganizationMember{
 		OrganizationID: orgID,
 		Email:          req.Email,
@@ -208,10 +208,10 @@ func (h *MemberHandler) UpdateOrganizationMember(c *gin.Context) {
 	}
 
 	if err := h.memberApi.UpdateOrganizationMember(c.Request.Context(), orgID, memberID, membertypes.UpdateMemberRequest{
-		Username:               req.Username,
-		TitleID:                req.TitleID,
-		SourceControlAccountID: req.SourceControlAccountID,
-		ManagerID:              req.ManagerID,
+		Username:          req.Username,
+		TitleID:           req.TitleID,
+		ExternalAccountID: req.ExternalAccountID,
+		ManagerID:          req.ManagerID,
 	}); err != nil {
 		utils.HandleError(c, err)
 		return

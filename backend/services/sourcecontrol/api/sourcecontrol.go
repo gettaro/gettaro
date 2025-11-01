@@ -10,12 +10,6 @@ import (
 
 // SourceControlAPI defines the interface for source control operations
 type SourceControlAPI interface {
-	// Source Control Accounts
-	GetSourceControlAccounts(ctx context.Context, params *types.SourceControlAccountParams) ([]types.SourceControlAccount, error)
-	CreateSourceControlAccounts(ctx context.Context, accounts []*types.SourceControlAccount) error
-	GetSourceControlAccount(ctx context.Context, id string) (*types.SourceControlAccount, error)
-	UpdateSourceControlAccount(ctx context.Context, account *types.SourceControlAccount) error
-
 	// Pull Requests
 	GetPullRequests(ctx context.Context, params *types.PullRequestParams) ([]*types.PullRequest, error)
 	CreatePullRequest(ctx context.Context, pr *types.PullRequest) (*types.PullRequest, error)
@@ -43,22 +37,6 @@ func NewAPI(db database.DB) SourceControlAPI {
 		db:            db,
 		metricsEngine: metrics.NewEngine(db),
 	}
-}
-
-func (a *Api) GetSourceControlAccounts(ctx context.Context, params *types.SourceControlAccountParams) ([]types.SourceControlAccount, error) {
-	return a.db.GetSourceControlAccounts(ctx, params)
-}
-
-func (a *Api) CreateSourceControlAccounts(ctx context.Context, accounts []*types.SourceControlAccount) error {
-	return a.db.CreateSourceControlAccounts(ctx, accounts)
-}
-
-func (a *Api) GetSourceControlAccount(ctx context.Context, id string) (*types.SourceControlAccount, error) {
-	return a.db.GetSourceControlAccount(ctx, id)
-}
-
-func (a *Api) UpdateSourceControlAccount(ctx context.Context, account *types.SourceControlAccount) error {
-	return a.db.UpdateSourceControlAccount(ctx, account)
 }
 
 func (a *Api) GetPullRequests(ctx context.Context, params *types.PullRequestParams) ([]*types.PullRequest, error) {

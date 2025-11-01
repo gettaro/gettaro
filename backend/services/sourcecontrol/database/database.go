@@ -12,12 +12,6 @@ import (
 
 // SourceControlDB defines the interface for source control database operations
 type DB interface {
-	// Source Control Accounts
-	GetSourceControlAccounts(ctx context.Context, params *types.SourceControlAccountParams) ([]types.SourceControlAccount, error)
-	CreateSourceControlAccounts(ctx context.Context, accounts []*types.SourceControlAccount) error
-	GetSourceControlAccount(ctx context.Context, id string) (*types.SourceControlAccount, error)
-	UpdateSourceControlAccount(ctx context.Context, account *types.SourceControlAccount) error
-
 	// Pull Requests
 	GetPullRequests(ctx context.Context, params *types.PullRequestParams) ([]*types.PullRequest, error)
 	CreatePullRequest(ctx context.Context, pr *types.PullRequest) (*types.PullRequest, error)
@@ -73,43 +67,6 @@ func NewSourceControlDB(db *gorm.DB) *SourceControlDB {
 	}
 }
 
-// GetSourceControlAccounts retrieves source control accounts
-func (d *SourceControlDB) GetSourceControlAccounts(ctx context.Context, params *types.SourceControlAccountParams) ([]types.SourceControlAccount, error) {
-	var accounts []types.SourceControlAccount
-	query := d.db.WithContext(ctx).Model(&types.SourceControlAccount{})
-
-	// Query by source control account IDs if provided
-	if len(params.SourceControlAccountIDs) > 0 {
-		query = query.Where("id IN ?", params.SourceControlAccountIDs)
-	}
-
-	// Query by usernames if provided
-	if len(params.Usernames) > 0 {
-		query = query.Where("username IN ?", params.Usernames)
-	}
-
-	// Filter by organization ID if provided
-	if params.OrganizationID != "" {
-		query = query.Where("organization_id = ?", params.OrganizationID)
-	}
-
-	// Filter by member IDs if provided
-	if len(params.MemberIDs) > 0 {
-		query = query.Where("member_id IN ?", params.MemberIDs)
-	}
-
-	if err := query.Find(&accounts).Error; err != nil {
-		return nil, err
-	}
-
-	return accounts, nil
-}
-
-// CreateSourceControlAccounts creates multiple source control accounts
-func (d *SourceControlDB) CreateSourceControlAccounts(ctx context.Context, accounts []*types.SourceControlAccount) error {
-	return d.db.WithContext(ctx).Create(accounts).Error
-}
-
 // GetPullRequests retrieves pull requests based on the given parameters
 func (d *SourceControlDB) GetPullRequests(ctx context.Context, params *types.PullRequestParams) ([]*types.PullRequest, error) {
 	var prs []types.PullRequest
@@ -118,7 +75,7 @@ func (d *SourceControlDB) GetPullRequests(ctx context.Context, params *types.Pul
 	// Add JOINs if needed for filtering
 	if params.OrganizationID != nil || len(params.UserIDs) > 0 {
 		query = query.Joins(`
-			JOIN source_control_accounts sca ON pull_requests.source_control_account_id = sca.id
+			JOIN member_external_accounts sca ON pull_requests.external_account_id = sca.id
 		`)
 	}
 
@@ -179,39 +136,13 @@ func (d *SourceControlDB) UpdatePullRequest(ctx context.Context, pr *types.PullR
 	return d.db.WithContext(ctx).Model(pr).Updates(pr).Error
 }
 
-// UpdateSourceControlAccount updates an existing source control account
-func (d *SourceControlDB) UpdateSourceControlAccount(ctx context.Context, account *types.SourceControlAccount) error {
-	// Use explicit field updates to handle nil values properly
-	updates := map[string]interface{}{
-		"member_id":       account.MemberID,
-		"organization_id": account.OrganizationID,
-		"provider_name":   account.ProviderName,
-		"provider_id":     account.ProviderID,
-		"username":        account.Username,
-		"metadata":        account.Metadata,
-		"last_synced_at":  account.LastSyncedAt,
-	}
-
-	return d.db.WithContext(ctx).Model(account).Updates(updates).Error
-}
-
-// GetSourceControlAccount retrieves a source control account by ID
-func (d *SourceControlDB) GetSourceControlAccount(ctx context.Context, id string) (*types.SourceControlAccount, error) {
-	var account types.SourceControlAccount
-	err := d.db.WithContext(ctx).First(&account, "id = ?", id).Error
-	if err != nil {
-		return nil, err
-	}
-	return &account, nil
-}
-
 // GetMemberPullRequests retrieves pull requests for a specific member
 func (d *SourceControlDB) GetMemberPullRequests(ctx context.Context, params *types.MemberPullRequestParams) ([]*types.PullRequestWithComments, error) {
 	// Build the base query
 	baseQuery := `
 		SELECT DISTINCT
 			pr.id,
-			pr.source_control_account_id,
+			pr.external_account_id,
 			pr.provider_id,
 			pr.repository_name,
 			pr.title,
@@ -230,7 +161,7 @@ func (d *SourceControlDB) GetMemberPullRequests(ctx context.Context, params *typ
 			pr.metrics,
 			pr.metadata
 		FROM pull_requests pr
-		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		JOIN member_external_accounts sca ON pr.external_account_id = sca.id
 		WHERE sca.member_id = ?
 	`
 
@@ -278,14 +209,14 @@ func (d *SourceControlDB) GetMemberPullRequests(ctx context.Context, params *typ
 		SELECT 
 			pc.id,
 			pc.pr_id,
-			pc.source_control_account_id,
+			pc.external_account_id,
 			pc.provider_id,
 			pc.body,
 			pc.type,
 			pc.created_at,
 			pc.updated_at
 		FROM pr_comments pc
-		JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+		JOIN member_external_accounts sca ON pc.external_account_id = sca.id
 		WHERE pc.pr_id IN(?) 
 		AND pc.body IS NOT NULL 
 		AND pc.body != ''
@@ -366,10 +297,10 @@ func (d *SourceControlDB) GetMemberPullRequestReviews(ctx context.Context, param
 			NULL as pr_metrics
 		FROM pr_comments pc
 		JOIN pull_requests pr ON pc.pr_id = pr.id
-		JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
-		JOIN source_control_accounts pr_author ON pr.source_control_account_id = pr_author.id
+		JOIN member_external_accounts sca ON pc.external_account_id = sca.id
+		JOIN member_external_accounts pr_author ON pr.external_account_id = pr_author.id
 		WHERE sca.member_id = ? 
-		AND sca.id != pr.source_control_account_id` + commentFilter + `
+		AND sca.id != pr.external_account_id` + commentFilter + `
 		ORDER BY pc.created_at DESC
 	`
 
@@ -424,7 +355,7 @@ func (d *SourceControlDB) CalculateTimeToMerge(ctx context.Context, organization
 	query := `
 		SELECT ` + selectStatement + ` as time_to_merge_seconds
 		FROM pull_requests pr
-		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		JOIN member_external_accounts sca ON pr.external_account_id = sca.id
 		WHERE sca.organization_id = ?
 		AND pr.created_at >= ?
 		AND pr.created_at <= ?
@@ -440,7 +371,7 @@ func (d *SourceControlDB) CalculateTimeToMerge(ctx context.Context, organization
 		query += " AND pr.prefix IN ?"
 		args = append(args, prPrefixes)
 	} else if len(sourceControlAccountIDs) > 0 {
-		query += " AND pr.source_control_account_id IN ?"
+		query += " AND pr.external_account_id IN ?"
 		args = append(args, sourceControlAccountIDs)
 	}
 
@@ -487,7 +418,7 @@ func (d *SourceControlDB) CalculateTimeToMergeGraph(ctx context.Context, organiz
 			DATE_TRUNC('` + postgresInterval + `', pr.merged_at) as date,
 			` + selectStatement + ` as time_to_merge_seconds
 		FROM pull_requests pr
-		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		JOIN member_external_accounts sca ON pr.external_account_id = sca.id
 		WHERE sca.organization_id = ?
 		AND pr.created_at >= ?
 		AND pr.created_at <= ?
@@ -503,7 +434,7 @@ func (d *SourceControlDB) CalculateTimeToMergeGraph(ctx context.Context, organiz
 		query += " AND pr.prefix IN ?"
 		args = append(args, prPrefixes)
 	} else if len(sourceControlAccountIDs) > 0 {
-		query += " AND pr.source_control_account_id IN ?"
+		query += " AND pr.external_account_id IN ?"
 		args = append(args, sourceControlAccountIDs)
 	}
 
@@ -556,7 +487,7 @@ func (d *SourceControlDB) CalculatePRsMerged(ctx context.Context, organizationID
 	query := `
 		SELECT ` + selectStatement + ` as prs_merged_count
 		FROM pull_requests pr
-		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		JOIN member_external_accounts sca ON pr.external_account_id = sca.id
 		WHERE sca.organization_id = ?
 		AND pr.created_at >= ?
 		AND pr.created_at <= ?
@@ -572,7 +503,7 @@ func (d *SourceControlDB) CalculatePRsMerged(ctx context.Context, organizationID
 		query += " AND pr.prefix IN ?"
 		args = append(args, prPrefixes)
 	} else if len(sourceControlAccountIDs) > 0 {
-		query += " AND pr.source_control_account_id IN ?"
+		query += " AND pr.external_account_id IN ?"
 		args = append(args, sourceControlAccountIDs)
 	}
 
@@ -613,7 +544,7 @@ func (d *SourceControlDB) CalculatePRsMergedGraph(ctx context.Context, organizat
 			DATE_TRUNC('` + postgresInterval + `', pr.merged_at) as date,
 			` + selectStatement + ` as prs_merged_count
 		FROM pull_requests pr
-		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		JOIN member_external_accounts sca ON pr.external_account_id = sca.id
 		WHERE sca.organization_id = ?
 		AND pr.created_at >= ?
 		AND pr.created_at <= ?
@@ -629,7 +560,7 @@ func (d *SourceControlDB) CalculatePRsMergedGraph(ctx context.Context, organizat
 		query += " AND pr.prefix IN ?"
 		args = append(args, prPrefixes)
 	} else if len(sourceControlAccountIDs) > 0 {
-		query += " AND pr.source_control_account_id IN ?"
+		query += " AND pr.external_account_id IN ?"
 		args = append(args, sourceControlAccountIDs)
 	}
 
@@ -686,7 +617,7 @@ func (d *SourceControlDB) CalculatePRsReviewed(ctx context.Context, organization
 		AND pr.created_at <= ?
 		AND EXISTS (
 			SELECT 1 FROM pr_comments pc 
-			JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+			JOIN member_external_accounts sca ON pc.external_account_id = sca.id
 			WHERE pc.pr_id = pr.id 
 			AND sca.organization_id = ?
 			AND sca.id IN ?
@@ -743,7 +674,7 @@ func (d *SourceControlDB) CalculatePRsReviewedGraph(ctx context.Context, organiz
 		AND pr.created_at <= ?
 		AND EXISTS (
 			SELECT 1 FROM pr_comments pc 
-			JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+			JOIN member_external_accounts sca ON pc.external_account_id = sca.id
 			WHERE pc.pr_id = pr.id 
 			AND sca.organization_id = ?
 			AND sca.id IN ?
@@ -805,7 +736,7 @@ func (d *SourceControlDB) CalculateLOCAdded(ctx context.Context, organizationID 
 	query := `
 		SELECT ` + selectStatement + ` as loc_added_count
 		FROM pull_requests pr
-		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		JOIN member_external_accounts sca ON pr.external_account_id = sca.id
 		WHERE sca.organization_id = ?
 		AND pr.created_at >= ?
 		AND pr.created_at <= ?
@@ -821,7 +752,7 @@ func (d *SourceControlDB) CalculateLOCAdded(ctx context.Context, organizationID 
 		query += " AND pr.prefix IN ?"
 		args = append(args, prPrefixes)
 	} else if len(sourceControlAccountIDs) > 0 {
-		query += " AND pr.source_control_account_id IN ?"
+		query += " AND pr.external_account_id IN ?"
 		args = append(args, sourceControlAccountIDs)
 	}
 
@@ -862,7 +793,7 @@ func (d *SourceControlDB) CalculateLOCAddedGraph(ctx context.Context, organizati
 			DATE_TRUNC('` + postgresInterval + `', pr.merged_at) as date,
 			` + selectStatement + ` as loc_added_count
 		FROM pull_requests pr
-		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		JOIN member_external_accounts sca ON pr.external_account_id = sca.id
 		WHERE sca.organization_id = ?
 		AND pr.created_at >= ?
 		AND pr.created_at <= ?
@@ -878,7 +809,7 @@ func (d *SourceControlDB) CalculateLOCAddedGraph(ctx context.Context, organizati
 		query += " AND pr.prefix IN ?"
 		args = append(args, prPrefixes)
 	} else if len(sourceControlAccountIDs) > 0 {
-		query += " AND pr.source_control_account_id IN ?"
+		query += " AND pr.external_account_id IN ?"
 		args = append(args, sourceControlAccountIDs)
 	}
 
@@ -931,7 +862,7 @@ func (d *SourceControlDB) CalculateLOCRemoved(ctx context.Context, organizationI
 	query := `
 		SELECT ` + selectStatement + ` as loc_removed_count
 		FROM pull_requests pr
-		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		JOIN member_external_accounts sca ON pr.external_account_id = sca.id
 		WHERE sca.organization_id = ?
 		AND pr.created_at >= ?
 		AND pr.created_at <= ?
@@ -943,7 +874,7 @@ func (d *SourceControlDB) CalculateLOCRemoved(ctx context.Context, organizationI
 	args = append(args, organizationID, startDate, endDate)
 
 	if len(sourceControlAccountIDs) > 0 {
-		query += " AND pr.source_control_account_id IN ?"
+		query += " AND pr.external_account_id IN ?"
 		args = append(args, sourceControlAccountIDs)
 	}
 
@@ -984,7 +915,7 @@ func (d *SourceControlDB) CalculateLOCRemovedGraph(ctx context.Context, organiza
 			DATE_TRUNC('` + postgresInterval + `', pr.merged_at) as date,
 			` + selectStatement + ` as loc_removed_count
 		FROM pull_requests pr
-		JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+		JOIN member_external_accounts sca ON pr.external_account_id = sca.id
 		WHERE sca.organization_id = ?
 		AND pr.created_at >= ?
 		AND pr.created_at <= ?
@@ -1000,7 +931,7 @@ func (d *SourceControlDB) CalculateLOCRemovedGraph(ctx context.Context, organiza
 		query += " AND pr.prefix IN ?"
 		args = append(args, prPrefixes)
 	} else if len(sourceControlAccountIDs) > 0 {
-		query += " AND pr.source_control_account_id IN ?"
+		query += " AND pr.external_account_id IN ?"
 		args = append(args, sourceControlAccountIDs)
 	}
 
@@ -1107,7 +1038,7 @@ func (d *SourceControlDB) CalculatePRReviewComplexity(ctx context.Context, organ
 		AND pr.status = 'closed'
 		AND EXISTS (
 			SELECT 1 FROM pr_comments pc 
-			JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+			JOIN member_external_accounts sca ON pc.external_account_id = sca.id
 			WHERE pc.pr_id = pr.id 
 			AND sca.organization_id = ?
 			AND sca.id IN ?
@@ -1134,7 +1065,7 @@ func (d *SourceControlDB) CalculatePRReviewComplexity(ctx context.Context, organ
 		AND pr.status = 'closed'
 		AND EXISTS (
 			SELECT 1 FROM pr_comments pc 
-			JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+			JOIN member_external_accounts sca ON pc.external_account_id = sca.id
 			WHERE pc.pr_id = pr.id 
 			AND sca.organization_id = ?
 	`
@@ -1160,8 +1091,8 @@ func (d *SourceControlDB) CalculatePRReviewComplexity(ctx context.Context, organ
 		args = append(args, prPrefixes)
 	} else if len(sourceControlAccountIDs) > 0 {
 		// If using member-based filtering, exclude PRs authored by those members
-		query += `		AND pr.source_control_account_id NOT IN (
-			SELECT sca.id FROM source_control_accounts sca 
+		query += `		AND pr.external_account_id NOT IN (
+			SELECT sca.id FROM member_external_accounts sca 
 			WHERE sca.organization_id = ?
 		)
 	`
@@ -1218,7 +1149,7 @@ func (d *SourceControlDB) CalculatePRReviewComplexityGraph(ctx context.Context, 
 		AND pr.status = 'closed'
 		AND EXISTS (
 			SELECT 1 FROM pr_comments pc 
-			JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+			JOIN member_external_accounts sca ON pc.external_account_id = sca.id
 			WHERE pc.pr_id = pr.id 
 			AND sca.organization_id = ?
 	`
@@ -1244,8 +1175,8 @@ func (d *SourceControlDB) CalculatePRReviewComplexityGraph(ctx context.Context, 
 		args = append(args, prPrefixes)
 	} else if len(sourceControlAccountIDs) > 0 {
 		// If using member-based filtering, exclude PRs authored by those members
-		query += `		AND pr.source_control_account_id NOT IN (
-			SELECT sca.id FROM source_control_accounts sca 
+		query += `		AND pr.external_account_id NOT IN (
+			SELECT sca.id FROM member_external_accounts sca 
 			WHERE sca.organization_id = ?
 		)
 	`
@@ -1292,7 +1223,7 @@ func (d *SourceControlDB) CalculateLOCAddedForAccounts(ctx context.Context, orga
 		FROM (
 			SELECT sca.member_id, COALESCE(SUM(CAST(pr.metadata->>'additions' AS BIGINT)), 0) as member_total
 			FROM pull_requests pr
-			JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+			JOIN member_external_accounts sca ON pr.external_account_id = sca.id
 			WHERE sca.organization_id = ?
 			AND pr.created_at >= ?
 			AND pr.created_at <= ?
@@ -1337,7 +1268,7 @@ func (d *SourceControlDB) CalculateLOCRemovedForAccounts(ctx context.Context, or
 		FROM (
 			SELECT sca.member_id, COALESCE(SUM(CAST(pr.metadata->>'deletions' AS BIGINT)), 0) as member_total
 			FROM pull_requests pr
-			JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+			JOIN member_external_accounts sca ON pr.external_account_id = sca.id
 			WHERE sca.organization_id = ?
 			AND pr.created_at >= ?
 			AND pr.created_at <= ?
@@ -1382,7 +1313,7 @@ func (d *SourceControlDB) CalculatePRsMergedForAccounts(ctx context.Context, org
 		FROM (
 			SELECT sca.member_id, COUNT(*) as member_total
 			FROM pull_requests pr
-			JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+			JOIN member_external_accounts sca ON pr.external_account_id = sca.id
 			WHERE sca.organization_id = ?
 			AND pr.created_at >= ?
 			AND pr.created_at <= ?
@@ -1428,7 +1359,7 @@ func (d *SourceControlDB) CalculatePRsReviewedForAccounts(ctx context.Context, o
 			SELECT sca.member_id, COUNT(DISTINCT pr.id) as member_total
 			FROM pull_requests pr
 			JOIN pr_comments pc ON pc.pr_id = pr.id
-			JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+			JOIN member_external_accounts sca ON pc.external_account_id = sca.id
 			WHERE sca.organization_id = ?
 			AND pr.created_at >= ?
 			AND pr.created_at <= ?
@@ -1471,7 +1402,7 @@ func (d *SourceControlDB) CalculateTimeToMergeForAccounts(ctx context.Context, o
 		FROM (
 			SELECT sca.member_id, AVG(EXTRACT(EPOCH FROM (pr.merged_at - pr.created_at))) as member_avg
 			FROM pull_requests pr
-			JOIN source_control_accounts sca ON pr.source_control_account_id = sca.id
+			JOIN member_external_accounts sca ON pr.external_account_id = sca.id
 			WHERE sca.organization_id = ?
 			AND pr.created_at >= ?
 			AND pr.created_at <= ?
@@ -1517,7 +1448,7 @@ func (d *SourceControlDB) CalculatePRReviewComplexityForAccounts(ctx context.Con
 			SELECT sca.member_id, AVG(pr.additions + pr.deletions) as member_avg
 			FROM pull_requests pr
 			JOIN pr_comments pc ON pc.pr_id = pr.id
-			JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
+			JOIN member_external_accounts sca ON pc.external_account_id = sca.id
 			WHERE sca.organization_id = ?
 			AND pr.created_at >= ?
 			AND pr.created_at <= ?

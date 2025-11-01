@@ -12,6 +12,8 @@ import (
 	githubtypes "ems.dev/backend/libraries/github/types"
 	"ems.dev/backend/services/integration/api"
 	"ems.dev/backend/services/integration/types"
+	memberapi "ems.dev/backend/services/member/api"
+	membertypes "ems.dev/backend/services/member/types"
 	sourcecontrolapi "ems.dev/backend/services/sourcecontrol/api"
 	internaltypes "ems.dev/backend/services/sourcecontrol/types"
 	teamapi "ems.dev/backend/services/team/api"
@@ -24,6 +26,7 @@ type GitHubProvider struct {
 	githubClient     github.GithubClient
 	integrationAPI   api.IntegrationAPI
 	sourceControlAPI sourcecontrolapi.SourceControlAPI
+	memberAPI        memberapi.MemberAPI
 	teamAPI          teamapi.TeamAPI
 }
 
@@ -31,12 +34,14 @@ func NewProvider(
 	githubClient github.GithubClient,
 	integrationAPI api.IntegrationAPI,
 	sourceControlAPI sourcecontrolapi.SourceControlAPI,
+	memberAPI memberapi.MemberAPI,
 	teamAPI teamapi.TeamAPI,
 ) *GitHubProvider {
 	return &GitHubProvider{
 		githubClient:     githubClient,
 		integrationAPI:   integrationAPI,
 		sourceControlAPI: sourceControlAPI,
+		memberAPI:        memberAPI,
 		teamAPI:          teamAPI,
 	}
 }
@@ -187,23 +192,23 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 			}
 
 			sourceControlPR := &internaltypes.PullRequest{
-				SourceControlAccountID: authorAccount.ID,
-				ProviderID:             fmt.Sprintf("%d", prDetails.ID),
-				RepositoryName:         repoName,
-				Title:                  prDetails.Title,
-				Description:            prDetails.Body,
-				Status:                 prDetails.State,
-				CreatedAt:              prDetails.CreatedAt,
-				MergedAt:               prDetails.MergedAt,
-				LastUpdatedAt:          prDetails.UpdatedAt,
-				Comments:               prDetails.Comments,
-				ReviewComments:         prDetails.ReviewComments,
-				Additions:              prDetails.Additions,
-				Deletions:              prDetails.Deletions,
-				ChangedFiles:           prDetails.ChangedFiles,
-				URL:                    prDetails.URL,
-				Prefix:                 matchedPrefix,
-				Metadata:               datatypes.JSON(prDetailsBytes),
+				ExternalAccountID: authorAccount.ID,
+				ProviderID:        fmt.Sprintf("%d", prDetails.ID),
+				RepositoryName:    repoName,
+				Title:             prDetails.Title,
+				Description:       prDetails.Body,
+				Status:            prDetails.State,
+				CreatedAt:         prDetails.CreatedAt,
+				MergedAt:          prDetails.MergedAt,
+				LastUpdatedAt:     prDetails.UpdatedAt,
+				Comments:          prDetails.Comments,
+				ReviewComments:    prDetails.ReviewComments,
+				Additions:         prDetails.Additions,
+				Deletions:         prDetails.Deletions,
+				ChangedFiles:      prDetails.ChangedFiles,
+				URL:               prDetails.URL,
+				Prefix:            matchedPrefix,
+				Metadata:          datatypes.JSON(prDetailsBytes),
 			}
 
 			if exists {
@@ -290,13 +295,13 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 
 				// Insert/Update comment
 				sourceControlComment := &internaltypes.PRComment{
-					PRID:                   sourceControlPR.ID,
-					SourceControlAccountID: commentAuthor.ID,
-					ProviderID:             fmt.Sprintf("%d", comment.ID),
-					Body:                   comment.Body,
-					Type:                   comment.Type,
-					CreatedAt:              comment.CreatedAt,
-					UpdatedAt:              &comment.UpdatedAt,
+					PRID:              sourceControlPR.ID,
+					ExternalAccountID: commentAuthor.ID,
+					ProviderID:        fmt.Sprintf("%d", comment.ID),
+					Body:              comment.Body,
+					Type:              comment.Type,
+					CreatedAt:         comment.CreatedAt,
+					UpdatedAt:         &comment.UpdatedAt,
 				}
 
 				if err := p.sourceControlAPI.CreatePRComments(ctx, []*internaltypes.PRComment{sourceControlComment}); err != nil {
@@ -356,32 +361,36 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 	return nil
 }
 
-// upsertAuthor handles the creation or update of a source control account
+// upsertAuthor handles the creation or update of an external account (source control)
+// Returns a SourceControlAccount type for backward compatibility with existing code
 func (p *GitHubProvider) upsertAuthor(ctx context.Context, organizationID string, user githubtypes.User) (*internaltypes.SourceControlAccount, error) {
 	// Check if account exists
-	// TODO: Get account by username
-	accounts, err := p.sourceControlAPI.GetSourceControlAccounts(ctx, &internaltypes.SourceControlAccountParams{
-		Usernames: []string{user.Login},
+	sourceControlType := "sourcecontrol"
+	accounts, err := p.memberAPI.GetExternalAccounts(ctx, &membertypes.ExternalAccountParams{
+		Usernames:   []string{user.Login},
+		AccountType: &sourceControlType,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch source control account: %w", err)
+		return nil, fmt.Errorf("failed to fetch external account: %w", err)
 	}
 
-	accountsMap := make(map[string]internaltypes.SourceControlAccount)
+	accountsMap := make(map[string]membertypes.ExternalAccount)
 	for _, account := range accounts {
 		accountsMap[account.Username] = account
 	}
 
 	if account, exists := accountsMap[user.Login]; exists {
-		if *account.OrganizationID == organizationID {
-			return &account, nil
+		if account.OrganizationID != nil && *account.OrganizationID == organizationID {
+			// Convert to SourceControlAccount for backward compatibility
+			return convertExternalAccountToSourceControlAccount(&account), nil
 		}
 	}
 
 	// Get the member ID for this user in this org username
 	// For now, we'll create the account without member_id and let the application handle the association later
 	metadata, _ := json.Marshal(user)
-	newAccount := &internaltypes.SourceControlAccount{
+	newAccount := &membertypes.ExternalAccount{
+		AccountType:    "sourcecontrol",
 		ProviderName:   "github",
 		OrganizationID: &organizationID,
 		Username:       user.Login,
@@ -389,9 +398,25 @@ func (p *GitHubProvider) upsertAuthor(ctx context.Context, organizationID string
 		Metadata:       datatypes.JSON(metadata),
 	}
 
-	if err := p.sourceControlAPI.CreateSourceControlAccounts(ctx, []*internaltypes.SourceControlAccount{newAccount}); err != nil {
-		return nil, fmt.Errorf("failed to create source control account: %w", err)
+	if err := p.memberAPI.CreateExternalAccounts(ctx, []*membertypes.ExternalAccount{newAccount}); err != nil {
+		return nil, fmt.Errorf("failed to create external account: %w", err)
 	}
 
-	return newAccount, nil
+	// Convert to SourceControlAccount for backward compatibility
+	return convertExternalAccountToSourceControlAccount(newAccount), nil
+}
+
+// convertExternalAccountToSourceControlAccount converts an ExternalAccount to SourceControlAccount
+// This is a temporary helper during the migration
+func convertExternalAccountToSourceControlAccount(account *membertypes.ExternalAccount) *internaltypes.SourceControlAccount {
+	return &internaltypes.SourceControlAccount{
+		ID:             account.ID,
+		MemberID:       account.MemberID,
+		OrganizationID: account.OrganizationID,
+		ProviderName:   account.ProviderName,
+		ProviderID:     account.ProviderID,
+		Username:       account.Username,
+		Metadata:       account.Metadata,
+		LastSyncedAt:   account.LastSyncedAt,
+	}
 }
