@@ -38,6 +38,23 @@ components:
       properties:
         id: { type: string }
         name: { type: string }
+        description: { type: string }
+        type: 
+          type: string
+          enum: [squad, chapter, tribe, guild]
+          nullable: true
+        organization_id: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        members:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              member_id: { type: string }
+              created_at: { type: string, format: date-time }
+              updated_at: { type: string, format: date-time }
 
     Organization:
       type: object
@@ -1391,6 +1408,9 @@ paths:
               properties:
                 name: { type: string }
                 description: { type: string }
+                type: 
+                  type: string
+                  enum: [squad, chapter, tribe, guild]
               required:
                 - name
       responses:
@@ -1465,6 +1485,9 @@ paths:
               properties:
                 name: { type: string }
                 description: { type: string }
+                type: 
+                  type: string
+                  enum: [squad, chapter, tribe, guild]
       responses:
         "200":
           description: Team updated

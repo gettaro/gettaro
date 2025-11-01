@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Api from '../api/api'
-import { Team, CreateTeamRequest, UpdateTeamRequest, AddTeamMemberRequest } from '../types/team'
+import { Team, CreateTeamRequest, UpdateTeamRequest, AddTeamMemberRequest, TeamType } from '../types/team'
 import { Member, AddMemberRequest, UpdateMemberRequest } from '../types/member'
 import { Title } from '../types/title'
 import { SourceControlAccount } from '../types/sourcecontrol'
@@ -35,18 +35,79 @@ export default function MembersAndTeams() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'members' | 'teams'>('members')
+  const [activeTeamTypeTab, setActiveTeamTypeTab] = useState<TeamType | 'all' | null>(null)
 
   // Form data
   const [createTeamFormData, setCreateTeamFormData] = useState<CreateTeamRequest>({
     name: '',
     description: '',
+    type: undefined,
     organization_id: ''
   })
 
   const [updateTeamFormData, setUpdateTeamFormData] = useState<UpdateTeamRequest>({
     name: '',
-    description: ''
+    description: '',
+    type: undefined
   })
+
+  // Group teams by type
+  const teamsByType = useMemo(() => {
+    const grouped: Record<string, Team[]> = {
+      all: teams,
+      squad: [],
+      chapter: [],
+      tribe: [],
+      guild: []
+    }
+
+    teams.forEach(team => {
+      const type = team.type || 'squad' // Default to squad if null
+      if (grouped[type]) {
+        grouped[type].push(team)
+      }
+    })
+
+    return grouped
+  }, [teams])
+
+  // Get available team type tabs (only show tabs that have teams)
+  const availableTeamTypes = useMemo(() => {
+    const types: Array<{ type: TeamType | 'all' | null; label: string; count: number }> = [
+      { type: 'all', label: 'All Teams', count: teams.length }
+    ]
+
+    const typeLabels: Record<TeamType, string> = {
+      squad: 'Squads',
+      chapter: 'Chapters',
+      tribe: 'Tribes',
+      guild: 'Guilds'
+    }
+
+    ;(['squad', 'chapter', 'tribe', 'guild'] as TeamType[]).forEach(type => {
+      const count = teamsByType[type].length
+      if (count > 0) {
+        types.push({ type, label: typeLabels[type], count })
+      }
+    })
+
+    return types
+  }, [teams, teamsByType])
+
+  // Set default active team type tab
+  useEffect(() => {
+    if (activeTab === 'teams' && activeTeamTypeTab === null && availableTeamTypes.length > 0) {
+      setActiveTeamTypeTab(availableTeamTypes[0].type)
+    }
+  }, [activeTab, activeTeamTypeTab, availableTeamTypes])
+
+  // Get filtered teams based on active tab
+  const filteredTeams = useMemo(() => {
+    if (activeTeamTypeTab === 'all' || activeTeamTypeTab === null) {
+      return teams
+    }
+    return teamsByType[activeTeamTypeTab] || []
+  }, [activeTeamTypeTab, teams, teamsByType])
 
   const [addMemberToTeamFormData, setAddMemberToTeamFormData] = useState<AddTeamMemberRequest>({
     member_id: ''
@@ -107,7 +168,7 @@ export default function MembersAndTeams() {
       })
       
       setIsCreateTeamModalOpen(false)
-      setCreateTeamFormData({ name: '', description: '', organization_id: '' })
+      setCreateTeamFormData({ name: '', description: '', type: undefined, organization_id: '' })
       loadTeams()
     } catch (err) {
       console.error('Error creating team:', err)
@@ -135,7 +196,7 @@ export default function MembersAndTeams() {
       
       setIsEditTeamModalOpen(false)
       setSelectedTeam(null)
-      setUpdateTeamFormData({ name: '', description: '' })
+      setUpdateTeamFormData({ name: '', description: '', type: undefined })
       loadTeams()
     } catch (err) {
       console.error('Error updating team:', err)
@@ -227,7 +288,7 @@ export default function MembersAndTeams() {
 
   const openEditTeamModal = (team: Team) => {
     setSelectedTeam(team)
-    setUpdateTeamFormData({ name: team.name, description: team.description })
+    setUpdateTeamFormData({ name: team.name, description: team.description, type: team.type })
     setIsEditTeamModalOpen(true)
   }
 
@@ -476,17 +537,25 @@ export default function MembersAndTeams() {
                         <td className="p-4 text-muted-foreground">{getTitleName(member.title_id)}</td>
                         <td className="p-4 text-muted-foreground">{getManagerName(member.manager_id)}</td>
                         <td className="p-4">
-                          <div className="flex space-x-2">
+                          <div className="flex items-center gap-2">
                             <button
                               onClick={() => handleEditMember(member)}
-                              className="text-primary hover:text-primary/80 text-sm"
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/10 rounded-md border border-primary/20 hover:border-primary/40 transition-colors"
+                              title="Edit member"
                             >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
                               Edit
                             </button>
                             <button
                               onClick={() => handleDeleteMember(member)}
-                              className="text-destructive hover:text-destructive/80 text-sm"
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-md border border-destructive/20 hover:border-destructive/40 transition-colors"
+                              title="Delete member"
                             >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
                               Delete
                             </button>
                           </div>
@@ -514,64 +583,202 @@ export default function MembersAndTeams() {
               </button>
             </div>
 
+            {/* Team Type Tabs */}
+            {availableTeamTypes.length > 1 && (
+              <div className="mb-6">
+                <nav className="flex space-x-4 border-b border-border">
+                  {availableTeamTypes.map(({ type, label, count }) => (
+                    <button
+                      key={type || 'all'}
+                      onClick={() => setActiveTeamTypeTab(type)}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                        activeTeamTypeTab === type
+                          ? 'border-primary text-primary'
+                          : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                      }`}
+                    >
+                      {label} ({count})
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            )}
+
             {/* Teams List */}
-            <div className="grid gap-4">
-              {teams.map((team) => (
-                <div key={team.id} className="bg-card border border-border rounded-lg p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-foreground">{team.name}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredTeams.map((team) => {
+                const getTeamTypeIcon = (type?: TeamType) => {
+                  switch (type) {
+                    case 'squad':
+                      return (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                      )
+                    case 'chapter':
+                      return (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.582 4.786 8 4.285v13C9.582 17.786 10.832 18.477 12 19m0-13C13.168 5.477 14.418 4.786 16 4.285v13c-1.582.501-2.832 1.192-4 1.585m0 0V19" />
+                        </svg>
+                      )
+                    case 'tribe':
+                      return (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      )
+                    case 'guild':
+                      return (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h1" />
+                        </svg>
+                      )
+                    default:
+                      return (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                      )
+                  }
+                }
+
+                const getTeamTypeColor = (type?: TeamType) => {
+                  switch (type) {
+                    case 'squad':
+                      return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20'
+                    case 'chapter':
+                      return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20'
+                    case 'tribe':
+                      return 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20'
+                    case 'guild':
+                      return 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20'
+                    default:
+                      return 'bg-muted text-muted-foreground border-border'
+                  }
+                }
+
+                return (
+                  <div key={team.id} className="bg-card border border-border rounded-lg overflow-hidden hover:border-primary/50 transition-all duration-200 hover:shadow-lg">
+                    {/* Header */}
+                    <div className="p-5 bg-gradient-to-br from-muted/50 to-transparent border-b border-border">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className={`p-2 rounded-lg ${getTeamTypeColor(team.type)} border`}>
+                            {getTeamTypeIcon(team.type)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-lg font-semibold text-foreground truncate">{team.name}</h3>
+                            {team.type && (
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded mt-1 ${getTeamTypeColor(team.type)} border`}>
+                                {team.type.charAt(0).toUpperCase() + team.type.slice(1)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => openEditTeamModal(team)}
+                            className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                            title="Edit team"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTeam(team)}
+                            className="p-1.5 rounded hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive"
+                            title="Delete team"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
                       {team.description && (
-                        <p className="text-muted-foreground mt-1">{team.description}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mt-2">{team.description}</p>
                       )}
                     </div>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => openEditTeamModal(team)}
-                        className="text-primary hover:text-primary/80 px-3 py-1 text-sm"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => openAddMemberToTeamModal(team)}
-                        className="text-primary hover:text-primary/80 px-3 py-1 text-sm"
-                      >
-                        Add Member
-                      </button>
-                      <button
-                        onClick={() => handleDeleteTeam(team)}
-                        className="text-destructive hover:text-destructive/80 px-3 py-1 text-sm"
-                      >
-                        Delete
-                      </button>
+
+                    {/* Members Section */}
+                    <div className="p-5">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                          </svg>
+                          <h4 className="text-sm font-medium text-foreground">
+                            {team.members.length} {team.members.length === 1 ? 'Member' : 'Members'}
+                          </h4>
+                        </div>
+                        <button
+                          onClick={() => openAddMemberToTeamModal(team)}
+                          className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10 rounded transition-colors"
+                          title="Add member"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                          </svg>
+                          Add
+                        </button>
+                      </div>
+
+                      {team.members.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-6 text-center">
+                          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-2">
+                            <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                          </div>
+                          <p className="text-sm text-muted-foreground">No members yet</p>
+                          <p className="text-xs text-muted-foreground mt-1">Add members to get started</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {team.members.slice(0, 4).map((member) => {
+                            const memberData = members.find(m => m.id === member.member_id)
+                            const initial = memberData?.username?.charAt(0).toUpperCase() || '?'
+                            return (
+                              <div key={member.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors group">
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-xs font-medium text-primary">{initial}</span>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-foreground truncate">
+                                      {memberData?.username || 'Unknown'}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {memberData?.email || 'No email'}
+                                    </p>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => handleRemoveMemberFromTeam(team.id, member.member_id)}
+                                  className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-destructive transition-all"
+                                  title="Remove member"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </div>
+                            )
+                          })}
+                          {team.members.length > 4 && (
+                            <div className="pt-2 text-center">
+                              <p className="text-xs text-muted-foreground">
+                                +{team.members.length - 4} more {team.members.length - 4 === 1 ? 'member' : 'members'}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
-
-                  {/* Team Members */}
-                  <div className="mt-4">
-                    <h4 className="text-sm font-medium text-foreground mb-2">Members ({team.members.length})</h4>
-                    {team.members.length === 0 ? (
-                      <p className="text-muted-foreground text-sm">No members yet</p>
-                    ) : (
-                      <div className="space-y-1">
-                        {team.members.map((member) => (
-                          <div key={member.id} className="flex justify-between items-center text-sm">
-                            <span>{getMemberName(member.member_id)}</span>
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={() => handleRemoveMemberFromTeam(team.id, member.member_id)}
-                                className="text-xs text-destructive hover:text-destructive/80"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
@@ -785,6 +992,20 @@ export default function MembersAndTeams() {
                     rows={3}
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Team Type</label>
+                  <select
+                    value={createTeamFormData.type || ''}
+                    onChange={(e) => setCreateTeamFormData({ ...createTeamFormData, type: e.target.value as TeamType || undefined })}
+                    className="w-full px-3 py-2 border border-border rounded-md"
+                  >
+                    <option value="">Select a type (optional)</option>
+                    <option value="squad">Squad</option>
+                    <option value="chapter">Chapter</option>
+                    <option value="tribe">Tribe</option>
+                    <option value="guild">Guild</option>
+                  </select>
+                </div>
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
@@ -831,6 +1052,20 @@ export default function MembersAndTeams() {
                     placeholder="Enter team description"
                     rows={3}
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Team Type</label>
+                  <select
+                    value={updateTeamFormData.type || ''}
+                    onChange={(e) => setUpdateTeamFormData({ ...updateTeamFormData, type: e.target.value as TeamType || undefined })}
+                    className="w-full px-3 py-2 border border-border rounded-md"
+                  >
+                    <option value="">Select a type (optional)</option>
+                    <option value="squad">Squad</option>
+                    <option value="chapter">Chapter</option>
+                    <option value="tribe">Tribe</option>
+                    <option value="guild">Guild</option>
+                  </select>
                 </div>
               </div>
 

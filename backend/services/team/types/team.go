@@ -7,11 +7,22 @@ import (
 	orgtypes "ems.dev/backend/services/organization/types"
 )
 
+// TeamType represents the type of team
+type TeamType string
+
+const (
+	TeamTypeSquad   TeamType = "squad"
+	TeamTypeChapter TeamType = "chapter"
+	TeamTypeTribe   TeamType = "tribe"
+	TeamTypeGuild   TeamType = "guild"
+)
+
 // Team represents a team in the system
 type Team struct {
 	ID             string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	Name           string    `json:"name"`
 	Description    string    `json:"description"`
+	Type           *TeamType `json:"type" gorm:"type:varchar(50);check:type IN ('squad', 'chapter', 'tribe', 'guild')"`
 	OrganizationID string    `json:"organization_id" gorm:"type:uuid"`
 	CreatedAt      time.Time `json:"created_at" gorm:"default:now()"`
 	UpdatedAt      time.Time `json:"updated_at"`
@@ -43,15 +54,17 @@ type TeamSearchParams struct {
 
 // CreateTeamRequest represents the request body for creating a team
 type CreateTeamRequest struct {
-	Name           string `json:"name" binding:"required"`
-	Description    string `json:"description"`
-	OrganizationID string `json:"organization_id" binding:"required"`
+	Name           string    `json:"name" binding:"required"`
+	Description    string    `json:"description"`
+	Type           *TeamType  `json:"type" binding:"omitempty,oneof=squad chapter tribe guild"`
+	OrganizationID string    `json:"organization_id" binding:"required"`
 }
 
 // UpdateTeamRequest represents the request body for updating a team
 type UpdateTeamRequest struct {
-	Name        *string `json:"name"`
-	Description *string `json:"description"`
+	Name        *string    `json:"name"`
+	Description *string   `json:"description"`
+	Type        *TeamType  `json:"type" binding:"omitempty,oneof=squad chapter tribe guild"`
 }
 
 // AddTeamMemberRequest represents the request body for adding a member to a team

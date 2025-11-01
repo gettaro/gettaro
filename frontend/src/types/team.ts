@@ -1,7 +1,10 @@
+export type TeamType = 'squad' | 'chapter' | 'tribe' | 'guild'
+
 export interface Team {
   id: string
   name: string
   description: string
+  type?: TeamType
   organization_id: string
   created_at: string
   updated_at: string
@@ -18,12 +21,14 @@ export interface TeamMember {
 export interface CreateTeamRequest {
   name: string
   description: string
+  type?: TeamType
   organization_id: string
 }
 
 export interface UpdateTeamRequest {
   name?: string
   description?: string
+  type?: TeamType
 }
 
 export interface AddTeamMemberRequest {
