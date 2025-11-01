@@ -177,39 +177,10 @@ func (a *Api) calculateMetricsForMembers(ctx context.Context, params types.Organ
 
 // calculateMetricsForPrefix is a helper function that calculates metrics for a team prefix
 func (a *Api) calculateMetricsForPrefix(ctx context.Context, params types.OrganizationMetricsParams, prefix string) (*sourcecontroltypes.MetricsResponse, error) {
-	// Get all PRs with this prefix in the organization
-	prs, err := a.sourceControlApi.GetPullRequests(ctx, &sourcecontroltypes.PullRequestParams{
-		OrganizationID: &params.OrganizationID,
-		Prefix:         &prefix,
-		StartDate:      params.StartDate,
-		EndDate:        params.EndDate,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	if len(prs) == 0 {
-		// Return empty metrics response
-		return &sourcecontroltypes.MetricsResponse{
-			SnapshotMetrics: []*sourcecontroltypes.SnapshotCategory{},
-			GraphMetrics:    []*sourcecontroltypes.GraphCategory{},
-		}, nil
-	}
-
-	// Get source control account IDs from the PRs
-	sourceControlAccountIDs := make([]string, 0, len(prs))
-	accountIDMap := make(map[string]bool)
-	for _, pr := range prs {
-		if !accountIDMap[pr.SourceControlAccountID] {
-			accountIDMap[pr.SourceControlAccountID] = true
-			sourceControlAccountIDs = append(sourceControlAccountIDs, pr.SourceControlAccountID)
-		}
-	}
-
-	// Create the metric params with the source control account IDs
+	// Create the metric params with the pr_prefixes
 	metricParamsMap := map[string]interface{}{
-		"organizationId":          params.OrganizationID,
-		"sourceControlAccountIDs": sourceControlAccountIDs,
+		"organizationId": params.OrganizationID,
+		"pr_prefixes":    []string{prefix},
 	}
 
 	// Marshal to JSON bytes

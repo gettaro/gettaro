@@ -30,7 +30,7 @@ func NewPRReviewComplexityRule(base metrictypes.BaseMetricRule, sourceControlDB 
 // Calculate implements the MetricRule interface
 func (r *PRReviewComplexityRule) Calculate(ctx context.Context, params types.MetricRuleParams) (*types.SnapshotMetric, *types.GraphMetric, error) {
 	// Extract parameters
-	organizationID, startDate, endDate, sourceControlAccountIDs, peersSourceControlAccountIDs, err := r.extractParams(params)
+	organizationID, startDate, endDate, sourceControlAccountIDs, peersSourceControlAccountIDs, prPrefixes, err := r.extractParams(params)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -40,6 +40,7 @@ func (r *PRReviewComplexityRule) Calculate(ctx context.Context, params types.Met
 		ctx,
 		*organizationID,
 		sourceControlAccountIDs,
+		prPrefixes,
 		*startDate,
 		*endDate,
 		r.Operation,
@@ -53,6 +54,7 @@ func (r *PRReviewComplexityRule) Calculate(ctx context.Context, params types.Met
 		ctx,
 		*organizationID,
 		peersSourceControlAccountIDs,
+		nil,
 		*startDate,
 		*endDate,
 	)
@@ -72,7 +74,7 @@ func (r *PRReviewComplexityRule) Calculate(ctx context.Context, params types.Met
 	}
 
 	// Calculate graph metric
-	graphMetric, err := r.calculateGraphMetric(ctx, *organizationID, sourceControlAccountIDs, *startDate, *endDate, params.Interval)
+	graphMetric, err := r.calculateGraphMetric(ctx, *organizationID, sourceControlAccountIDs, prPrefixes, *startDate, *endDate, params.Interval)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to calculate graph metric: %w", err)
 	}
@@ -81,12 +83,13 @@ func (r *PRReviewComplexityRule) Calculate(ctx context.Context, params types.Met
 }
 
 // calculateGraphMetric calculates the time series data for the metric
-func (r *PRReviewComplexityRule) calculateGraphMetric(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, interval string) (*types.GraphMetric, error) {
+func (r *PRReviewComplexityRule) calculateGraphMetric(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, interval string) (*types.GraphMetric, error) {
 	// Calculate time series data
 	timeSeriesData, err := r.sourceControlDB.CalculatePRReviewComplexityGraph(
 		ctx,
 		organizationID,
 		sourceControlAccountIDs,
+		prPrefixes,
 		startDate,
 		endDate,
 		r.Operation,
@@ -108,42 +111,42 @@ func (r *PRReviewComplexityRule) calculateGraphMetric(ctx context.Context, organ
 }
 
 // extractParams extracts and validates the metric parameters
-func (r *PRReviewComplexityRule) extractParams(params types.MetricRuleParams) (*string, *time.Time, *time.Time, []string, []string, error) {
+func (r *PRReviewComplexityRule) extractParams(params types.MetricRuleParams) (*string, *time.Time, *time.Time, []string, []string, []string, error) {
 	if params.Interval == "" {
-		return nil, nil, nil, nil, nil, errors.NewBadRequestError("interval is required")
+		return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("interval is required")
 	}
 
 	if params.Interval != "daily" && params.Interval != "weekly" && params.Interval != "monthly" {
-		return nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid interval")
+		return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid interval")
 	}
 
 	if params.StartDate == nil {
-		return nil, nil, nil, nil, nil, errors.NewBadRequestError("start date is required")
+		return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("start date is required")
 	}
 
 	if params.EndDate == nil {
-		return nil, nil, nil, nil, nil, errors.NewBadRequestError("end date is required")
+		return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("end date is required")
 	}
 
 	if params.MetricParams == nil {
-		return nil, nil, nil, nil, nil, errors.NewBadRequestError("metric params is required")
+		return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("metric params is required")
 	}
 
 	// Unmarshal MetricParams to check for organization ID
 	var metricParams map[string]interface{}
 	if err := json.Unmarshal(params.MetricParams, &metricParams); err != nil {
-		return nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid metric params format")
+		return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid metric params format")
 	}
 
 	// Check if organization ID is present, this is needed also a security measure to prevent unauthorized access to other organizations
 	orgID, exists := metricParams["organizationId"]
 	if !exists {
-		return nil, nil, nil, nil, nil, errors.NewBadRequestError("organization id is required")
+		return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("organization id is required")
 	}
 
 	organizationID, ok := orgID.(string)
 	if !ok {
-		return nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid organization id format")
+		return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid organization id format")
 	}
 
 	// If sourcecontrolaccountids is present check that these are valid uuids
@@ -154,7 +157,7 @@ func (r *PRReviewComplexityRule) extractParams(params types.MetricRuleParams) (*
 			for _, idInterface := range srcControlAccountIDsArray {
 				if id, ok := idInterface.(string); ok {
 					if _, err := uuid.Parse(id); err != nil {
-						return nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid source control account id")
+						return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid source control account id")
 					}
 					sourceControlAccountIDs = append(sourceControlAccountIDs, id)
 				}
@@ -170,7 +173,7 @@ func (r *PRReviewComplexityRule) extractParams(params types.MetricRuleParams) (*
 			for _, idInterface := range peersSrcControlAccountIDsArray {
 				if id, ok := idInterface.(string); ok {
 					if _, err := uuid.Parse(id); err != nil {
-						return nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid peer source control account id")
+						return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid peer source control account id")
 					}
 					peersSourceControlAccountIDs = append(peersSourceControlAccountIDs, id)
 				}
@@ -178,7 +181,20 @@ func (r *PRReviewComplexityRule) extractParams(params types.MetricRuleParams) (*
 		}
 	}
 
-	return &organizationID, params.StartDate, params.EndDate, sourceControlAccountIDs, peersSourceControlAccountIDs, nil
+	// Extract pr_prefixes if present
+	prPrefixesInterface, exists := metricParams["pr_prefixes"]
+	var prPrefixes []string
+	if exists {
+		if prPrefixesArray, ok := prPrefixesInterface.([]interface{}); ok {
+			for _, prefixInterface := range prPrefixesArray {
+				if prefix, ok := prefixInterface.(string); ok {
+					prPrefixes = append(prPrefixes, prefix)
+				}
+			}
+		}
+	}
+
+	return &organizationID, params.StartDate, params.EndDate, sourceControlAccountIDs, peersSourceControlAccountIDs, prPrefixes, nil
 }
 
 // Category returns the category of the metric

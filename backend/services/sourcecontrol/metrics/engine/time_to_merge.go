@@ -26,19 +26,19 @@ func NewTimeToMergeRule(baseMetricRule metrictypes.BaseMetricRule, sourceControl
 
 func (r *TimeToMergeRule) Calculate(ctx context.Context, params types.MetricRuleParams) (*types.SnapshotMetric, *types.GraphMetric, error) {
 	// Validate params
-	organizationID, startDate, endDate, sourceControlAccountIDs, peersSourceControlAccountIDs, err := r.extractParams(params)
+	organizationID, startDate, endDate, sourceControlAccountIDs, peersSourceControlAccountIDs, prPrefixes, err := r.extractParams(params)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// Calculate time to merge value
-	timeToMergeValue, err := r.sourceControlDB.CalculateTimeToMerge(ctx, *organizationID, sourceControlAccountIDs, *startDate, *endDate, r.Operation)
+	timeToMergeValue, err := r.sourceControlDB.CalculateTimeToMerge(ctx, *organizationID, sourceControlAccountIDs, prPrefixes, *startDate, *endDate, r.Operation)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// Calculate time to merge peers value
-	peersTimeToMergeValue, err := r.sourceControlDB.CalculateTimeToMergeForAccounts(ctx, *organizationID, peersSourceControlAccountIDs, *startDate, *endDate)
+	peersTimeToMergeValue, err := r.sourceControlDB.CalculateTimeToMergeForAccounts(ctx, *organizationID, peersSourceControlAccountIDs, nil, *startDate, *endDate)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -54,7 +54,7 @@ func (r *TimeToMergeRule) Calculate(ctx context.Context, params types.MetricRule
 	}
 
 	// Calculate time to merge graph value
-	timeToMergeGraphValue, err := r.sourceControlDB.CalculateTimeToMergeGraph(ctx, *organizationID, sourceControlAccountIDs, *startDate, *endDate, r.Operation, r.Name, params.Interval)
+	timeToMergeGraphValue, err := r.sourceControlDB.CalculateTimeToMergeGraph(ctx, *organizationID, sourceControlAccountIDs, prPrefixes, *startDate, *endDate, r.Operation, r.Name, params.Interval)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -73,42 +73,42 @@ func (r *TimeToMergeRule) Category() types.MetricRuleCategory {
 	return r.BaseMetricRule.Category
 }
 
-func (r *TimeToMergeRule) extractParams(params types.MetricRuleParams) (*string, *time.Time, *time.Time, []string, []string, error) {
+func (r *TimeToMergeRule) extractParams(params types.MetricRuleParams) (*string, *time.Time, *time.Time, []string, []string, []string, error) {
 	if params.Interval == "" {
-		return nil, nil, nil, nil, nil, errors.NewBadRequestError("interval is required")
+		return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("interval is required")
 	}
 
 	if params.Interval != "daily" && params.Interval != "weekly" && params.Interval != "monthly" {
-		return nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid interval")
+		return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid interval")
 	}
 
 	if params.StartDate == nil {
-		return nil, nil, nil, nil, nil, errors.NewBadRequestError("start date is required")
+		return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("start date is required")
 	}
 
 	if params.EndDate == nil {
-		return nil, nil, nil, nil, nil, errors.NewBadRequestError("end date is required")
+		return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("end date is required")
 	}
 
 	if params.MetricParams == nil {
-		return nil, nil, nil, nil, nil, errors.NewBadRequestError("metric params is required")
+		return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("metric params is required")
 	}
 
 	// Unmarshal MetricParams to check for organization ID
 	var metricParams map[string]interface{}
 	if err := json.Unmarshal(params.MetricParams, &metricParams); err != nil {
-		return nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid metric params format")
+		return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid metric params format")
 	}
 
 	// Check if organization ID is present, this is needed also a security measure to prevent unauthorized access to other organizations
 	orgID, exists := metricParams["organizationId"]
 	if !exists {
-		return nil, nil, nil, nil, nil, errors.NewBadRequestError("organization id is required")
+		return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("organization id is required")
 	}
 
 	organizationID, ok := orgID.(string)
 	if !ok {
-		return nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid organization id format")
+		return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid organization id format")
 	}
 
 	// If sourcecontrolaccountids is present check that these are valid uuids
@@ -119,7 +119,7 @@ func (r *TimeToMergeRule) extractParams(params types.MetricRuleParams) (*string,
 			for _, idInterface := range srcControlAccountIDsArray {
 				if id, ok := idInterface.(string); ok {
 					if _, err := uuid.Parse(id); err != nil {
-						return nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid source control account id")
+						return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid source control account id")
 					}
 					sourceControlAccountIDs = append(sourceControlAccountIDs, id)
 				}
@@ -135,7 +135,7 @@ func (r *TimeToMergeRule) extractParams(params types.MetricRuleParams) (*string,
 			for _, idInterface := range peersSrcControlAccountIDsArray {
 				if id, ok := idInterface.(string); ok {
 					if _, err := uuid.Parse(id); err != nil {
-						return nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid peers source control account id")
+						return nil, nil, nil, nil, nil, nil, errors.NewBadRequestError("invalid peers source control account id")
 					}
 					peersSourceControlAccountIDs = append(peersSourceControlAccountIDs, id)
 				}
@@ -143,5 +143,18 @@ func (r *TimeToMergeRule) extractParams(params types.MetricRuleParams) (*string,
 		}
 	}
 
-	return &organizationID, params.StartDate, params.EndDate, sourceControlAccountIDs, peersSourceControlAccountIDs, nil
+	// Extract pr_prefixes if present
+	prPrefixesInterface, exists := metricParams["pr_prefixes"]
+	var prPrefixes []string
+	if exists {
+		if prPrefixesArray, ok := prPrefixesInterface.([]interface{}); ok {
+			for _, prefixInterface := range prPrefixesArray {
+				if prefix, ok := prefixInterface.(string); ok {
+					prPrefixes = append(prPrefixes, prefix)
+				}
+			}
+		}
+	}
+
+	return &organizationID, params.StartDate, params.EndDate, sourceControlAccountIDs, peersSourceControlAccountIDs, prPrefixes, nil
 }

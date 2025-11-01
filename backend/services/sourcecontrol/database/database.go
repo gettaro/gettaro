@@ -32,34 +32,34 @@ type DB interface {
 	GetMemberPullRequestReviews(ctx context.Context, params *types.MemberPullRequestReviewsParams) ([]*types.MemberActivity, error)
 
 	// Calculate time to merge metrics
-	CalculateTimeToMerge(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
-	CalculateTimeToMergeGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
+	CalculateTimeToMerge(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
+	CalculateTimeToMergeGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
 
 	// Calculate PRs merged metrics
-	CalculatePRsMerged(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
-	CalculatePRsMergedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
+	CalculatePRsMerged(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
+	CalculatePRsMergedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
 
 	// Calculate PRs reviewed metrics
-	CalculatePRsReviewed(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
-	CalculatePRsReviewedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
+	CalculatePRsReviewed(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
+	CalculatePRsReviewedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
 
 	// Calculate LOC metrics
-	CalculateLOCAdded(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
-	CalculateLOCAddedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
-	CalculateLOCRemoved(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
-	CalculateLOCRemovedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
+	CalculateLOCAdded(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
+	CalculateLOCAddedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
+	CalculateLOCRemoved(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error)
+	CalculateLOCRemovedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
 
 	// Calculate PR Review Complexity metrics
-	CalculatePRReviewComplexity(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*float64, error)
-	CalculatePRReviewComplexityGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
+	CalculatePRReviewComplexity(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*float64, error)
+	CalculatePRReviewComplexityGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error)
 
 	// Calculate peer metrics (median across peers)
-	CalculateLOCAddedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
-	CalculateLOCRemovedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
-	CalculatePRsMergedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
-	CalculatePRsReviewedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
-	CalculateTimeToMergeForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
-	CalculatePRReviewComplexityForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error)
+	CalculateLOCAddedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time) (*float64, error)
+	CalculateLOCRemovedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time) (*float64, error)
+	CalculatePRsMergedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time) (*float64, error)
+	CalculatePRsReviewedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time) (*float64, error)
+	CalculateTimeToMergeForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time) (*float64, error)
+	CalculatePRReviewComplexityForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time) (*float64, error)
 }
 
 type SourceControlDB struct {
@@ -410,7 +410,7 @@ func (d *SourceControlDB) CreatePullRequest(ctx context.Context, pr *types.PullR
 }
 
 // CalculateTimeToMerge calculates the time to merge metric
-func (d *SourceControlDB) CalculateTimeToMerge(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error) {
+func (d *SourceControlDB) CalculateTimeToMerge(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error) {
 	selectStatement := ""
 	switch metricOperation {
 	case metrictypes.MetricOperationMedian:
@@ -435,7 +435,11 @@ func (d *SourceControlDB) CalculateTimeToMerge(ctx context.Context, organization
 	var args []any
 	args = append(args, organizationID, startDate, endDate)
 
-	if len(sourceControlAccountIDs) > 0 {
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += " AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
 		query += " AND pr.source_control_account_id IN ?"
 		args = append(args, sourceControlAccountIDs)
 	}
@@ -458,7 +462,7 @@ func (d *SourceControlDB) CalculateTimeToMerge(ctx context.Context, organization
 }
 
 // CalculateTimeToMergeGraph calculates the time to merge metric for a graph
-func (d *SourceControlDB) CalculateTimeToMergeGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error) {
+func (d *SourceControlDB) CalculateTimeToMergeGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error) {
 	selectStatement := ""
 	switch metricOperation {
 	case metrictypes.MetricOperationMedian:
@@ -494,7 +498,11 @@ func (d *SourceControlDB) CalculateTimeToMergeGraph(ctx context.Context, organiz
 	var args []any
 	args = append(args, organizationID, startDate, endDate)
 
-	if len(sourceControlAccountIDs) > 0 {
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += " AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
 		query += " AND pr.source_control_account_id IN ?"
 		args = append(args, sourceControlAccountIDs)
 	}
@@ -536,7 +544,7 @@ func (d *SourceControlDB) CalculateTimeToMergeGraph(ctx context.Context, organiz
 }
 
 // CalculatePRsMerged calculates the PRs merged metric
-func (d *SourceControlDB) CalculatePRsMerged(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error) {
+func (d *SourceControlDB) CalculatePRsMerged(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error) {
 	selectStatement := ""
 	switch metricOperation {
 	case metrictypes.MetricOperationCount:
@@ -559,7 +567,11 @@ func (d *SourceControlDB) CalculatePRsMerged(ctx context.Context, organizationID
 	var args []any
 	args = append(args, organizationID, startDate, endDate)
 
-	if len(sourceControlAccountIDs) > 0 {
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += " AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
 		query += " AND pr.source_control_account_id IN ?"
 		args = append(args, sourceControlAccountIDs)
 	}
@@ -576,7 +588,7 @@ func (d *SourceControlDB) CalculatePRsMerged(ctx context.Context, organizationID
 }
 
 // CalculatePRsMergedGraph calculates the PRs merged metric for a graph
-func (d *SourceControlDB) CalculatePRsMergedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error) {
+func (d *SourceControlDB) CalculatePRsMergedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error) {
 	selectStatement := ""
 	switch metricOperation {
 	case metrictypes.MetricOperationCount:
@@ -612,7 +624,11 @@ func (d *SourceControlDB) CalculatePRsMergedGraph(ctx context.Context, organizat
 	var args []any
 	args = append(args, organizationID, startDate, endDate)
 
-	if len(sourceControlAccountIDs) > 0 {
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += " AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
 		query += " AND pr.source_control_account_id IN ?"
 		args = append(args, sourceControlAccountIDs)
 	}
@@ -654,7 +670,7 @@ func (d *SourceControlDB) CalculatePRsMergedGraph(ctx context.Context, organizat
 }
 
 // CalculatePRsReviewed calculates the PRs reviewed metric
-func (d *SourceControlDB) CalculatePRsReviewed(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error) {
+func (d *SourceControlDB) CalculatePRsReviewed(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error) {
 	selectStatement := ""
 	switch metricOperation {
 	case metrictypes.MetricOperationCount:
@@ -680,6 +696,12 @@ func (d *SourceControlDB) CalculatePRsReviewed(ctx context.Context, organization
 	var args []any
 	args = append(args, startDate, endDate, organizationID, sourceControlAccountIDs)
 
+	// Filter by prefix if provided
+	if len(prPrefixes) > 0 {
+		query += " AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	}
+
 	var count int64
 	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&count).Error; err != nil {
 		return nil, err
@@ -692,7 +714,7 @@ func (d *SourceControlDB) CalculatePRsReviewed(ctx context.Context, organization
 }
 
 // CalculatePRsReviewedGraph calculates the PRs reviewed metric for a graph
-func (d *SourceControlDB) CalculatePRsReviewedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error) {
+func (d *SourceControlDB) CalculatePRsReviewedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error) {
 	selectStatement := ""
 	switch metricOperation {
 	case metrictypes.MetricOperationCount:
@@ -726,12 +748,19 @@ func (d *SourceControlDB) CalculatePRsReviewedGraph(ctx context.Context, organiz
 			AND sca.organization_id = ?
 			AND sca.id IN ?
 		)
-		GROUP BY DATE_TRUNC('` + postgresInterval + `', pr.created_at)
-		ORDER BY date
 	`
 
 	var args []any
 	args = append(args, startDate, endDate, organizationID, sourceControlAccountIDs)
+
+	// Filter by prefix if provided
+	if len(prPrefixes) > 0 {
+		query += " AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	}
+
+	query += " GROUP BY DATE_TRUNC('" + postgresInterval + "', pr.created_at)"
+	query += " ORDER BY date"
 
 	var result struct {
 		Date             time.Time `json:"date"`
@@ -764,7 +793,7 @@ func (d *SourceControlDB) CalculatePRsReviewedGraph(ctx context.Context, organiz
 }
 
 // CalculateLOCAdded calculates the lines of code added metric
-func (d *SourceControlDB) CalculateLOCAdded(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error) {
+func (d *SourceControlDB) CalculateLOCAdded(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error) {
 	selectStatement := ""
 	switch metricOperation {
 	case metrictypes.MetricOperationCount:
@@ -787,7 +816,11 @@ func (d *SourceControlDB) CalculateLOCAdded(ctx context.Context, organizationID 
 	var args []any
 	args = append(args, organizationID, startDate, endDate)
 
-	if len(sourceControlAccountIDs) > 0 {
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += " AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
 		query += " AND pr.source_control_account_id IN ?"
 		args = append(args, sourceControlAccountIDs)
 	}
@@ -804,7 +837,7 @@ func (d *SourceControlDB) CalculateLOCAdded(ctx context.Context, organizationID 
 }
 
 // CalculateLOCAddedGraph calculates the lines of code added metric for a graph
-func (d *SourceControlDB) CalculateLOCAddedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error) {
+func (d *SourceControlDB) CalculateLOCAddedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error) {
 	selectStatement := ""
 	switch metricOperation {
 	case metrictypes.MetricOperationCount:
@@ -840,7 +873,11 @@ func (d *SourceControlDB) CalculateLOCAddedGraph(ctx context.Context, organizati
 	var args []any
 	args = append(args, organizationID, startDate, endDate)
 
-	if len(sourceControlAccountIDs) > 0 {
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += " AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
 		query += " AND pr.source_control_account_id IN ?"
 		args = append(args, sourceControlAccountIDs)
 	}
@@ -882,7 +919,7 @@ func (d *SourceControlDB) CalculateLOCAddedGraph(ctx context.Context, organizati
 }
 
 // CalculateLOCRemoved calculates the lines of code removed metric
-func (d *SourceControlDB) CalculateLOCRemoved(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error) {
+func (d *SourceControlDB) CalculateLOCRemoved(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*int, error) {
 	selectStatement := ""
 	switch metricOperation {
 	case metrictypes.MetricOperationCount:
@@ -922,7 +959,7 @@ func (d *SourceControlDB) CalculateLOCRemoved(ctx context.Context, organizationI
 }
 
 // CalculateLOCRemovedGraph calculates the lines of code removed metric for a graph
-func (d *SourceControlDB) CalculateLOCRemovedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error) {
+func (d *SourceControlDB) CalculateLOCRemovedGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error) {
 	selectStatement := ""
 	switch metricOperation {
 	case metrictypes.MetricOperationCount:
@@ -958,7 +995,11 @@ func (d *SourceControlDB) CalculateLOCRemovedGraph(ctx context.Context, organiza
 	var args []any
 	args = append(args, organizationID, startDate, endDate)
 
-	if len(sourceControlAccountIDs) > 0 {
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += " AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
 		query += " AND pr.source_control_account_id IN ?"
 		args = append(args, sourceControlAccountIDs)
 	}
@@ -1000,7 +1041,7 @@ func (d *SourceControlDB) CalculateLOCRemovedGraph(ctx context.Context, organiza
 }
 
 // CalculatePRReviewComplexity calculates the PR review complexity metric
-func (d *SourceControlDB) CalculatePRReviewComplexity(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*float64, error) {
+func (d *SourceControlDB) CalculatePRReviewComplexity(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation) (*float64, error) {
 	selectStatement := ""
 	switch metricOperation {
 	case metrictypes.MetricOperationAverage:
@@ -1096,18 +1137,36 @@ func (d *SourceControlDB) CalculatePRReviewComplexity(ctx context.Context, organ
 			JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
 			WHERE pc.pr_id = pr.id 
 			AND sca.organization_id = ?
-			AND sca.id IN ?
-		)
-		-- Temporarily commented out for debugging
-		-- AND pr.source_control_account_id NOT IN (
-		-- 	SELECT sca.id FROM source_control_accounts sca 
-		-- 	WHERE sca.organization_id = ?
-		-- )
 	`
 
 	var args []any
-	args = append(args, startDate, endDate, organizationID, sourceControlAccountIDs)
-	// args = append(args, startDate, endDate, organizationID, sourceControlAccountIDs, organizationID)
+	args = append(args, startDate, endDate, organizationID)
+
+	// Only filter by source control account IDs if provided
+	if len(sourceControlAccountIDs) > 0 {
+		query += `			AND sca.id IN ?
+		)
+	`
+		args = append(args, sourceControlAccountIDs)
+	} else {
+		query += `
+		)
+	`
+	}
+
+	// Filter by prefix if provided
+	if len(prPrefixes) > 0 {
+		query += " AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
+		// If using member-based filtering, exclude PRs authored by those members
+		query += `		AND pr.source_control_account_id NOT IN (
+			SELECT sca.id FROM source_control_accounts sca 
+			WHERE sca.organization_id = ?
+		)
+	`
+		args = append(args, organizationID)
+	}
 
 	var result struct {
 		AvgReviewComplexity *float64 `json:"avg_review_complexity"`
@@ -1128,7 +1187,7 @@ func (d *SourceControlDB) CalculatePRReviewComplexity(ctx context.Context, organ
 }
 
 // CalculatePRReviewComplexityGraph calculates the PR review complexity metric for a graph
-func (d *SourceControlDB) CalculatePRReviewComplexityGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error) {
+func (d *SourceControlDB) CalculatePRReviewComplexityGraph(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, metricOperation metrictypes.MetricOperation, metricLabel string, interval string) ([]types.TimeSeriesEntry, error) {
 	selectStatement := ""
 	switch metricOperation {
 	case metrictypes.MetricOperationAverage:
@@ -1162,18 +1221,39 @@ func (d *SourceControlDB) CalculatePRReviewComplexityGraph(ctx context.Context, 
 			JOIN source_control_accounts sca ON pc.source_control_account_id = sca.id
 			WHERE pc.pr_id = pr.id 
 			AND sca.organization_id = ?
-			AND sca.id IN ?
-		)
-		AND pr.source_control_account_id NOT IN (
-			SELECT sca.id FROM source_control_accounts sca 
-			WHERE sca.organization_id = ?
-		)
-		GROUP BY DATE_TRUNC('` + postgresInterval + `', pr.created_at)
-		ORDER BY date
 	`
 
 	var args []any
-	args = append(args, startDate, endDate, organizationID, sourceControlAccountIDs, organizationID)
+	args = append(args, startDate, endDate, organizationID)
+
+	// Only filter by source control account IDs if provided
+	if len(sourceControlAccountIDs) > 0 {
+		query += `			AND sca.id IN ?
+		)
+	`
+		args = append(args, sourceControlAccountIDs)
+	} else {
+		query += `
+		)
+	`
+	}
+
+	// Filter by prefix if provided
+	if len(prPrefixes) > 0 {
+		query += " AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
+		// If using member-based filtering, exclude PRs authored by those members
+		query += `		AND pr.source_control_account_id NOT IN (
+			SELECT sca.id FROM source_control_accounts sca 
+			WHERE sca.organization_id = ?
+		)
+	`
+		args = append(args, organizationID)
+	}
+
+	query += " GROUP BY DATE_TRUNC('" + postgresInterval + "', pr.created_at)"
+	query += " ORDER BY date"
 
 	var result struct {
 		Date                time.Time `json:"date"`
@@ -1206,7 +1286,7 @@ func (d *SourceControlDB) CalculatePRReviewComplexityGraph(ctx context.Context, 
 }
 
 // CalculateLOCAddedForAccounts calculates the median LOC added across accounts
-func (d *SourceControlDB) CalculateLOCAddedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
+func (d *SourceControlDB) CalculateLOCAddedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time) (*float64, error) {
 	query := `
 		SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_total) as peer_loc_added
 		FROM (
@@ -1218,13 +1298,24 @@ func (d *SourceControlDB) CalculateLOCAddedForAccounts(ctx context.Context, orga
 			AND pr.created_at <= ?
 			AND pr.merged_at IS NOT NULL
 			AND pr.status = 'closed'
-			AND sca.id IN ?
-			GROUP BY sca.member_id
-		) member_totals
 	`
 
 	var args []any
-	args = append(args, organizationID, startDate, endDate, sourceControlAccountIDs)
+	args = append(args, organizationID, startDate, endDate)
+
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += "			AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
+		query += "			AND sca.id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	query += `
+			GROUP BY sca.member_id
+		) member_totals
+	`
 
 	var result *float64
 	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&result).Error; err != nil {
@@ -1240,7 +1331,7 @@ func (d *SourceControlDB) CalculateLOCAddedForAccounts(ctx context.Context, orga
 }
 
 // CalculateLOCRemovedForAccounts calculates the median LOC removed across accounts
-func (d *SourceControlDB) CalculateLOCRemovedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
+func (d *SourceControlDB) CalculateLOCRemovedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time) (*float64, error) {
 	query := `
 		SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_total) as peer_loc_removed
 		FROM (
@@ -1252,13 +1343,24 @@ func (d *SourceControlDB) CalculateLOCRemovedForAccounts(ctx context.Context, or
 			AND pr.created_at <= ?
 			AND pr.merged_at IS NOT NULL
 			AND pr.status = 'closed'
-			AND sca.id IN ?
-			GROUP BY sca.member_id
-		) member_totals
 	`
 
 	var args []any
-	args = append(args, organizationID, startDate, endDate, sourceControlAccountIDs)
+	args = append(args, organizationID, startDate, endDate)
+
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += "			AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
+		query += "			AND sca.id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	query += `
+			GROUP BY sca.member_id
+		) member_totals
+	`
 
 	var result *float64
 	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&result).Error; err != nil {
@@ -1274,7 +1376,7 @@ func (d *SourceControlDB) CalculateLOCRemovedForAccounts(ctx context.Context, or
 }
 
 // CalculatePRsMergedForAccounts calculates the median PRs merged across accounts
-func (d *SourceControlDB) CalculatePRsMergedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
+func (d *SourceControlDB) CalculatePRsMergedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time) (*float64, error) {
 	query := `
 		SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_total) as peer_prs_merged
 		FROM (
@@ -1286,13 +1388,24 @@ func (d *SourceControlDB) CalculatePRsMergedForAccounts(ctx context.Context, org
 			AND pr.created_at <= ?
 			AND pr.merged_at IS NOT NULL
 			AND pr.status = 'closed'
-			AND sca.id IN ?
-			GROUP BY sca.member_id
-		) member_totals
 	`
 
 	var args []any
-	args = append(args, organizationID, startDate, endDate, sourceControlAccountIDs)
+	args = append(args, organizationID, startDate, endDate)
+
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += "			AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
+		query += "			AND sca.id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	query += `
+			GROUP BY sca.member_id
+		) member_totals
+	`
 
 	var result *float64
 	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&result).Error; err != nil {
@@ -1308,7 +1421,7 @@ func (d *SourceControlDB) CalculatePRsMergedForAccounts(ctx context.Context, org
 }
 
 // CalculatePRsReviewedForAccounts calculates the median PRs reviewed across accounts
-func (d *SourceControlDB) CalculatePRsReviewedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
+func (d *SourceControlDB) CalculatePRsReviewedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time) (*float64, error) {
 	query := `
 		SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_total) as peer_prs_reviewed
 		FROM (
@@ -1319,13 +1432,24 @@ func (d *SourceControlDB) CalculatePRsReviewedForAccounts(ctx context.Context, o
 			WHERE sca.organization_id = ?
 			AND pr.created_at >= ?
 			AND pr.created_at <= ?
-			AND sca.id IN ?
-			GROUP BY sca.member_id
-		) member_totals
 	`
 
 	var args []any
-	args = append(args, organizationID, startDate, endDate, sourceControlAccountIDs)
+	args = append(args, organizationID, startDate, endDate)
+
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += "			AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
+		query += "			AND sca.id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	query += `
+			GROUP BY sca.member_id
+		) member_totals
+	`
 
 	var result *float64
 	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&result).Error; err != nil {
@@ -1341,7 +1465,7 @@ func (d *SourceControlDB) CalculatePRsReviewedForAccounts(ctx context.Context, o
 }
 
 // CalculateTimeToMergeForAccounts calculates the median time to merge across accounts
-func (d *SourceControlDB) CalculateTimeToMergeForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
+func (d *SourceControlDB) CalculateTimeToMergeForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time) (*float64, error) {
 	query := `
 		SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_avg) as peer_time_to_merge
 		FROM (
@@ -1353,13 +1477,24 @@ func (d *SourceControlDB) CalculateTimeToMergeForAccounts(ctx context.Context, o
 			AND pr.created_at <= ?
 			AND pr.merged_at IS NOT NULL
 			AND pr.status = 'closed'
-			AND sca.id IN ?
-			GROUP BY sca.member_id
-		) member_averages
 	`
 
 	var args []any
-	args = append(args, organizationID, startDate, endDate, sourceControlAccountIDs)
+	args = append(args, organizationID, startDate, endDate)
+
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += "			AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
+		query += "			AND sca.id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	query += `
+			GROUP BY sca.member_id
+		) member_averages
+	`
 
 	var result *float64
 	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&result).Error; err != nil {
@@ -1375,7 +1510,7 @@ func (d *SourceControlDB) CalculateTimeToMergeForAccounts(ctx context.Context, o
 }
 
 // CalculatePRReviewComplexityForAccounts calculates the median PR review complexity across accounts
-func (d *SourceControlDB) CalculatePRReviewComplexityForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, startDate, endDate time.Time) (*float64, error) {
+func (d *SourceControlDB) CalculatePRReviewComplexityForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time) (*float64, error) {
 	query := `
 		SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_avg) as peer_pr_review_complexity
 		FROM (
@@ -1387,13 +1522,24 @@ func (d *SourceControlDB) CalculatePRReviewComplexityForAccounts(ctx context.Con
 			AND pr.created_at >= ?
 			AND pr.created_at <= ?
 			AND pc.type = 'REVIEW'
-			AND sca.id IN ?
-			GROUP BY sca.member_id
-		) member_averages
 	`
 
 	var args []any
-	args = append(args, organizationID, startDate, endDate, sourceControlAccountIDs)
+	args = append(args, organizationID, startDate, endDate)
+
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += "			AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
+		query += "			AND sca.id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	query += `
+			GROUP BY sca.member_id
+		) member_averages
+	`
 
 	var result *float64
 	if err := d.db.WithContext(ctx).Raw(query, args...).Scan(&result).Error; err != nil {
