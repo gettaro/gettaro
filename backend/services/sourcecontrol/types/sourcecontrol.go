@@ -36,6 +36,7 @@ type PullRequest struct {
 	Additions              int            `json:"additions"`
 	Deletions              int            `json:"deletions"`
 	ChangedFiles           int            `json:"changed_files"`
+	Prefix                 *string        `json:"prefix"`
 	Metrics                datatypes.JSON `json:"metrics"`
 	Metadata               datatypes.JSON `json:"metadata"`
 }
@@ -58,6 +59,7 @@ type PullRequestParams struct {
 	OrganizationID *string
 	RepositoryName string
 	UserIDs        []string
+	Prefix         *string
 	StartDate      *time.Time
 	EndDate        *time.Time
 	Status         string // "open", "closed", "merged"

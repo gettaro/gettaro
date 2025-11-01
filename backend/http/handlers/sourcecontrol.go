@@ -97,10 +97,16 @@ func (h *SourceControlHandler) ListOrganizationPullRequests(c *gin.Context) {
 	}
 
 	// Get pull requests from service
+	var prefix *string
+	if query.Prefix != "" {
+		prefix = &query.Prefix
+	}
+
 	prs, err := h.scApi.GetPullRequests(c.Request.Context(), &servicetypes.PullRequestParams{
 		OrganizationID: &orgID,
 		UserIDs:        query.UserIDs,
 		RepositoryName: query.RepositoryName,
+		Prefix:         prefix,
 		StartDate:      startDate,
 		EndDate:        endDate,
 		Status:         query.Status,

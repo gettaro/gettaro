@@ -404,6 +404,7 @@ export default class Api {
   static async getOrganizationPullRequests(organizationId: string, params?: {
     userIds?: string[]
     repositoryName?: string
+    prefix?: string
     startDate?: string
     endDate?: string
     status?: string
@@ -416,6 +417,9 @@ export default class Api {
     }
     if (params?.repositoryName) {
       queryParams.append('repositoryName', params.repositoryName)
+    }
+    if (params?.prefix) {
+      queryParams.append('prefix', params.prefix)
     }
     if (params?.startDate) {
       queryParams.append('startDate', params.startDate)

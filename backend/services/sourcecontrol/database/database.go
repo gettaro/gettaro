@@ -142,6 +142,10 @@ func (d *SourceControlDB) GetPullRequests(ctx context.Context, params *types.Pul
 	if params.Status != "" {
 		query = query.Where("pull_requests.status = ?", params.Status)
 	}
+	// Add prefix filter if provided
+	if params.Prefix != nil && *params.Prefix != "" {
+		query = query.Where("pull_requests.prefix = ?", *params.Prefix)
+	}
 	// Add user IDs filter if provided - convert to member IDs
 	if len(params.UserIDs) > 0 {
 		query = query.Where("om.user_id IN ?", params.UserIDs)

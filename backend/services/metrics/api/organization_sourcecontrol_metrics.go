@@ -84,35 +84,29 @@ func (a *Api) CalculateOrganizationSourceControlMetrics(ctx context.Context, par
 	if len(filteredTeams) > 0 {
 		teamsBreakdown = make([]types.TeamMetricsBreakdown, 0, len(filteredTeams))
 		for _, team := range filteredTeams {
-			// Get member IDs for this team
-			teamMemberIDs := make([]string, 0, len(team.Members))
-			for _, teamMember := range team.Members {
-				teamMemberIDs = append(teamMemberIDs, teamMember.MemberID)
-			}
+			// Always use team prefix for filtering
+			if team.PRPrefix != nil && *team.PRPrefix != "" {
+				// Calculate metrics for this team using prefix
+				teamMetrics, err := a.calculateMetricsForPrefix(ctx, params, *team.PRPrefix)
+				if err != nil {
+					return nil, err
+				}
 
-			if len(teamMemberIDs) == 0 {
-				// Team has no members, add empty metrics
+				teamsBreakdown = append(teamsBreakdown, types.TeamMetricsBreakdown{
+					TeamID:          team.ID,
+					TeamName:        team.Name,
+					SnapshotMetrics: teamMetrics.SnapshotMetrics,
+					GraphMetrics:    teamMetrics.GraphMetrics,
+				})
+			} else {
+				// Team has no prefix, add empty metrics
 				teamsBreakdown = append(teamsBreakdown, types.TeamMetricsBreakdown{
 					TeamID:          team.ID,
 					TeamName:        team.Name,
 					SnapshotMetrics: []*sourcecontroltypes.SnapshotCategory{},
 					GraphMetrics:    []*sourcecontroltypes.GraphCategory{},
 				})
-				continue
 			}
-
-			// Calculate metrics for this team
-			teamMetrics, err := a.calculateMetricsForMembers(ctx, params, teamMemberIDs)
-			if err != nil {
-				return nil, err
-			}
-
-			teamsBreakdown = append(teamsBreakdown, types.TeamMetricsBreakdown{
-				TeamID:          team.ID,
-				TeamName:        team.Name,
-				SnapshotMetrics: teamMetrics.SnapshotMetrics,
-				GraphMetrics:    teamMetrics.GraphMetrics,
-			})
 		}
 	}
 
@@ -152,6 +146,64 @@ func (a *Api) calculateMetricsForMembers(ctx context.Context, params types.Organ
 			SnapshotMetrics: []*sourcecontroltypes.SnapshotCategory{},
 			GraphMetrics:    []*sourcecontroltypes.GraphCategory{},
 		}, nil
+	}
+
+	// Create the metric params with the source control account IDs
+	metricParamsMap := map[string]interface{}{
+		"organizationId":          params.OrganizationID,
+		"sourceControlAccountIDs": sourceControlAccountIDs,
+	}
+
+	// Marshal to JSON bytes
+	metricParamsJSON, err := json.Marshal(metricParamsMap)
+	if err != nil {
+		return nil, err
+	}
+
+	interval := params.Interval
+	if interval == "" {
+		interval = "monthly" // default
+	}
+
+	metricParams := sourcecontroltypes.MetricRuleParams{
+		MetricParams: datatypes.JSON(metricParamsJSON),
+		StartDate:    params.StartDate,
+		EndDate:      params.EndDate,
+		Interval:     interval,
+	}
+
+	return a.sourceControlApi.CalculateMetrics(ctx, metricParams)
+}
+
+// calculateMetricsForPrefix is a helper function that calculates metrics for a team prefix
+func (a *Api) calculateMetricsForPrefix(ctx context.Context, params types.OrganizationMetricsParams, prefix string) (*sourcecontroltypes.MetricsResponse, error) {
+	// Get all PRs with this prefix in the organization
+	prs, err := a.sourceControlApi.GetPullRequests(ctx, &sourcecontroltypes.PullRequestParams{
+		OrganizationID: &params.OrganizationID,
+		Prefix:         &prefix,
+		StartDate:      params.StartDate,
+		EndDate:        params.EndDate,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(prs) == 0 {
+		// Return empty metrics response
+		return &sourcecontroltypes.MetricsResponse{
+			SnapshotMetrics: []*sourcecontroltypes.SnapshotCategory{},
+			GraphMetrics:    []*sourcecontroltypes.GraphCategory{},
+		}, nil
+	}
+
+	// Get source control account IDs from the PRs
+	sourceControlAccountIDs := make([]string, 0, len(prs))
+	accountIDMap := make(map[string]bool)
+	for _, pr := range prs {
+		if !accountIDMap[pr.SourceControlAccountID] {
+			accountIDMap[pr.SourceControlAccountID] = true
+			sourceControlAccountIDs = append(sourceControlAccountIDs, pr.SourceControlAccountID)
+		}
 	}
 
 	// Create the metric params with the source control account IDs

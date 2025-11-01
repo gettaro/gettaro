@@ -9,6 +9,7 @@ import (
 type ListOrganizationPullRequestsQuery struct {
 	UserIDs        []string `form:"userIds" binding:"omitempty"`
 	RepositoryName string   `form:"repositoryName" binding:"omitempty"`
+	Prefix         string   `form:"prefix" binding:"omitempty"`
 	StartDate      string   `form:"startDate" binding:"omitempty,datetime=2006-01-02"`
 	EndDate        string   `form:"endDate" binding:"omitempty,datetime=2006-01-02"`
 	Status         string   `form:"status" binding:"omitempty,oneof=open closed merged"`

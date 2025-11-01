@@ -14,6 +14,8 @@ import (
 	"ems.dev/backend/services/integration/types"
 	sourcecontrolapi "ems.dev/backend/services/sourcecontrol/api"
 	internaltypes "ems.dev/backend/services/sourcecontrol/types"
+	teamapi "ems.dev/backend/services/team/api"
+	teamtypes "ems.dev/backend/services/team/types"
 	"github.com/samber/lo"
 	"gorm.io/datatypes"
 )
@@ -22,17 +24,20 @@ type GitHubProvider struct {
 	githubClient     github.GithubClient
 	integrationAPI   api.IntegrationAPI
 	sourceControlAPI sourcecontrolapi.SourceControlAPI
+	teamAPI          teamapi.TeamAPI
 }
 
 func NewProvider(
 	githubClient github.GithubClient,
 	integrationAPI api.IntegrationAPI,
 	sourceControlAPI sourcecontrolapi.SourceControlAPI,
+	teamAPI teamapi.TeamAPI,
 ) *GitHubProvider {
 	return &GitHubProvider{
 		githubClient:     githubClient,
 		integrationAPI:   integrationAPI,
 		sourceControlAPI: sourceControlAPI,
+		teamAPI:          teamAPI,
 	}
 }
 
@@ -46,6 +51,37 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 	token, err := p.integrationAPI.DecryptToken(config.EncryptedToken)
 	if err != nil {
 		return fmt.Errorf("failed to decrypt token: %w", err)
+	}
+
+	// Get all teams for the organization and extract their PR prefixes
+	teams, err := p.teamAPI.ListTeams(ctx, teamtypes.TeamSearchParams{
+		OrganizationID: &config.OrganizationID,
+	})
+	if err != nil {
+		// Log error but don't fail - prefix matching is optional
+		fmt.Printf("Warning: failed to fetch teams for prefix matching: %v\n", err)
+	}
+
+	// Extract prefixes from teams (filter out empty/null prefixes)
+	prefixes := []string{}
+	for _, team := range teams {
+		if team.PRPrefix != nil && *team.PRPrefix != "" {
+			prefixes = append(prefixes, *team.PRPrefix)
+		}
+	}
+
+	// Helper function to find matching prefix for a PR title
+	// Matches if title starts with prefix followed by a hyphen (e.g., "WL-123: Fix bug")
+	findPrefixForTitle := func(title string) *string {
+		upperTitle := strings.ToUpper(title)
+		for _, prefix := range prefixes {
+			prefixWithHyphen := strings.ToUpper(prefix) + "-"
+			// Check if title starts with the prefix followed by a hyphen (case-insensitive)
+			if strings.HasPrefix(upperTitle, prefixWithHyphen) {
+				return &prefix
+			}
+		}
+		return nil
 	}
 
 	// Process each repository
@@ -115,6 +151,10 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 
 			// 5. Insert/Update PR
 			prDetailsBytes, _ := json.Marshal(prDetails)
+
+			// Match PR title with team prefixes
+			matchedPrefix := findPrefixForTitle(prDetails.Title)
+
 			sourceControlPR := &internaltypes.PullRequest{
 				SourceControlAccountID: authorAccount.ID,
 				ProviderID:             fmt.Sprintf("%d", prDetails.ID),
@@ -131,6 +171,7 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 				Deletions:              prDetails.Deletions,
 				ChangedFiles:           prDetails.ChangedFiles,
 				URL:                    prDetails.URL,
+				Prefix:                 matchedPrefix,
 				Metadata:               datatypes.JSON(prDetailsBytes),
 			}
 

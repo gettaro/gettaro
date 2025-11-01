@@ -108,7 +108,7 @@ func main() {
 	if os.Getenv("JOBS_ENABLED") == "true" {
 		log.Println("Jobs are enabled")
 		syncInterval := getSyncInterval()
-		githubProvider := githubprovider.NewProvider(github.NewClient(), integrationApi, sourcecontrolApi)
+		githubProvider := githubprovider.NewProvider(github.NewClient(), integrationApi, sourcecontrolApi, teamApi)
 		scProviderFactory := scprovider.NewFactory([]scprovider.SourceControlProvider{githubProvider})
 		syncJob := sourcecontrol.NewSyncJob(integrationApi, orgApi, scProviderFactory)
 		//go syncJob.Run(context.Background())

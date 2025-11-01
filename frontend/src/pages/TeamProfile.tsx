@@ -85,30 +85,32 @@ export default function TeamProfilePage() {
 
   // Load open PRs for team members
   useEffect(() => {
-    if (!currentOrganization?.id || !team || members.length === 0) return
+    if (!currentOrganization?.id || !team) return
 
     const loadOpenPRs = async () => {
       setOpenPRsLoading(true)
       try {
-        // Get user IDs from members
-        const memberUserIds = members.map(m => m.user_id).filter(Boolean) as string[]
-        
-        if (memberUserIds.length > 0) {
+        // Always use team prefix for filtering
+        if (team.pr_prefix) {
           const prs = await Api.getOrganizationPullRequests(currentOrganization.id, {
-            userIds: memberUserIds,
+            prefix: team.pr_prefix,
             status: 'open'
           })
           setOpenPRs(prs)
+        } else {
+          // No prefix, return empty array
+          setOpenPRs([])
         }
       } catch (err) {
         console.error('Error loading open PRs:', err)
+        setOpenPRs([])
       } finally {
         setOpenPRsLoading(false)
       }
     }
 
     loadOpenPRs()
-  }, [currentOrganization?.id, team, members])
+  }, [currentOrganization?.id, team])
 
   // Load all PRs for team members in date range
   useEffect(() => {
@@ -116,31 +118,19 @@ export default function TeamProfilePage() {
       return
     }
 
-    // Wait for members to load before fetching PRs
-    if (members.length === 0 && team.members.length > 0) {
-      // Members are still loading, wait
-      return
-    }
-
     const loadAllPRs = async () => {
       setAllPRsLoading(true)
       try {
-        // If we have members, filter by their user IDs
-        if (members.length > 0) {
-          const memberUserIds = members.map(m => m.user_id).filter(Boolean) as string[]
-          
-          if (memberUserIds.length > 0) {
-            const prs = await Api.getOrganizationPullRequests(currentOrganization.id, {
-              userIds: memberUserIds,
-              startDate: dateParams.startDate,
-              endDate: dateParams.endDate
-            })
-            setAllPRs(prs)
-          } else {
-            setAllPRs([])
-          }
+        // Always use team prefix for filtering
+        if (team.pr_prefix) {
+          const prs = await Api.getOrganizationPullRequests(currentOrganization.id, {
+            prefix: team.pr_prefix,
+            startDate: dateParams.startDate,
+            endDate: dateParams.endDate
+          })
+          setAllPRs(prs)
         } else {
-          // No members in team
+          // No prefix, return empty array
           setAllPRs([])
         }
       } catch (err) {
@@ -152,7 +142,7 @@ export default function TeamProfilePage() {
     }
 
     loadAllPRs()
-  }, [currentOrganization?.id, team, members, dateParams.startDate, dateParams.endDate, activeTab])
+  }, [currentOrganization?.id, team, dateParams.startDate, dateParams.endDate, activeTab])
 
   // Load metrics
   useEffect(() => {
