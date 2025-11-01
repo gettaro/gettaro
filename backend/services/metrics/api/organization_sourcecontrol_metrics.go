@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 
-	membertypes "ems.dev/backend/services/member/types"
 	"ems.dev/backend/services/metrics/types"
 	sourcecontroltypes "ems.dev/backend/services/sourcecontrol/types"
 	teamtypes "ems.dev/backend/services/team/types"
@@ -21,12 +20,17 @@ import (
 func (a *Api) CalculateOrganizationSourceControlMetrics(ctx context.Context, params types.OrganizationMetricsParams) (*types.OrganizationMetricsResponse, error) {
 	var allTeams []teamtypes.Team
 	var filteredTeams []teamtypes.Team
-	var memberIDs []string
 
+	// Calculate metrics for the entire organization
+	cumulativeMetrics, err := a.calculateMetricsForOrganization(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+
+	teamsBreakdown := []types.TeamMetricsBreakdown{}
 	// Get teams if we need them
 	if len(params.TeamIDs) > 0 {
 		// Get all teams for the organization in one query
-		var err error
 		allTeams, err = a.teamApi.ListTeams(ctx, teamtypes.TeamSearchParams{
 			OrganizationID: &params.OrganizationID,
 		})
@@ -40,48 +44,14 @@ func (a *Api) CalculateOrganizationSourceControlMetrics(ctx context.Context, par
 			requestedTeamIDs[teamID] = true
 		}
 
-		// Filter teams to only the ones we need and collect member IDs
-		memberIDMap := make(map[string]bool)
+		// Filter teams to only the ones we need
 		for _, team := range allTeams {
 			if requestedTeamIDs[team.ID] {
 				filteredTeams = append(filteredTeams, team)
-				for _, teamMember := range team.Members {
-					if !memberIDMap[teamMember.MemberID] {
-						memberIDMap[teamMember.MemberID] = true
-						memberIDs = append(memberIDs, teamMember.MemberID)
-					}
-				}
 			}
 		}
-	} else {
-		// Get all organization members
-		orgMembers, err := a.memberApi.GetOrganizationMembers(ctx, params.OrganizationID, &membertypes.OrganizationMemberParams{})
-		if err != nil {
-			return nil, err
-		}
-		for _, member := range orgMembers {
-			memberIDs = append(memberIDs, member.ID)
-		}
-	}
 
-	if len(memberIDs) == 0 {
-		// Return empty metrics response
-		return &types.OrganizationMetricsResponse{
-			SnapshotMetrics: []*sourcecontroltypes.SnapshotCategory{},
-			GraphMetrics:    []*sourcecontroltypes.GraphCategory{},
-			TeamsBreakdown:  []types.TeamMetricsBreakdown{},
-		}, nil
-	}
-
-	// Calculate cumulative metrics for all members
-	cumulativeMetrics, err := a.calculateMetricsForMembers(ctx, params, memberIDs)
-	if err != nil {
-		return nil, err
-	}
-
-	// Calculate per-team breakdown if teams were specified
-	var teamsBreakdown []types.TeamMetricsBreakdown
-	if len(filteredTeams) > 0 {
+		// Calculate per-team breakdown for the specified teams
 		teamsBreakdown = make([]types.TeamMetricsBreakdown, 0, len(filteredTeams))
 		for _, team := range filteredTeams {
 			// Always use team prefix for filtering
@@ -115,43 +85,15 @@ func (a *Api) CalculateOrganizationSourceControlMetrics(ctx context.Context, par
 		GraphMetrics:    cumulativeMetrics.GraphMetrics,
 		TeamsBreakdown:  teamsBreakdown,
 	}, nil
+
 }
 
-// calculateMetricsForMembers is a helper function that calculates metrics for a set of member IDs
-func (a *Api) calculateMetricsForMembers(ctx context.Context, params types.OrganizationMetricsParams, memberIDs []string) (*sourcecontroltypes.MetricsResponse, error) {
-	if len(memberIDs) == 0 {
-		return &sourcecontroltypes.MetricsResponse{
-			SnapshotMetrics: []*sourcecontroltypes.SnapshotCategory{},
-			GraphMetrics:    []*sourcecontroltypes.GraphCategory{},
-		}, nil
-	}
-
-	// Get source control accounts for these members
-	sourceControlAccounts, err := a.sourceControlApi.GetSourceControlAccounts(ctx, &sourcecontroltypes.SourceControlAccountParams{
-		OrganizationID: params.OrganizationID,
-		MemberIDs:      memberIDs,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	sourceControlAccountIDs := []string{}
-	for _, account := range sourceControlAccounts {
-		sourceControlAccountIDs = append(sourceControlAccountIDs, account.ID)
-	}
-
-	if len(sourceControlAccountIDs) == 0 {
-		// Return empty metrics response
-		return &sourcecontroltypes.MetricsResponse{
-			SnapshotMetrics: []*sourcecontroltypes.SnapshotCategory{},
-			GraphMetrics:    []*sourcecontroltypes.GraphCategory{},
-		}, nil
-	}
-
-	// Create the metric params with the source control account IDs
+// calculateMetricsForOrganization calculates metrics for the entire organization without filtering by members
+func (a *Api) calculateMetricsForOrganization(ctx context.Context, params types.OrganizationMetricsParams) (*sourcecontroltypes.MetricsResponse, error) {
+	// Create the metric params with only organization ID (no sourceControlAccountIDs or pr_prefixes)
+	// This will make the metrics engine calculate metrics for all PRs in the organization
 	metricParamsMap := map[string]interface{}{
-		"organizationId":          params.OrganizationID,
-		"sourceControlAccountIDs": sourceControlAccountIDs,
+		"organizationId": params.OrganizationID,
 	}
 
 	// Marshal to JSON bytes

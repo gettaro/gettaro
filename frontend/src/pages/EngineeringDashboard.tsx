@@ -1,15 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useOrganizationStore } from '../stores/organization'
 import Api from '../api/api'
 import { PullRequest } from '../types/sourcecontrol'
 import { OrganizationMetricsResponse } from '../types/organizationMetrics'
-import { Team } from '../types/team'
+import { Team, TeamType } from '../types/team'
 import { Member } from '../types/member'
 import MetricChart from '../components/MetricChart'
 import MetricInfoButton from '../components/MetricInfoButton'
 import PullRequestItem from '../components/PullRequestItem'
-import { formatMetricValue } from '../utils/formatMetrics'
 
 type TabType = 'engineering-productivity' | 'tech-health' | 'teams'
 
@@ -47,6 +46,7 @@ export default function EngineeringDashboard() {
   const [teamMetricsLoading, setTeamMetricsLoading] = useState<Set<string>>(new Set())
   const [teamGraphIndices, setTeamGraphIndices] = useState<Map<string, number>>(new Map())
   const [currentGraphIndex, setCurrentGraphIndex] = useState(0)
+  const [selectedTeamType, setSelectedTeamType] = useState<TeamType | 'all'>('squad')
 
   // Load teams
   useEffect(() => {
@@ -54,7 +54,7 @@ export default function EngineeringDashboard() {
     
     const loadTeams = async () => {
       try {
-        const response = await Api.get(`/organizations/${currentOrganization.id}/teams`)
+        const response = await Api.listTeams(currentOrganization.id)
         setTeams(response.teams || [])
       } catch (err) {
         console.error('Error loading teams:', err)
@@ -169,43 +169,60 @@ export default function EngineeringDashboard() {
     }
   }
 
-  // Load metrics for a specific team
-  const loadTeamMetrics = async (teamId: string) => {
-    if (!currentOrganization?.id) return
-
-    setTeamMetricsLoading(prev => new Set(prev).add(teamId))
-    try {
-      const metricsData = await Api.getOrganizationMetrics(currentOrganization.id, {
-        startDate: dateParams.startDate,
-        endDate: dateParams.endDate,
-        interval: dateParams.interval,
-        teamIds: [teamId]
-      })
-      setTeamMetrics(prev => {
-        const newMap = new Map(prev)
-        newMap.set(teamId, metricsData)
-        return newMap
-      })
-    } catch (err) {
-      console.error('Error loading team metrics:', err)
-    } finally {
-      setTeamMetricsLoading(prev => {
-        const newSet = new Set(prev)
-        newSet.delete(teamId)
-        return newSet
-      })
+  // Filter teams by type
+  const filteredTeams = useMemo(() => {
+    if (selectedTeamType === 'all') {
+      return teams
     }
-  }
+    // Filter teams that have the selected type (exclude teams without a type or with a different type)
+    const filtered = teams.filter(team => {
+      // Only include teams that have a type set and match the selected type
+      return team.type === selectedTeamType
+    })
+    return filtered
+  }, [teams, selectedTeamType])
 
   // Load metrics for all teams when Teams tab is active
   useEffect(() => {
-    if (activeTab === 'teams' && currentOrganization?.id && teams.length > 0) {
-      teams.forEach(team => {
-        loadTeamMetrics(team.id)
-      })
+    if (activeTab === 'teams' && currentOrganization?.id && filteredTeams.length > 0) {
+      const loadAllTeamMetrics = async () => {
+        // Mark all teams as loading
+        setTeamMetricsLoading(new Set(filteredTeams.map(t => t.id)))
+        
+        try {
+          // Make one request with all team IDs
+          const allTeamIds = filteredTeams.map(team => team.id)
+          const metricsData = await Api.getOrganizationMetrics(currentOrganization.id, {
+            startDate: dateParams.startDate,
+            endDate: dateParams.endDate,
+            interval: dateParams.interval,
+            teamIds: allTeamIds
+          })
+          
+          // Extract team-specific metrics from teams_breakdown
+          const newTeamMetrics = new Map<string, OrganizationMetricsResponse>()
+          if (metricsData.teams_breakdown && metricsData.teams_breakdown.length > 0) {
+            metricsData.teams_breakdown.forEach(teamBreakdown => {
+              // Create a response with team-specific metrics
+              newTeamMetrics.set(teamBreakdown.team_id, {
+                snapshot_metrics: teamBreakdown.snapshot_metrics || [],
+                graph_metrics: teamBreakdown.graph_metrics || []
+              })
+            })
+          }
+          
+          setTeamMetrics(newTeamMetrics)
+        } catch (err) {
+          console.error('Error loading team metrics:', err)
+        } finally {
+          setTeamMetricsLoading(new Set())
+        }
+      }
+      
+      loadAllTeamMetrics()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, currentOrganization?.id, teams.map(t => t.id).join(','), dateParams.startDate, dateParams.endDate, dateParams.interval])
+  }, [activeTab, currentOrganization?.id, selectedTeamType, filteredTeams.map(t => t.id).join(','), dateParams.startDate, dateParams.endDate, dateParams.interval])
 
   const getMemberName = (memberId: string) => {
     const member = members.find(m => m.id === memberId)
@@ -757,6 +774,25 @@ export default function EngineeringDashboard() {
               <div className="flex flex-wrap items-end gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
+                    Team Type
+                  </label>
+                  <select
+                    value={selectedTeamType}
+                    onChange={(e) => {
+                      const newType = e.target.value as TeamType | 'all'
+                      setSelectedTeamType(newType)
+                    }}
+                    className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                  >
+                    <option value="all">All Types</option>
+                    <option value="squad">Squad</option>
+                    <option value="chapter">Chapter</option>
+                    <option value="tribe">Tribe</option>
+                    <option value="guild">Guild</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
                     Start Date
                   </label>
                   <input
@@ -795,13 +831,18 @@ export default function EngineeringDashboard() {
             </div>
 
             {/* Team Cards */}
-            {teams.length === 0 ? (
+            {filteredTeams.length === 0 ? (
               <div className="bg-card rounded-lg p-6 text-center">
-                <p className="text-muted-foreground">No teams found</p>
+                <p className="text-muted-foreground">
+                  {teams.length === 0 
+                    ? 'No teams found' 
+                    : `No teams found for type: ${selectedTeamType === 'all' ? 'All Types' : selectedTeamType}`
+                  }
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {teams.map((team) => {
+                {filteredTeams.map((team) => {
                   const teamMetricsData = teamMetrics.get(team.id)
                   const isLoading = teamMetricsLoading.has(team.id)
                   
