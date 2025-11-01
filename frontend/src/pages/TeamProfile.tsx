@@ -342,12 +342,13 @@ export default function TeamProfilePage() {
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {members.map((member) => (
-                        <span
+                        <button
                           key={member.id}
-                          className="px-3 py-1 bg-background rounded border border-border text-sm"
+                          onClick={() => navigate(`/members/${member.id}/profile`)}
+                          className="px-3 py-1 bg-background rounded border border-border text-sm hover:bg-primary/10 hover:border-primary/50 cursor-pointer transition-colors text-left"
                         >
                           {member.username} ({member.email})
-                        </span>
+                        </button>
                       ))}
                     </div>
                   )}
