@@ -77,6 +77,7 @@ func (h *TeamHandler) CreateTeam(c *gin.Context) {
 		Name:           req.Name,
 		Description:    req.Description,
 		Type:           req.Type,
+		PRPrefix:       req.PRPrefix,
 		OrganizationID: orgID,
 	}
 
@@ -197,6 +198,9 @@ func (h *TeamHandler) UpdateTeam(c *gin.Context) {
 	}
 	if req.Type != nil {
 		teamParams.Type = req.Type
+	}
+	if req.PRPrefix != nil {
+		teamParams.PRPrefix = req.PRPrefix
 	}
 
 	if err := h.teamApi.UpdateTeam(c.Request.Context(), teamID, teamParams); err != nil {

@@ -43,6 +43,10 @@ components:
           type: string
           enum: [squad, chapter, tribe, guild]
           nullable: true
+        pr_prefix:
+          type: string
+          nullable: true
+          description: Optional prefix for pull requests (e.g., FE, BE, API)
         organization_id: { type: string }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
@@ -1411,6 +1415,10 @@ paths:
                 type: 
                   type: string
                   enum: [squad, chapter, tribe, guild]
+                pr_prefix:
+                  type: string
+                  nullable: true
+                  description: Optional prefix for pull requests (e.g., FE, BE, API)
               required:
                 - name
       responses:
@@ -1488,6 +1496,10 @@ paths:
                 type: 
                   type: string
                   enum: [squad, chapter, tribe, guild]
+                pr_prefix:
+                  type: string
+                  nullable: true
+                  description: Optional prefix for pull requests (e.g., FE, BE, API)
       responses:
         "200":
           description: Team updated

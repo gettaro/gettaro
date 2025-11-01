@@ -42,13 +42,15 @@ export default function MembersAndTeams() {
     name: '',
     description: '',
     type: undefined,
+    pr_prefix: undefined,
     organization_id: ''
   })
 
   const [updateTeamFormData, setUpdateTeamFormData] = useState<UpdateTeamRequest>({
     name: '',
     description: '',
-    type: undefined
+    type: undefined,
+    pr_prefix: undefined
   })
 
   // Group teams by type
@@ -168,7 +170,7 @@ export default function MembersAndTeams() {
       })
       
       setIsCreateTeamModalOpen(false)
-      setCreateTeamFormData({ name: '', description: '', type: undefined, organization_id: '' })
+      setCreateTeamFormData({ name: '', description: '', type: undefined, pr_prefix: undefined, organization_id: '' })
       loadTeams()
     } catch (err) {
       console.error('Error creating team:', err)
@@ -196,7 +198,7 @@ export default function MembersAndTeams() {
       
       setIsEditTeamModalOpen(false)
       setSelectedTeam(null)
-      setUpdateTeamFormData({ name: '', description: '', type: undefined })
+      setUpdateTeamFormData({ name: '', description: '', type: undefined, pr_prefix: undefined })
       loadTeams()
     } catch (err) {
       console.error('Error updating team:', err)
@@ -288,7 +290,7 @@ export default function MembersAndTeams() {
 
   const openEditTeamModal = (team: Team) => {
     setSelectedTeam(team)
-    setUpdateTeamFormData({ name: team.name, description: team.description, type: team.type })
+    setUpdateTeamFormData({ name: team.name, description: team.description, type: team.type, pr_prefix: team.pr_prefix })
     setIsEditTeamModalOpen(true)
   }
 
@@ -668,11 +670,21 @@ export default function MembersAndTeams() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="text-lg font-semibold text-foreground truncate">{team.name}</h3>
-                            {team.type && (
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded mt-1 ${getTeamTypeColor(team.type)} border`}>
-                                {team.type.charAt(0).toUpperCase() + team.type.slice(1)}
-                              </span>
-                            )}
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              {team.type && (
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded ${getTeamTypeColor(team.type)} border`}>
+                                  {team.type.charAt(0).toUpperCase() + team.type.slice(1)}
+                                </span>
+                              )}
+                              {team.pr_prefix && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded bg-muted text-muted-foreground border border-border">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                                  </svg>
+                                  PR: {team.pr_prefix}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
@@ -1006,6 +1018,17 @@ export default function MembersAndTeams() {
                     <option value="guild">Guild</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">PR Prefix</label>
+                  <input
+                    type="text"
+                    value={createTeamFormData.pr_prefix || ''}
+                    onChange={(e) => setCreateTeamFormData({ ...createTeamFormData, pr_prefix: e.target.value || undefined })}
+                    className="w-full px-3 py-2 border border-border rounded-md"
+                    placeholder="e.g., FE, BE, API"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Optional prefix for pull requests (e.g., FE, BE, API)</p>
+                </div>
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
@@ -1066,6 +1089,17 @@ export default function MembersAndTeams() {
                     <option value="tribe">Tribe</option>
                     <option value="guild">Guild</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">PR Prefix</label>
+                  <input
+                    type="text"
+                    value={updateTeamFormData.pr_prefix || ''}
+                    onChange={(e) => setUpdateTeamFormData({ ...updateTeamFormData, pr_prefix: e.target.value || undefined })}
+                    className="w-full px-3 py-2 border border-border rounded-md"
+                    placeholder="e.g., FE, BE, API"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Optional prefix for pull requests (e.g., FE, BE, API)</p>
                 </div>
               </div>
 

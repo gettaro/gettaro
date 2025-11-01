@@ -23,6 +23,7 @@ type Team struct {
 	Name           string    `json:"name"`
 	Description    string    `json:"description"`
 	Type           *TeamType `json:"type" gorm:"type:varchar(50);check:type IN ('squad', 'chapter', 'tribe', 'guild')"`
+	PRPrefix       *string   `json:"pr_prefix" gorm:"type:varchar(255)"`
 	OrganizationID string    `json:"organization_id" gorm:"type:uuid"`
 	CreatedAt      time.Time `json:"created_at" gorm:"default:now()"`
 	UpdatedAt      time.Time `json:"updated_at"`
@@ -57,6 +58,7 @@ type CreateTeamRequest struct {
 	Name           string    `json:"name" binding:"required"`
 	Description    string    `json:"description"`
 	Type           *TeamType  `json:"type" binding:"omitempty,oneof=squad chapter tribe guild"`
+	PRPrefix       *string   `json:"pr_prefix"`
 	OrganizationID string    `json:"organization_id" binding:"required"`
 }
 
@@ -65,6 +67,7 @@ type UpdateTeamRequest struct {
 	Name        *string    `json:"name"`
 	Description *string   `json:"description"`
 	Type        *TeamType  `json:"type" binding:"omitempty,oneof=squad chapter tribe guild"`
+	PRPrefix    *string   `json:"pr_prefix"`
 }
 
 // AddTeamMemberRequest represents the request body for adding a member to a team

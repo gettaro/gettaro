@@ -5,6 +5,7 @@ export interface Team {
   name: string
   description: string
   type?: TeamType
+  pr_prefix?: string
   organization_id: string
   created_at: string
   updated_at: string
@@ -22,6 +23,7 @@ export interface CreateTeamRequest {
   name: string
   description: string
   type?: TeamType
+  pr_prefix?: string
   organization_id: string
 }
 
@@ -29,6 +31,7 @@ export interface UpdateTeamRequest {
   name?: string
   description?: string
   type?: TeamType
+  pr_prefix?: string
 }
 
 export interface AddTeamMemberRequest {

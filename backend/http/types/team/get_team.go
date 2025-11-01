@@ -11,6 +11,7 @@ type TeamResponse struct {
 	Name           string           `json:"name"`
 	Description    string           `json:"description"`
 	Type           *string          `json:"type"`
+	PRPrefix       *string          `json:"pr_prefix"`
 	OrganizationID string           `json:"organization_id"`
 	CreatedAt      time.Time        `json:"created_at"`
 	UpdatedAt      time.Time        `json:"updated_at"`
@@ -51,6 +52,7 @@ func GetTeamResponse(t *types.Team) TeamResponse {
 		Name:           t.Name,
 		Description:    t.Description,
 		Type:           teamType,
+		PRPrefix:        t.PRPrefix,
 		OrganizationID: t.OrganizationID,
 		CreatedAt:      t.CreatedAt,
 		UpdatedAt:      t.UpdatedAt,
