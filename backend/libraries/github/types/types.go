@@ -98,3 +98,24 @@ type Links struct {
 type Link struct {
 	Href string `json:"href"`
 }
+
+// Commit represents a GitHub commit
+type Commit struct {
+	Sha    string       `json:"sha"`
+	Commit CommitDetail `json:"commit"`
+}
+
+// CommitDetail represents the commit details
+type CommitDetail struct {
+	Message string `json:"message"`
+	Author  struct {
+		Name  string    `json:"name"`
+		Email string    `json:"email"`
+		Date  time.Time `json:"date"`
+	} `json:"author"`
+	Committer struct {
+		Name  string    `json:"name"`
+		Email string    `json:"email"`
+		Date  time.Time `json:"date"`
+	} `json:"committer"`
+}

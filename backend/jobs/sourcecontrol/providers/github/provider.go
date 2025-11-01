@@ -84,6 +84,26 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 		return nil
 	}
 
+	// Helper function to find matching prefix in commit messages
+	// Matches if commit message starts with prefix followed by a hyphen (e.g., "WL-123: Fix bug")
+	findPrefixInCommits := func(commits []*githubtypes.Commit) *string {
+		for _, commit := range commits {
+			commitMessage := strings.TrimSpace(commit.Commit.Message)
+			// Check first line of commit message (commit messages can be multi-line)
+			firstLine := strings.Split(commitMessage, "\n")[0]
+			upperFirstLine := strings.ToUpper(firstLine)
+
+			for _, prefix := range prefixes {
+				prefixWithHyphen := strings.ToUpper(prefix) + "-"
+				// Check if commit message starts with the prefix followed by a hyphen (case-insensitive)
+				if strings.HasPrefix(upperFirstLine, prefixWithHyphen) {
+					return &prefix
+				}
+			}
+		}
+		return nil
+	}
+
 	// Process each repository
 	for _, repo := range repositories {
 		parts := strings.Split(repo, "/")
@@ -154,6 +174,17 @@ func (p *GitHubProvider) SyncRepositories(ctx context.Context, config *types.Int
 
 			// Match PR title with team prefixes
 			matchedPrefix := findPrefixForTitle(prDetails.Title)
+
+			// If no prefix found in title, try to derive it from commits
+			if matchedPrefix == nil {
+				commits, err := p.githubClient.GetPullRequestCommits(ctx, owner, repoName, token, pr.Number)
+				if err != nil {
+					// Log error but don't fail - commit fetching is optional
+					fmt.Printf("Warning: failed to fetch commits for PR %d: %v\n", pr.Number, err)
+				} else {
+					matchedPrefix = findPrefixInCommits(commits)
+				}
+			}
 
 			sourceControlPR := &internaltypes.PullRequest{
 				SourceControlAccountID: authorAccount.ID,
