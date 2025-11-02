@@ -53,9 +53,9 @@ export default function NewIntegrationModal({ organizationId, onSuccess }: Creat
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/50" />
-        <Dialog.Content className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[450px] translate-x-[-50%] translate-y-[-50%] rounded-md bg-white p-6 shadow-lg">
-          <Dialog.Title className="text-lg font-medium">Add New Integration</Dialog.Title>
-          <Dialog.Description className="mt-2 text-sm text-gray-500">
+        <Dialog.Content className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[450px] translate-x-[-50%] translate-y-[-50%] rounded-md bg-card border border-border p-6 shadow-lg">
+          <Dialog.Title className="text-lg font-medium text-foreground">Add New Integration</Dialog.Title>
+          <Dialog.Description className="mt-2 text-sm text-muted-foreground">
             Connect your organization with external services
           </Dialog.Description>
           <form onSubmit={handleSubmit} className="mt-4 space-y-4">
@@ -64,7 +64,7 @@ export default function NewIntegrationModal({ organizationId, onSuccess }: Creat
               <Select.Root
                 value={formData.provider_name}
                 onValueChange={(value: string) =>
-                  setFormData({ ...formData, provider_name: value as 'github' })
+                  setFormData({ ...formData, provider_name: value as 'github' | 'cursor' })
                 }
               >
                 <Select.Trigger className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
@@ -76,6 +76,9 @@ export default function NewIntegrationModal({ organizationId, onSuccess }: Creat
                       <Select.Item value="github" className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50">
                         <Select.ItemText>GitHub</Select.ItemText>
                       </Select.Item>
+                      <Select.Item value="cursor" className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50">
+                        <Select.ItemText>Cursor</Select.ItemText>
+                      </Select.Item>
                     </Select.Viewport>
                   </Select.Content>
                 </Select.Portal>
@@ -83,7 +86,9 @@ export default function NewIntegrationModal({ organizationId, onSuccess }: Creat
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="token">Access Token</Label>
+              <Label htmlFor="token">
+                {formData.provider_name === 'cursor' ? 'Cursor Admin API Key' : 'Access Token'}
+              </Label>
               <Input
                 id="token"
                 type="password"
@@ -91,9 +96,14 @@ export default function NewIntegrationModal({ organizationId, onSuccess }: Creat
                 onChange={(e) =>
                   setFormData({ ...formData, token: e.target.value })
                 }
-                placeholder="Enter your access token"
+                placeholder={formData.provider_name === 'cursor' ? 'Enter your Cursor Admin API key' : 'Enter your access token'}
                 required
               />
+              {formData.provider_name === 'cursor' && (
+                <p className="text-xs text-muted-foreground">
+                  Create API key in Cursor Dashboard: Settings → Cursor Admin API Keys
+                </p>
+              )}
             </div>
 
             {formData.provider_name === 'github' && (
@@ -106,8 +116,16 @@ export default function NewIntegrationModal({ organizationId, onSuccess }: Creat
                   placeholder="owner/repo1,owner/repo2"
                   required
                 />
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   Enter repository names in format owner/repo, separated by commas
+                </p>
+              </div>
+            )}
+            
+            {formData.provider_name === 'cursor' && (
+              <div className="rounded-md bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-3">
+                <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                  <strong>Note:</strong> Rate limit is 5 requests per minute per team, per endpoint.
                 </p>
               </div>
             )}

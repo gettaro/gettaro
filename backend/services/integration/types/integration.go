@@ -10,6 +10,7 @@ type IntegrationProvider string
 
 const (
 	IntegrationProviderGithub IntegrationProvider = "github"
+	IntegrationProviderCursor IntegrationProvider = "cursor"
 )
 
 type IntegrationProviderType string
@@ -17,6 +18,7 @@ type IntegrationProviderType string
 const (
 	IntegrationProviderTypeSourceControl     IntegrationProviderType = "SourceControl"
 	IntegrationProviderTypeProjectManagement IntegrationProviderType = "ProjectManagement"
+	IntegrationProviderTypeAICodeAssistant    IntegrationProviderType = "AICodeAssistant"
 )
 
 type IntegrationConfig struct {

@@ -86,7 +86,7 @@ export default function Integrations() {
                     {new Date(integration.last_synced_at).toLocaleDateString()}
                   </div>
                 )}
-                {integration.metadata && (
+                {integration.metadata && integration.metadata.repositories && integration.provider_type === 'SourceControl' && (
                   <div>
                     <span className="font-medium">Repositories:</span>{' '}
                     {integration.metadata.repositories}

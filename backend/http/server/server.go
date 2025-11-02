@@ -3,6 +3,7 @@ package server
 import (
 	"os"
 
+	aicodeassistantapi "ems.dev/backend/services/aicodeassistant/api"
 	apiai "ems.dev/backend/services/ai/api"
 	authapi "ems.dev/backend/services/auth/api"
 	conversationapi "ems.dev/backend/services/conversation/api"
@@ -36,9 +37,10 @@ type Server struct {
 	conversationTemplateApi conversationtemplateapi.ConversationTemplateAPIInterface
 	conversationApi         conversationapi.ConversationAPIInterface
 	aiApi                   apiai.AIServiceInterface
+	aiCodeAssistantApi      aicodeassistantapi.AICodeAssistantAPI
 }
 
-func New(db *gorm.DB, userApi userapi.UserAPI, orgApi orgapi.OrganizationAPI, teamApi teamapi.TeamAPI, titleApi titleapi.TitleAPI, authApi authapi.AuthAPI, integrationApi integrationapi.IntegrationAPI, sourcecontrolApi sourcecontrolapi.SourceControlAPI, memberApi memberapi.MemberAPI, metricsApi metricsapi.MetricsAPI, directsApi directsapi.DirectReportsAPI, conversationTemplateApi conversationtemplateapi.ConversationTemplateAPIInterface, conversationApi conversationapi.ConversationAPIInterface, aiApi apiai.AIServiceInterface) *Server {
+func New(db *gorm.DB, userApi userapi.UserAPI, orgApi orgapi.OrganizationAPI, teamApi teamapi.TeamAPI, titleApi titleapi.TitleAPI, authApi authapi.AuthAPI, integrationApi integrationapi.IntegrationAPI, sourcecontrolApi sourcecontrolapi.SourceControlAPI, memberApi memberapi.MemberAPI, metricsApi metricsapi.MetricsAPI, directsApi directsapi.DirectReportsAPI, conversationTemplateApi conversationtemplateapi.ConversationTemplateAPIInterface, conversationApi conversationapi.ConversationAPIInterface, aiApi apiai.AIServiceInterface, aiCodeAssistantApi aicodeassistantapi.AICodeAssistantAPI) *Server {
 	s := &Server{
 		router:                  gin.Default(),
 		db:                      db,
@@ -55,6 +57,7 @@ func New(db *gorm.DB, userApi userapi.UserAPI, orgApi orgapi.OrganizationAPI, te
 		conversationTemplateApi: conversationTemplateApi,
 		conversationApi:         conversationApi,
 		aiApi:                   aiApi,
+		aiCodeAssistantApi:      aiCodeAssistantApi,
 	}
 
 	s.setupMiddleware()

@@ -9,11 +9,15 @@ import (
 
 	"ems.dev/backend/database"
 	"ems.dev/backend/http/server"
+	"ems.dev/backend/jobs/aicodeassistant"
+	aicodeassistantprovider "ems.dev/backend/jobs/aicodeassistant/providers"
+	cursorprovider "ems.dev/backend/jobs/aicodeassistant/providers/cursor"
 	"ems.dev/backend/jobs/scheduler"
 	"ems.dev/backend/jobs/sourcecontrol"
 	scprovider "ems.dev/backend/jobs/sourcecontrol/providers"
 	githubprovider "ems.dev/backend/jobs/sourcecontrol/providers/github"
 	auth0client "ems.dev/backend/libraries/auth0"
+	"ems.dev/backend/libraries/cursor"
 	"ems.dev/backend/libraries/github"
 	apiai "ems.dev/backend/services/ai/api"
 	aidb "ems.dev/backend/services/ai/database"
@@ -21,6 +25,8 @@ import (
 	anthropicprovider "ems.dev/backend/services/ai/providers/anthropic"
 	groqprovider "ems.dev/backend/services/ai/providers/groq"
 	aitypes "ems.dev/backend/services/ai/types"
+	aicodeassistantapi "ems.dev/backend/services/aicodeassistant/api"
+	aicodeassistantdb "ems.dev/backend/services/aicodeassistant/database"
 	authapi "ems.dev/backend/services/auth/api"
 	authdb "ems.dev/backend/services/auth/database"
 	conversationapi "ems.dev/backend/services/conversation/api"
@@ -82,6 +88,8 @@ func main() {
 	teamDb := teamdb.NewTeamDB(database.DB)
 	teamApi := teamapi.NewApi(teamDb, orgApi)
 	metricsApi := metricsapi.NewApi(memberApi, teamApi, sourcecontrolApi)
+	aiCodeAssistantDb := aicodeassistantdb.NewAICodeAssistantDB(database.DB)
+	aiCodeAssistantApi := aicodeassistantapi.NewApi(aiCodeAssistantDb, memberApi)
 	conversationTemplateDb := conversationtemplatedb.NewConversationTemplateDatabase(database.DB)
 	conversationTemplateApi := conversationtemplateapi.NewConversationTemplateAPI(conversationTemplateDb)
 	conversationDb := conversationdb.NewConversationDB(database.DB)
@@ -108,16 +116,27 @@ func main() {
 	if os.Getenv("JOBS_ENABLED") == "true" {
 		log.Println("Jobs are enabled")
 		syncInterval := getSyncInterval()
+
+		// Source control sync job
 		githubProvider := githubprovider.NewProvider(github.NewClient(), integrationApi, sourcecontrolApi, memberApi, teamApi)
 		scProviderFactory := scprovider.NewFactory([]scprovider.SourceControlProvider{githubProvider})
 		syncJob := sourcecontrol.NewSyncJob(integrationApi, orgApi, scProviderFactory)
 		//go syncJob.Run(context.Background())
-		scheduler := scheduler.NewScheduler(syncJob, syncInterval)
-		go scheduler.Start(context.Background())
+		scScheduler := scheduler.NewScheduler(syncJob, syncInterval)
+		go scScheduler.Start(context.Background())
+
+		// AI code assistant sync job
+		aiCodeAssistantSyncInterval := getAICodeAssistantSyncInterval()
+		cursorClient := cursor.NewClient()
+		cursorProvider := cursorprovider.NewProvider(cursorClient, integrationApi, aiCodeAssistantApi, memberApi)
+		aiCodeAssistantProviderFactory := aicodeassistantprovider.NewFactory([]aicodeassistantprovider.AICodeAssistantProvider{cursorProvider})
+		aiCodeAssistantSyncJob := aicodeassistant.NewSyncJob(integrationApi, orgApi, aiCodeAssistantProviderFactory)
+		aiCodeAssistantScheduler := scheduler.NewScheduler(aiCodeAssistantSyncJob, aiCodeAssistantSyncInterval)
+		go aiCodeAssistantScheduler.Start(context.Background())
 	}
 
 	// Initialize and run server
-	srv := server.New(database.DB, userApi, orgApi, teamApi, titleApi, authApi, integrationApi, sourcecontrolApi, memberApi, metricsApi, directsApi, conversationTemplateApi, conversationApi, aiApi)
+	srv := server.New(database.DB, userApi, orgApi, teamApi, titleApi, authApi, integrationApi, sourcecontrolApi, memberApi, metricsApi, directsApi, conversationTemplateApi, conversationApi, aiApi, aiCodeAssistantApi)
 	if err := srv.Run(":8080"); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
@@ -157,6 +176,21 @@ func getSyncInterval() time.Duration {
 	if err != nil {
 		log.Printf("Invalid SYNC_INTERVAL_HOURS value, using default 4 hours")
 		interval = 4
+	}
+
+	return time.Duration(interval) * time.Hour
+}
+
+func getAICodeAssistantSyncInterval() time.Duration {
+	intervalStr := os.Getenv("AI_CODE_ASSISTANT_SYNC_INTERVAL_HOURS")
+	if intervalStr == "" {
+		intervalStr = "24" // Default to 24 hours (daily sync)
+	}
+
+	interval, err := strconv.Atoi(intervalStr)
+	if err != nil {
+		log.Printf("Invalid AI_CODE_ASSISTANT_SYNC_INTERVAL_HOURS value, using default 24 hours")
+		interval = 24
 	}
 
 	return time.Duration(interval) * time.Hour

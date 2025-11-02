@@ -95,16 +95,19 @@ func (a *Api) CreateIntegrationConfig(ctx context.Context, orgID string, req *ty
 		return nil, err
 	}
 
-	// TODO: Ideally this would come from a factory
-	providerType := types.IntegrationProviderTypeSourceControl
+	// Determine provider type based on provider name
+	var providerType types.IntegrationProviderType
 	switch req.ProviderName {
 	case "github":
 		providerType = types.IntegrationProviderTypeSourceControl
-	case "jira":
+	case "cursor":
+		providerType = types.IntegrationProviderTypeAICodeAssistant
+	default:
+		// Default to source control for backward compatibility
 		providerType = types.IntegrationProviderTypeSourceControl
 	}
 
-	// Validate repositories metadata for source control providers
+	// Validate repositories metadata for source control providers only
 	if providerType == types.IntegrationProviderTypeSourceControl {
 		if req.Metadata == nil {
 			return nil, liberrors.NewBadRequestError("metadata is required for source control providers")

@@ -1,4 +1,4 @@
-export type IntegrationProvider = 'github'
+export type IntegrationProvider = 'github' | 'cursor'
 
 export interface IntegrationConfig {
   id: string

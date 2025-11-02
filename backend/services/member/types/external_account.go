@@ -10,7 +10,8 @@ import (
 type ExternalAccountType string
 
 const (
-	ExternalAccountTypeSourceControl ExternalAccountType = "sourcecontrol"
+	ExternalAccountTypeSourceControl      ExternalAccountType = "sourcecontrol"
+	ExternalAccountTypeAICodeAssistant ExternalAccountType = "ai-code-assistant"
 	// Future types can be added here:
 	// ExternalAccountTypeJira ExternalAccountType = "jira"
 	// ExternalAccountTypeSlack ExternalAccountType = "slack"
@@ -21,7 +22,7 @@ type ExternalAccount struct {
 	ID             string         `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
 	MemberID       *string        `gorm:"type:uuid" json:"member_id,omitempty"`
 	OrganizationID *string        `gorm:"type:uuid" json:"organization_id,omitempty"`
-	AccountType    string         `gorm:"type:varchar(50);check:account_type IN ('sourcecontrol')" json:"account_type"`
+	AccountType    string         `gorm:"type:varchar(50);check:account_type IN ('sourcecontrol','ai-code-assistant')" json:"account_type"`
 	ProviderName   string         `gorm:"type:varchar(255)" json:"provider_name"`
 	ProviderID     string         `gorm:"type:varchar(255)" json:"provider_id"`
 	Username       string         `gorm:"type:varchar(255)" json:"username"`
