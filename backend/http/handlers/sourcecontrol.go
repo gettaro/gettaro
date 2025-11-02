@@ -192,68 +192,6 @@ func (h *SourceControlHandler) ListOrganizationPullRequests(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// ListOrganizationSourceControlAccounts handles retrieving source control accounts for an organization
-// Params:
-// - c: The Gin context containing request and response
-// Returns:
-// - 200: Success response with list of source control accounts
-// - 400: Bad request if organization ID is missing
-// - 401: Unauthorized if user is not authenticated
-// - 403: Forbidden if user does not have access to the organization
-// - 500: Internal server error if service layer fails
-// Side Effects:
-// - Makes a database query to fetch source control accounts
-// - Performs organization membership check
-// Errors:
-// - ErrMissingOrganizationID: When organization ID is missing from the request
-// - ErrDatabaseQuery: When database query fails
-// - ErrUnauthorized: When user is not authenticated
-// - ErrForbidden: When user does not have access to the organization
-func (h *SourceControlHandler) ListOrganizationSourceControlAccounts(c *gin.Context) {
-	orgID, err := utils.GetOrganizationIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Check if user has access to the organization
-	if !utils.CheckOrganizationMembership(c, h.orgApi, &orgID) {
-		return
-	}
-
-	// Get external accounts from member service (filter by sourcecontrol type)
-	sourceControlType := "sourcecontrol"
-	externalAccounts, err := h.memberApi.GetExternalAccounts(c.Request.Context(), &membertypes.ExternalAccountParams{
-		OrganizationID: orgID,
-		AccountType:    &sourceControlType,
-	})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Convert ExternalAccount to SourceControlAccount for backward compatibility in response
-	sourceControlAccounts := make([]servicetypes.SourceControlAccount, len(externalAccounts))
-	for i, extAccount := range externalAccounts {
-		sourceControlAccounts[i] = servicetypes.SourceControlAccount{
-			ID:             extAccount.ID,
-			MemberID:       extAccount.MemberID,
-			OrganizationID: extAccount.OrganizationID,
-			ProviderName:   extAccount.ProviderName,
-			ProviderID:     extAccount.ProviderID,
-			Username:       extAccount.Username,
-			Metadata:       extAccount.Metadata,
-			LastSyncedAt:   extAccount.LastSyncedAt,
-		}
-	}
-
-	response := sourcecontrol.ListOrganizationSourceControlAccountsResponse{
-		SourceControlAccounts: sourceControlAccounts,
-	}
-
-	c.JSON(http.StatusOK, response)
-}
-
 // GetMemberPullRequests handles retrieving pull requests for a specific member
 // Params:
 // - c: The Gin context containing request and response
@@ -544,7 +482,6 @@ func (h *SourceControlHandler) GetOrganizationSourceControlMetrics(c *gin.Contex
 func (h *SourceControlHandler) RegisterRoutes(api *gin.RouterGroup) {
 	sourceControl := api.Group("/organizations/:id")
 	{
-		sourceControl.GET("/source-control-accounts", h.ListOrganizationSourceControlAccounts)
 		sourceControl.GET("/pull-requests", h.ListOrganizationPullRequests)
 		sourceControl.GET("/sourcecontrol/metrics", h.GetOrganizationSourceControlMetrics)
 	}

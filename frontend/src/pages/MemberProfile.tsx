@@ -4,7 +4,7 @@ import { useOrganizationStore } from '../stores/organization'
 import { Member } from '../types/member'
 import { GetMemberMetricsResponse, GetMemberMetricsParams } from '../types/memberMetrics'
 import { Title } from '../types/title'
-import { SourceControlAccount, PullRequest, GetMemberPullRequestsParams, GetMemberPullRequestReviewsParams } from '../types/sourcecontrol'
+import { ExternalAccount, PullRequest, GetMemberPullRequestsParams, GetMemberPullRequestReviewsParams } from '../types/sourcecontrol'
 import { MemberActivity, GetMemberActivityParams } from '../types/sourcecontrol'
 import { OrgChartNode } from '../types/directs'
 import Api from '../api/api'
@@ -25,7 +25,7 @@ export default function MemberProfilePage() {
   const { currentOrganization } = useOrganizationStore()
   const [member, setMember] = useState<Member | null>(null)
   const [title, setTitle] = useState<Title | null>(null)
-  const [sourceControlAccount, setSourceControlAccount] = useState<SourceControlAccount | null>(null)
+  const [sourceControlAccount, setSourceControlAccount] = useState<ExternalAccount | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabType>('overview')

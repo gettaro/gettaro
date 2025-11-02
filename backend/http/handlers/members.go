@@ -294,6 +294,45 @@ func (h *MemberHandler) GetMemberSourceControlMetrics(c *gin.Context) {
 	c.JSON(http.StatusOK, metrics)
 }
 
+// ListOrganizationExternalAccounts handles retrieving external accounts for an organization
+// Returns:
+// - 200: Success response with list of external accounts
+// - 400: Bad request if organization ID is missing
+// - 401: Unauthorized if user is not authenticated
+// - 403: Forbidden if user does not have access to the organization
+// - 500: Internal server error if service layer fails
+func (h *MemberHandler) ListOrganizationExternalAccounts(c *gin.Context) {
+	orgID, err := utils.GetOrganizationIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if user has access to the organization
+	if !utils.CheckOrganizationMembership(c, h.orgApi, &orgID) {
+		return
+	}
+
+	// Get query parameter for account type filter (optional)
+	accountType := c.Query("account_type")
+	var accountTypePtr *string
+	if accountType != "" {
+		accountTypePtr = &accountType
+	}
+
+	// Get external accounts from member service
+	externalAccounts, err := h.memberApi.GetExternalAccounts(c.Request.Context(), &membertypes.ExternalAccountParams{
+		OrganizationID: orgID,
+		AccountType:    accountTypePtr,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"external_accounts": externalAccounts})
+}
+
 // RegisterRoutes registers all member-related routes
 func (h *MemberHandler) RegisterRoutes(api *gin.RouterGroup) {
 	members := api.Group("/organizations/:id/members")
@@ -303,5 +342,11 @@ func (h *MemberHandler) RegisterRoutes(api *gin.RouterGroup) {
 		members.PUT("/:memberId", h.UpdateOrganizationMember)
 		members.DELETE("/:memberId", h.RemoveOrganizationMember)
 		members.GET("/:memberId/sourcecontrol/metrics", h.GetMemberSourceControlMetrics)
+	}
+
+	// External accounts endpoint (organization-level)
+	externalAccounts := api.Group("/organizations/:id")
+	{
+		externalAccounts.GET("/external-accounts", h.ListOrganizationExternalAccounts)
 	}
 }

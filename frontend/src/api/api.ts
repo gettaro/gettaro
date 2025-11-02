@@ -3,7 +3,7 @@ import { OrganizationConflictError } from './errors/organizations'
 import { CreateIntegrationConfigRequest, IntegrationConfig, UpdateIntegrationConfigRequest } from '../types/integration'
 import { Title, CreateTitleRequest, UpdateTitleRequest } from '../types/title'
 import { Member, AddMemberRequest, UpdateMemberRequest } from '../types/member'
-import { SourceControlAccount, PullRequest, GetMemberPullRequestsParams, GetMemberPullRequestReviewsParams, MemberActivity } from '../types/sourcecontrol'
+import { ExternalAccount, PullRequest, GetMemberPullRequestsParams, GetMemberPullRequestReviewsParams, MemberActivity } from '../types/sourcecontrol'
 import { GetManagerTreeResponse } from '../types/directs'
 import { GetMemberMetricsParams, GetMemberMetricsResponse } from '../types/memberMetrics'
 import { OrganizationMetricsResponse } from '../types/organizationMetrics'
@@ -338,10 +338,10 @@ export default class Api {
     return await response.json()
   }
 
-  // Source Control Account API functions
-  static async getOrganizationSourceControlAccounts(organizationId: string): Promise<SourceControlAccount[]> {
-    const response = await this.get(`/organizations/${organizationId}/source-control-accounts`)
-    return response.source_control_accounts
+  // External Account API functions
+  static async getOrganizationSourceControlAccounts(organizationId: string): Promise<ExternalAccount[]> {
+    const response = await this.get(`/organizations/${organizationId}/external-accounts?account_type=sourcecontrol`)
+    return response.external_accounts || []
   }
 
   // Member Pull Requests API functions

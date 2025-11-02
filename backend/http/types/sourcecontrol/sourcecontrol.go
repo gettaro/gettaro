@@ -2,8 +2,6 @@ package sourcecontrol
 
 import (
 	"time"
-
-	sourcecontroltypes "ems.dev/backend/services/sourcecontrol/types"
 )
 
 type ListOrganizationPullRequestsQuery struct {
@@ -26,20 +24,20 @@ type PullRequestAuthor struct {
 }
 
 type PullRequest struct {
-	ID             string              `json:"id"`
-	Title          string              `json:"title"`
-	Description    string              `json:"description"`
-	URL            string              `json:"url"`
-	Status         string              `json:"status"`
-	RepositoryName string              `json:"repository_name"`
-	CreatedAt      time.Time           `json:"created_at"`
-	MergedAt       *time.Time          `json:"merged_at,omitempty"`
-	Comments       int                 `json:"comments"`
-	ReviewComments int                 `json:"review_comments"`
-	Additions      int                 `json:"additions"`
-	Deletions      int                 `json:"deletions"`
-	ChangedFiles   int                 `json:"changed_files"`
-	Author         *PullRequestAuthor  `json:"author,omitempty"`
+	ID             string             `json:"id"`
+	Title          string             `json:"title"`
+	Description    string             `json:"description"`
+	URL            string             `json:"url"`
+	Status         string             `json:"status"`
+	RepositoryName string             `json:"repository_name"`
+	CreatedAt      time.Time          `json:"created_at"`
+	MergedAt       *time.Time         `json:"merged_at,omitempty"`
+	Comments       int                `json:"comments"`
+	ReviewComments int                `json:"review_comments"`
+	Additions      int                `json:"additions"`
+	Deletions      int                `json:"deletions"`
+	ChangedFiles   int                `json:"changed_files"`
+	Author         *PullRequestAuthor `json:"author,omitempty"`
 }
 
 type ListOrganizationPullRequestsMetricsQuery struct {
@@ -47,10 +45,6 @@ type ListOrganizationPullRequestsMetricsQuery struct {
 	RepositoryName string   `form:"repositoryName" binding:"omitempty"`
 	StartDate      string   `form:"startDate" binding:"omitempty,datetime=2006-01-02"`
 	EndDate        string   `form:"endDate" binding:"omitempty,datetime=2006-01-02"`
-}
-
-type ListOrganizationSourceControlAccountsResponse struct {
-	SourceControlAccounts []sourcecontroltypes.SourceControlAccount `json:"source_control_accounts"`
 }
 
 type GetMemberPullRequestsQuery struct {

@@ -3,7 +3,7 @@ import Api from '../api/api'
 import { Team, CreateTeamRequest, UpdateTeamRequest, AddTeamMemberRequest, TeamType } from '../types/team'
 import { Member, AddMemberRequest, UpdateMemberRequest } from '../types/member'
 import { Title } from '../types/title'
-import { SourceControlAccount } from '../types/sourcecontrol'
+import { ExternalAccount } from '../types/sourcecontrol'
 import { useOrganizationStore } from '../stores/organization'
 import { useToast } from '../hooks/useToast'
 
@@ -24,7 +24,7 @@ export default function MembersAndTeams() {
   // Members state
   const [members, setMembers] = useState<Member[]>([])
   const [titles, setTitles] = useState<Title[]>([])
-  const [sourceControlAccounts, setSourceControlAccounts] = useState<SourceControlAccount[]>([])
+  const [sourceControlAccounts, setSourceControlAccounts] = useState<ExternalAccount[]>([])
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false)
   const [isAddingMember, setIsAddingMember] = useState(false)
   const [isUpdateMemberModalOpen, setIsUpdateMemberModalOpen] = useState(false)

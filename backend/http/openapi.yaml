@@ -111,11 +111,11 @@ components:
       properties:
         username: { type: string }
         titleId: { type: string, format: uuid }
-        sourceControlAccountId: { type: string, format: uuid }
+        external_account_id: { type: string, format: uuid }
       required:
         - username
         - titleId
-        - sourceControlAccountId
+        - external_account_id
 
     IntegrationProvider:
       type: string
@@ -225,38 +225,42 @@ components:
           type: number
           format: float
 
-    SourceControlAccount:
+    ExternalAccount:
       type: object
       properties:
         id:
           type: string
           format: uuid
-        userId:
+        member_id:
           type: string
           format: uuid
           nullable: true
-        organizationId:
+        organization_id:
           type: string
           format: uuid
           nullable: true
-        providerName:
+        account_type:
           type: string
-        providerId:
+          description: Type of external account (e.g., "sourcecontrol")
+        provider_name:
+          type: string
+        provider_id:
           type: string
         username:
           type: string
-        lastSyncedAt:
+        metadata:
+          type: object
+          nullable: true
+        last_synced_at:
           type: string
           format: date-time
           nullable: true
-
-    ListOrganizationSourceControlAccountsResponse:
-      type: object
-      properties:
-        source_control_accounts:
-          type: array
-          items:
-            $ref: "#/components/schemas/SourceControlAccount"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
 
     GetMemberActivityResponse:
       type: object
@@ -736,12 +740,12 @@ paths:
                 email: { type: string }
                 username: { type: string }
                 titleId: { type: string, format: uuid }
-                sourceControlAccountId: { type: string, format: uuid }
+                external_account_id: { type: string, format: uuid }
               required:
                 - email
                 - username
                 - titleId
-                - sourceControlAccountId
+                - external_account_id
       responses:
         "201":
           description: Member added
@@ -1120,23 +1124,33 @@ paths:
       security:
         - bearerAuth: []
 
-  /organizations/{id}/source-control-accounts:
+  /organizations/{id}/external-accounts:
     get:
-      summary: List organization source control accounts
-      description: Returns a list of source control accounts for an organization. Organization members can view source control accounts.
+      summary: List organization external accounts
+      description: Returns a list of external accounts for an organization. Organization members can view external accounts. Can be filtered by account type using the account_type query parameter.
       parameters:
         - in: path
           name: id
           schema: { type: string, format: uuid }
           required: true
           description: Organization ID
+        - in: query
+          name: account_type
+          schema: { type: string }
+          required: false
+          description: Filter by account type (e.g., "sourcecontrol")
       responses:
         "200":
-          description: List of source control accounts
+          description: List of external accounts
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ListOrganizationSourceControlAccountsResponse"
+                type: object
+                properties:
+                  external_accounts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ExternalAccount"
         "400":
           description: Bad request
         "401":
@@ -1683,7 +1697,7 @@ paths:
             schema:
               type: object
               properties:
-                sourceControlAccountId: { type: string }
+                external_account_id: { type: string }
                 providerId: { type: string }
                 url: { type: string }
                 title: { type: string }
