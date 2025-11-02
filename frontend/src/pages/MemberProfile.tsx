@@ -739,7 +739,8 @@ export default function MemberProfilePage() {
                     type="date"
                     value={dateParams.startDate || ''}
                     onChange={(e) => handleDateChange('startDate', e.target.value)}
-                    className="px-3 py-2 border border-border/50 rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                    className="px-3 py-2 border border-border rounded bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                    style={{ colorScheme: 'dark light' }}
                   />
                 </div>
                 <div>
@@ -750,7 +751,8 @@ export default function MemberProfilePage() {
                     type="date"
                     value={dateParams.endDate || ''}
                     onChange={(e) => handleDateChange('endDate', e.target.value)}
-                    className="px-3 py-2 border border-border/50 rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                    className="px-3 py-2 border border-border rounded bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                    style={{ colorScheme: 'dark light' }}
                   />
                 </div>
                 {metricsViewMode === 'graph' && (
@@ -761,7 +763,7 @@ export default function MemberProfilePage() {
                     <select
                       value={dateParams.interval || 'weekly'}
                       onChange={(e) => handleIntervalChange(e.target.value as 'daily' | 'weekly' | 'monthly')}
-                      className="px-3 py-2 border border-border/50 rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                      className="px-3 py-2 border border-border rounded bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                     >
                       <option value="daily">Daily</option>
                       <option value="weekly">Weekly</option>

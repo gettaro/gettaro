@@ -127,15 +127,15 @@ What would you like to know?`,
   return (
     <Card className={`flex flex-col h-96 ${className}`}>
       {/* Header */}
-      <div className="p-4 border-b bg-muted/50">
-        <h3 className="font-semibold text-sm">AI Assistant</h3>
+      <div className="p-4 border-b border-border bg-muted/50">
+        <h3 className="font-semibold text-sm text-foreground">AI Assistant</h3>
         <p className="text-xs text-muted-foreground">
           Chat about {context.entityName}
         </p>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-card">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -145,27 +145,27 @@ What would you like to know?`,
               className={`max-w-[80%] rounded-lg px-3 py-2 ${
                 message.type === 'user'
                   ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted'
+                  : 'bg-muted text-foreground'
               }`}
             >
               {message.type === 'ai' ? (
-                <div className="text-sm prose prose-sm max-w-none">
+                <div className="text-sm prose prose-sm max-w-none prose-invert dark:prose-invert text-foreground">
                   <ReactMarkdown 
                     remarkPlugins={[remarkGfm]}
                     components={{
                       // Custom styling for markdown elements
-                      p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                      ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
-                      ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
-                      li: ({ children }) => <li className="text-sm">{children}</li>,
-                      strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                      em: ({ children }) => <em className="italic">{children}</em>,
-                      code: ({ children }) => <code className="bg-muted px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
-                      pre: ({ children }) => <pre className="bg-muted p-2 rounded text-xs font-mono overflow-x-auto mb-2">{children}</pre>,
-                      blockquote: ({ children }) => <blockquote className="border-l-4 border-muted-foreground/20 pl-4 italic mb-2">{children}</blockquote>,
-                      h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
-                      h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
-                      h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                      p: ({ children }) => <p className="mb-2 last:mb-0 text-foreground">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1 text-foreground">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1 text-foreground">{children}</ol>,
+                      li: ({ children }) => <li className="text-sm text-foreground">{children}</li>,
+                      strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                      em: ({ children }) => <em className="italic text-foreground">{children}</em>,
+                      code: ({ children }) => <code className="bg-card border border-border px-1 py-0.5 rounded text-xs font-mono text-foreground">{children}</code>,
+                      pre: ({ children }) => <pre className="bg-card border border-border p-2 rounded text-xs font-mono overflow-x-auto mb-2 text-foreground">{children}</pre>,
+                      blockquote: ({ children }) => <blockquote className="border-l-4 border-muted-foreground/30 pl-4 italic mb-2 text-foreground">{children}</blockquote>,
+                      h1: ({ children }) => <h1 className="text-lg font-bold mb-2 text-foreground">{children}</h1>,
+                      h2: ({ children }) => <h2 className="text-base font-bold mb-2 text-foreground">{children}</h2>,
+                      h3: ({ children }) => <h3 className="text-sm font-bold mb-1 text-foreground">{children}</h3>,
                     }}
                   >
                     {message.content}
@@ -228,14 +228,14 @@ What would you like to know?`,
         {/* Loading indicator */}
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-muted rounded-lg px-3 py-2">
+            <div className="bg-muted text-foreground rounded-lg px-3 py-2">
               <div className="flex items-center space-x-2">
                 <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                 </div>
-                <span className="text-sm text-muted-foreground">AI is thinking...</span>
+                <span className="text-sm text-foreground">AI is thinking...</span>
               </div>
             </div>
           </div>
@@ -245,14 +245,14 @@ What would you like to know?`,
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t">
+      <div className="p-4 border-t border-border">
         <form onSubmit={handleSubmit} className="flex space-x-2">
           <input
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             placeholder={`Ask about ${context.entityName}...`}
-            className="flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="flex-1 px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             disabled={isLoading}
           />
           <Button type="submit" disabled={isLoading || !inputValue.trim()}>
