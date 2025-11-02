@@ -161,14 +161,6 @@ export default function EngineeringDashboard() {
     )
   }
 
-  const handleTeamBreakdownToggle = (checked: boolean) => {
-    setShowTeamBreakdown(checked)
-    if (checked && teams.length > 0) {
-      // When enabling team breakdown, select all teams by default
-      setSelectedTeams(teams.map(team => team.id))
-    }
-  }
-
   // Filter teams by type
   const filteredTeams = useMemo(() => {
     if (selectedTeamType === 'all') {
@@ -181,6 +173,33 @@ export default function EngineeringDashboard() {
     })
     return filtered
   }, [teams, selectedTeamType])
+
+  const handleTeamBreakdownToggle = (checked: boolean) => {
+    setShowTeamBreakdown(checked)
+    if (checked && filteredTeams.length > 0) {
+      // When enabling team breakdown, select all filtered teams by default
+      setSelectedTeams(filteredTeams.map(team => team.id))
+    } else if (!checked) {
+      // Clear selection when disabling breakdown
+      setSelectedTeams([])
+    }
+  }
+
+  // Update selected teams when team type filter changes
+  useEffect(() => {
+    if (showTeamBreakdown) {
+      // When team type filter changes, update selected teams to only include teams of the selected type
+      const newSelectedTeams = selectedTeams.filter(teamId => 
+        filteredTeams.some(team => team.id === teamId)
+      )
+      // Also add all filtered teams if none are selected
+      if (newSelectedTeams.length === 0 && filteredTeams.length > 0) {
+        setSelectedTeams(filteredTeams.map(team => team.id))
+      } else if (newSelectedTeams.length !== selectedTeams.length) {
+        setSelectedTeams(newSelectedTeams)
+      }
+    }
+  }, [selectedTeamType, showTeamBreakdown, filteredTeams, selectedTeams])
 
   // Load metrics for all teams when Teams tab is active
   useEffect(() => {
@@ -555,24 +574,46 @@ export default function EngineeringDashboard() {
 
           {showTeamBreakdown && teams.length > 0 && (
             <div className="mb-4 p-4 bg-muted/30 rounded">
-              <h3 className="text-sm font-medium mb-2">Select Teams:</h3>
-              <div className="flex flex-wrap gap-2">
-                {teams.map(team => (
-                  <label key={team.id} className="flex items-center gap-2 cursor-pointer px-3 py-1 bg-background rounded border border-border hover:bg-muted">
-                    <input
-                      type="checkbox"
-                      checked={selectedTeams.includes(team.id)}
-                      onChange={() => toggleTeamSelection(team.id)}
-                      className="rounded"
-                    />
-                    <span className="text-sm">{team.name}</span>
-                  </label>
-                ))}
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium">Select Teams:</h3>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-muted-foreground">Filter by type:</label>
+                  <select
+                    value={selectedTeamType}
+                    onChange={(e) => setSelectedTeamType(e.target.value as TeamType | 'all')}
+                    className="px-3 py-1 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm bg-background"
+                  >
+                    <option value="all">All Types</option>
+                    <option value="squad">Squads</option>
+                    <option value="chapter">Chapters</option>
+                    <option value="tribe">Tribes</option>
+                    <option value="guild">Guilds</option>
+                  </select>
+                </div>
               </div>
-              {selectedTeams.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Showing metrics for {selectedTeams.length} team{selectedTeams.length !== 1 ? 's' : ''}
-                </p>
+              {filteredTeams.length > 0 ? (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    {filteredTeams.map(team => (
+                      <label key={team.id} className="flex items-center gap-2 cursor-pointer px-3 py-1 bg-background rounded border border-border hover:bg-muted">
+                        <input
+                          type="checkbox"
+                          checked={selectedTeams.includes(team.id)}
+                          onChange={() => toggleTeamSelection(team.id)}
+                          className="rounded"
+                        />
+                        <span className="text-sm">{team.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {selectedTeams.length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Showing metrics for {selectedTeams.length} team{selectedTeams.length !== 1 ? 's' : ''}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">No teams of this type available</p>
               )}
             </div>
           )}
