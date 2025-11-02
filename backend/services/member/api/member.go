@@ -216,7 +216,7 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, member
 	sourceControlType := "sourcecontrol"
 	existingAccounts, err := a.GetExternalAccounts(ctx, &types.ExternalAccountParams{
 		OrganizationID: orgID,
-		AccountType:     &sourceControlType,
+		AccountType:    &sourceControlType,
 	})
 	if err != nil {
 		return err
@@ -322,6 +322,10 @@ func (a *Api) CalculateSourceControlMemberMetrics(ctx context.Context, organizat
 	sourceControlAccountIDs := []string{}
 	for _, account := range externalAccounts {
 		sourceControlAccountIDs = append(sourceControlAccountIDs, account.ID)
+	}
+
+	if len(sourceControlAccountIDs) == 0 {
+		return nil, errors.NewNotFoundError("no source control accounts found for member")
 	}
 
 	member, err := a.GetOrganizationMemberByID(ctx, memberID)

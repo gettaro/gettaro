@@ -9,7 +9,6 @@ import { MemberActivity, GetMemberActivityParams } from '../types/sourcecontrol'
 import { OrgChartNode } from '../types/directs'
 import Api from '../api/api'
 import { formatMetricValue, formatTimeMetric } from '../utils/formatMetrics'
-import MetricIcon from '../components/MetricIcon'
 import { ConversationsTab } from '../components/ConversationsTab'
 import { ConversationSidebar } from '../components/ConversationSidebar'
 import { ConversationWithDetails } from '../types/conversation'
@@ -739,12 +738,6 @@ export default function MemberProfilePage() {
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                           {(category.metrics || []).map((metric) => (
                             <div key={metric.label} className="text-center p-3 bg-muted/20 rounded border border-border/30">
-                              <div className="flex justify-end mb-1">
-                                <MetricIcon 
-                                  iconIdentifier={metric.icon_identifier || 'default'} 
-                                  iconColor={metric.icon_color || 'gray'} 
-                                />
-                              </div>
                               <div className="text-xl font-bold text-foreground">
                                 {formatMetricValue(metric.value, metric.unit)}
                               </div>

@@ -981,81 +981,6 @@ func (d *SourceControlDB) CalculatePRReviewComplexity(ctx context.Context, organ
 		return nil, fmt.Errorf("invalid metric operation for PR review complexity: %s", metricOperation)
 	}
 
-	// First, let's debug by checking what PRs exist
-	debugQuery := `
-		SELECT COUNT(*) as total_prs
-		FROM pull_requests pr
-		WHERE pr.created_at >= ?
-		AND pr.created_at <= ?
-		AND pr.merged_at IS NOT NULL
-		AND pr.status = 'closed'
-	`
-
-	var debugArgs []any
-	debugArgs = append(debugArgs, startDate, endDate)
-
-	var totalPRs int64
-	if err := d.db.WithContext(ctx).Raw(debugQuery, debugArgs...).Scan(&totalPRs).Error; err != nil {
-		return nil, fmt.Errorf("debug query failed: %w", err)
-	}
-
-	fmt.Printf("DEBUG - Total PRs in date range: %d\n", totalPRs)
-
-	// Let's also check what source control accounts we're looking for
-	fmt.Printf("DEBUG - Looking for reviews from source control accounts: %v\n", sourceControlAccountIDs)
-
-	// Simple test: just count PRs with any comments
-	simpleTestQuery := `
-		SELECT COUNT(*) as total_commented_prs
-		FROM pull_requests pr
-		WHERE pr.created_at >= ?
-		AND pr.created_at <= ?
-		AND pr.merged_at IS NOT NULL
-		AND pr.status = 'closed'
-		AND EXISTS (
-			SELECT 1 FROM pr_comments pc 
-			WHERE pc.pr_id = pr.id 
-		)
-	`
-
-	var simpleArgs []any
-	simpleArgs = append(simpleArgs, startDate, endDate)
-
-	var totalCommentedPRs int64
-	if err := d.db.WithContext(ctx).Raw(simpleTestQuery, simpleArgs...).Scan(&totalCommentedPRs).Error; err != nil {
-		return nil, fmt.Errorf("simple test query failed: %w", err)
-	}
-
-	fmt.Printf("DEBUG - PRs with any comments: %d\n", totalCommentedPRs)
-
-	// Very simple test: just count PRs commented on by the member
-	verySimpleQuery := `
-		SELECT COUNT(*) as member_commented_prs
-		FROM pull_requests pr
-		WHERE pr.created_at >= ?
-		AND pr.created_at <= ?
-		AND pr.merged_at IS NOT NULL
-		AND pr.status = 'closed'
-		AND EXISTS (
-			SELECT 1 FROM pr_comments pc 
-			JOIN member_external_accounts sca ON pc.external_account_id = sca.id
-			WHERE pc.pr_id = pr.id 
-			AND sca.organization_id = ?
-			AND sca.id IN ?
-		)
-	`
-
-	var verySimpleArgs []any
-	verySimpleArgs = append(verySimpleArgs, startDate, endDate, organizationID, sourceControlAccountIDs)
-
-	var memberCommentedPRs int64
-	if err := d.db.WithContext(ctx).Raw(verySimpleQuery, verySimpleArgs...).Scan(&memberCommentedPRs).Error; err != nil {
-		return nil, fmt.Errorf("very simple test query failed: %w", err)
-	}
-
-	fmt.Printf("DEBUG - PRs commented on by member: %d\n", memberCommentedPRs)
-
-	// Now run the actual query - temporarily simplified for debugging
 	query := `
 		SELECT ` + selectStatement + ` as avg_review_complexity
 		FROM pull_requests pr
@@ -1073,7 +998,7 @@ func (d *SourceControlDB) CalculatePRReviewComplexity(ctx context.Context, organ
 	var args []any
 	args = append(args, startDate, endDate, organizationID)
 
-	// Only filter by source control account IDs if provided
+	// Filter by source control account IDs if provided
 	if len(sourceControlAccountIDs) > 0 {
 		query += `			AND sca.id IN ?
 		)
@@ -1089,14 +1014,6 @@ func (d *SourceControlDB) CalculatePRReviewComplexity(ctx context.Context, organ
 	if len(prPrefixes) > 0 {
 		query += " AND pr.prefix IN ?"
 		args = append(args, prPrefixes)
-	} else if len(sourceControlAccountIDs) > 0 {
-		// If using member-based filtering, exclude PRs authored by those members
-		query += `		AND pr.external_account_id NOT IN (
-			SELECT sca.id FROM member_external_accounts sca 
-			WHERE sca.organization_id = ?
-		)
-	`
-		args = append(args, organizationID)
 	}
 
 	var result struct {
@@ -1113,7 +1030,6 @@ func (d *SourceControlDB) CalculatePRReviewComplexity(ctx context.Context, organ
 		value = *result.AvgReviewComplexity
 	}
 
-	fmt.Printf("DEBUG - Final result: %f\n", value)
 	return &value, nil
 }
 
@@ -1151,13 +1067,14 @@ func (d *SourceControlDB) CalculatePRReviewComplexityGraph(ctx context.Context, 
 			SELECT 1 FROM pr_comments pc 
 			JOIN member_external_accounts sca ON pc.external_account_id = sca.id
 			WHERE pc.pr_id = pr.id 
+			AND pc.type = 'REVIEW'
 			AND sca.organization_id = ?
 	`
 
 	var args []any
 	args = append(args, startDate, endDate, organizationID)
 
-	// Only filter by source control account IDs if provided
+	// Filter by source control account IDs if provided
 	if len(sourceControlAccountIDs) > 0 {
 		query += `			AND sca.id IN ?
 		)
@@ -1173,14 +1090,6 @@ func (d *SourceControlDB) CalculatePRReviewComplexityGraph(ctx context.Context, 
 	if len(prPrefixes) > 0 {
 		query += " AND pr.prefix IN ?"
 		args = append(args, prPrefixes)
-	} else if len(sourceControlAccountIDs) > 0 {
-		// If using member-based filtering, exclude PRs authored by those members
-		query += `		AND pr.external_account_id NOT IN (
-			SELECT sca.id FROM member_external_accounts sca 
-			WHERE sca.organization_id = ?
-		)
-	`
-		args = append(args, organizationID)
 	}
 
 	query += " GROUP BY DATE_TRUNC('" + postgresInterval + "', pr.created_at)"
