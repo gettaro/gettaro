@@ -5,7 +5,7 @@ import { Member } from '../types/member'
 import { GetMemberMetricsResponse, GetMemberMetricsParams } from '../types/memberMetrics'
 import { Title } from '../types/title'
 import { ExternalAccount, PullRequest, GetMemberPullRequestsParams, GetMemberPullRequestReviewsParams } from '../types/sourcecontrol'
-import { MemberActivity, GetMemberActivityParams } from '../types/sourcecontrol'
+import { MemberActivity } from '../types/sourcecontrol'
 import { OrgChartNode } from '../types/directs'
 import Api from '../api/api'
 import { formatMetricValue, formatTimeMetric } from '../utils/formatMetrics'
@@ -30,14 +30,15 @@ export default function MemberProfilePage() {
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   
   // Date filter state for Code Contributions tab
-  const [dateParams, setDateParams] = useState<GetMemberActivityParams>(() => {
+  const [dateParams, setDateParams] = useState<GetMemberMetricsParams>(() => {
     const endDate = new Date()
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - 30) // 1 month ago
     
     return {
       startDate: startDate.toISOString().split('T')[0], // YYYY-MM-DD format
-      endDate: endDate.toISOString().split('T')[0]
+      endDate: endDate.toISOString().split('T')[0],
+      interval: 'weekly' as 'daily' | 'weekly' | 'monthly'
     }
   })
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
@@ -54,6 +55,7 @@ export default function MemberProfilePage() {
   
   // Metrics view state
   const [metricsViewMode, setMetricsViewMode] = useState<'snapshot' | 'graph'>('snapshot')
+  const [currentGraphIndex, setCurrentGraphIndex] = useState(0)
   
   // Conversation sidebar state
   const [showConversationSidebar, setShowConversationSidebar] = useState(false)
@@ -71,7 +73,7 @@ export default function MemberProfilePage() {
     if (activeTab === 'source-control-metrics' && currentOrganization?.id && memberId) {
       loadCodeContributionsData()
     }
-  }, [activeTab, currentOrganization?.id, memberId, dateParams.startDate, dateParams.endDate])
+  }, [activeTab, currentOrganization?.id, memberId, dateParams.startDate, dateParams.endDate, dateParams.interval])
 
   // Load management tree when management tree tab is selected
   useEffect(() => {
@@ -104,7 +106,7 @@ export default function MemberProfilePage() {
       const metricsParams: GetMemberMetricsParams = {
         startDate: dateParams.startDate,
         endDate: dateParams.endDate,
-        interval: 'monthly'
+        interval: dateParams.interval || 'weekly'
       }
       
       const prParams: GetMemberPullRequestsParams = {
@@ -167,6 +169,75 @@ export default function MemberProfilePage() {
       [field]: value || undefined
     }))
   }
+
+  const handleIntervalChange = (interval: 'daily' | 'weekly' | 'monthly') => {
+    setDateParams(prev => ({
+      ...prev,
+      interval
+    }))
+  }
+
+  // Get all graphs from metrics
+  const getAllGraphs = (metricsData: GetMemberMetricsResponse) => {
+    if (!metricsData.graph_metrics || metricsData.graph_metrics.length === 0) {
+      return []
+    }
+
+    const allGraphs: Array<{ 
+      metric: any
+      category: string
+      description: string
+    }> = []
+
+    metricsData.graph_metrics.forEach((category) => {
+      // Filter metrics that have data
+      const metricsWithData = category.metrics.filter((metric) => {
+        if (!metric.time_series || metric.time_series.length === 0) {
+          return false
+        }
+        return metric.time_series.some(entry => 
+          entry.data && entry.data.length > 0
+        )
+      })
+
+      metricsWithData.forEach((metric) => {
+        const snapshotMetric = metricsData.snapshot_metrics
+          ?.flatMap(cat => cat.metrics)
+          .find(m => m.label === metric.label)
+        const description = snapshotMetric?.description || ''
+        
+        allGraphs.push({
+          metric,
+          category: category.category.name,
+          description
+        })
+      })
+    })
+
+    return allGraphs
+  }
+
+  const navigateGraph = (direction: 'prev' | 'next', totalGraphs: number) => {
+    let newIndex: number
+    
+    if (direction === 'prev') {
+      newIndex = currentGraphIndex > 0 ? currentGraphIndex - 1 : totalGraphs - 1
+    } else {
+      newIndex = currentGraphIndex < totalGraphs - 1 ? currentGraphIndex + 1 : 0
+    }
+    
+    setCurrentGraphIndex(newIndex)
+  }
+
+  // Reset graph index when metrics change
+  useEffect(() => {
+    if (metrics && metricsViewMode === 'graph') {
+      const allGraphs = getAllGraphs(metrics)
+      if (allGraphs.length > 0 && currentGraphIndex >= allGraphs.length) {
+        setCurrentGraphIndex(0)
+      }
+    }
+  }, [metrics, metricsViewMode])
 
   const toggleExpanded = (itemId: string) => {
     setExpandedItems(prev => {
@@ -682,6 +753,22 @@ export default function MemberProfilePage() {
                     className="px-3 py-2 border border-border/50 rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-sm"
                   />
                 </div>
+                {metricsViewMode === 'graph' && (
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Interval
+                    </label>
+                    <select
+                      value={dateParams.interval || 'weekly'}
+                      onChange={(e) => handleIntervalChange(e.target.value as 'daily' | 'weekly' | 'monthly')}
+                      className="px-3 py-2 border border-border/50 rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                    >
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -753,17 +840,11 @@ export default function MemberProfilePage() {
                       </div>
                     ))
                   ) : (
-                    // Graph View
+                    // Graph View with Slider
                     (() => {
-                      const categoriesWithData = (metrics.graph_metrics || [])
-                        .filter(category => category.metrics && category.metrics.length > 0)
-                        .map(category => ({
-                          ...category,
-                          metrics: category.metrics.filter(metric => metric.time_series && metric.time_series.length > 0)
-                        }))
-                        .filter(category => category.metrics.length > 0)
-
-                      if (categoriesWithData.length === 0) {
+                      const allGraphs = getAllGraphs(metrics)
+                      
+                      if (allGraphs.length === 0) {
                         return (
                           <div className="flex items-center justify-center h-24">
                             <div className="text-center">
@@ -776,24 +857,93 @@ export default function MemberProfilePage() {
                         )
                       }
 
-                      return categoriesWithData.map((category) => (
-                        <div key={category.category.name} className="space-y-3">
-                          <h4 className="text-md font-semibold text-foreground">{category.category.name}</h4>
-                          <div className="space-y-4">
-                            {category.metrics.map((metric) => (
-                              <div key={metric.label} className="bg-muted/10 rounded-lg p-4">
+                      const currentGraph = allGraphs[currentGraphIndex] || allGraphs[0]
+                      const chartElement = currentGraph.metric ? (
+                        <MetricChart metric={currentGraph.metric} height={300} />
+                      ) : null
+
+                      if (!chartElement) {
+                        return (
+                          <div className="flex items-center justify-center h-24">
+                            <div className="text-center">
+                              <div className="text-muted-foreground mb-1 text-sm">No graph data available</div>
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      return (
+                        <div>
+                          <div className="bg-muted/30 rounded-lg p-4">
+                            <div className="relative">
+                              {/* Navigation Buttons */}
+                              <div className="flex items-center justify-between mb-4">
+                                <button
+                                  onClick={() => navigateGraph('prev', allGraphs.length)}
+                                  className="p-2 rounded hover:bg-muted/50 transition-colors"
+                                  aria-label="Previous graph"
+                                >
+                                  <svg
+                                    className="w-5 h-5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M15 19l-7-7 7-7"
+                                    />
+                                  </svg>
+                                </button>
+                                
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-muted-foreground">
+                                    {currentGraphIndex + 1} of {allGraphs.length}
+                                  </span>
+                                </div>
+                                
+                                <button
+                                  onClick={() => navigateGraph('next', allGraphs.length)}
+                                  className="p-2 rounded hover:bg-muted/50 transition-colors"
+                                  aria-label="Next graph"
+                                >
+                                  <svg
+                                    className="w-5 h-5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M9 5l7 7-7 7"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+
+                              {/* Graph Content */}
+                              <div className="bg-muted/10 rounded-lg p-4">
                                 <div className="flex items-center justify-between mb-3">
-                                  <h5 className="font-medium text-foreground">{metric.label}</h5>
-                                  <span className="text-xs text-muted-foreground capitalize">{metric.type}</span>
+                                  <div>
+                                    <h5 className="font-medium text-foreground">{currentGraph.metric.label}</h5>
+                                    {currentGraph.description && (
+                                      <p className="text-xs text-muted-foreground mt-1">{currentGraph.description}</p>
+                                    )}
+                                  </div>
+                                  <span className="text-xs text-muted-foreground capitalize">{currentGraph.metric.type}</span>
                                 </div>
                                 <div className="bg-muted/5 rounded border border-border/30 p-4">
-                                  <MetricChart metric={metric} height={200} />
+                                  {chartElement}
                                 </div>
                               </div>
-                            ))}
+                            </div>
                           </div>
                         </div>
-                      ))
+                      )
                     })()
                   )}
                 </div>
