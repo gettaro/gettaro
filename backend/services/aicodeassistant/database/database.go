@@ -3,17 +3,35 @@ package database
 import (
 	"context"
 	"fmt"
+	"time"
 
-	"ems.dev/backend/services/aicodeassistant/types"
+	"ems.dev/backend/services/aicodeassistant/metrics/types"
+	aicodeassistanttypes "ems.dev/backend/services/aicodeassistant/types"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 // AICodeAssistantDB defines the interface for AI code assistant database operations
 type DB interface {
-	CreateOrUpdateDailyMetric(ctx context.Context, metric *types.AICodeAssistantDailyMetric) error
-	GetDailyMetrics(ctx context.Context, params *types.AICodeAssistantDailyMetricParams) ([]*types.AICodeAssistantDailyMetric, error)
-	GetUsageStats(ctx context.Context, params *types.AICodeAssistantDailyMetricParams) (*types.AICodeAssistantUsageStats, error)
+	CreateOrUpdateDailyMetric(ctx context.Context, metric *aicodeassistanttypes.AICodeAssistantDailyMetric) error
+	GetDailyMetrics(ctx context.Context, params *aicodeassistanttypes.AICodeAssistantDailyMetricParams) ([]*aicodeassistanttypes.AICodeAssistantDailyMetric, error)
+	GetUsageStats(ctx context.Context, params *aicodeassistanttypes.AICodeAssistantDailyMetricParams) (*aicodeassistanttypes.AICodeAssistantUsageStats, error)
+
+	// Calculate metrics
+	CalculateLinesOfCodeAccepted(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time, metricOperation types.MetricOperation) (*int, error)
+	CalculateLinesOfCodeAcceptedGraph(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time, metricOperation types.MetricOperation, metricLabel string, interval string) ([]aicodeassistanttypes.TimeSeriesEntry, error)
+	CalculateLinesOfCodeSuggested(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time, metricOperation types.MetricOperation) (*int, error)
+	CalculateLinesOfCodeSuggestedGraph(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time, metricOperation types.MetricOperation, metricLabel string, interval string) ([]aicodeassistanttypes.TimeSeriesEntry, error)
+	CalculateActiveSessions(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time, metricOperation types.MetricOperation) (*int, error)
+	CalculateActiveSessionsGraph(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time, metricOperation types.MetricOperation, metricLabel string, interval string) ([]aicodeassistanttypes.TimeSeriesEntry, error)
+	CalculateAcceptRate(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time, metricOperation types.MetricOperation) (*float64, error)
+	CalculateAcceptRateGraph(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time, metricOperation types.MetricOperation, metricLabel string, interval string) ([]aicodeassistanttypes.TimeSeriesEntry, error)
+
+	// Calculate peer metrics (median across peers)
+	CalculateLinesOfCodeAcceptedForAccounts(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time) (*float64, error)
+	CalculateLinesOfCodeSuggestedForAccounts(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time) (*float64, error)
+	CalculateActiveSessionsForAccounts(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time) (*float64, error)
+	CalculateAcceptRateForAccounts(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time) (*float64, error)
 }
 
 // AICodeAssistantDB implements the database operations
@@ -30,7 +48,7 @@ func NewAICodeAssistantDB(db *gorm.DB) DB {
 
 // CreateOrUpdateDailyMetric creates or updates a daily metric
 // Uses ON CONFLICT to handle upsert logic based on unique constraint
-func (d *AICodeAssistantDB) CreateOrUpdateDailyMetric(ctx context.Context, metric *types.AICodeAssistantDailyMetric) error {
+func (d *AICodeAssistantDB) CreateOrUpdateDailyMetric(ctx context.Context, metric *aicodeassistanttypes.AICodeAssistantDailyMetric) error {
 	// Use Clauses with OnConflict to handle upsert on unique constraint
 	// The unique constraint is on (organization_id, external_account_id, tool_name, metric_date)
 	return d.db.WithContext(ctx).
@@ -55,9 +73,9 @@ func (d *AICodeAssistantDB) CreateOrUpdateDailyMetric(ctx context.Context, metri
 }
 
 // GetDailyMetrics retrieves daily metrics based on the given parameters
-func (d *AICodeAssistantDB) GetDailyMetrics(ctx context.Context, params *types.AICodeAssistantDailyMetricParams) ([]*types.AICodeAssistantDailyMetric, error) {
-	var metrics []*types.AICodeAssistantDailyMetric
-	query := d.db.WithContext(ctx).Model(&types.AICodeAssistantDailyMetric{})
+func (d *AICodeAssistantDB) GetDailyMetrics(ctx context.Context, params *aicodeassistanttypes.AICodeAssistantDailyMetricParams) ([]*aicodeassistanttypes.AICodeAssistantDailyMetric, error) {
+	var metrics []*aicodeassistanttypes.AICodeAssistantDailyMetric
+	query := d.db.WithContext(ctx).Model(&aicodeassistanttypes.AICodeAssistantDailyMetric{})
 
 	// Filter by organization ID (required)
 	query = query.Where("organization_id = ?", params.OrganizationID)
@@ -91,8 +109,8 @@ func (d *AICodeAssistantDB) GetDailyMetrics(ctx context.Context, params *types.A
 }
 
 // GetUsageStats calculates aggregated statistics from daily metrics
-func (d *AICodeAssistantDB) GetUsageStats(ctx context.Context, params *types.AICodeAssistantDailyMetricParams) (*types.AICodeAssistantUsageStats, error) {
-	query := d.db.WithContext(ctx).Model(&types.AICodeAssistantDailyMetric{})
+func (d *AICodeAssistantDB) GetUsageStats(ctx context.Context, params *aicodeassistanttypes.AICodeAssistantDailyMetricParams) (*aicodeassistanttypes.AICodeAssistantUsageStats, error) {
+	query := d.db.WithContext(ctx).Model(&aicodeassistanttypes.AICodeAssistantDailyMetric{})
 
 	// Apply same filters as GetDailyMetrics
 	query = query.Where("organization_id = ?", params.OrganizationID)
@@ -113,7 +131,7 @@ func (d *AICodeAssistantDB) GetUsageStats(ctx context.Context, params *types.AIC
 	}
 
 	// Initialize stats with zero values
-	stats := types.AICodeAssistantUsageStats{
+	stats := aicodeassistanttypes.AICodeAssistantUsageStats{
 		TotalLinesAccepted:  0,
 		TotalLinesSuggested: 0,
 		OverallAcceptRate:   0.0,
