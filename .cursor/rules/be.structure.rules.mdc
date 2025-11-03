@@ -19,12 +19,14 @@ alwaysApply: true
 ## HTTP Layer
 - [ ] Organize handlers by resource (one file per resource)
 - [ ] Keep middleware separate (one file per middleware)
+- [ ] Keep it slim, in most cases it should only contain authorization and validation logic
 - [ ] Maintain server configuration in `server/`:
   - `routes.go`: Route registration
   - `server.go`: Server initialization
 
 ## Service Layer
 - [ ] Organize services by resource under `/backend/services/{resourceName}`
+- [ ] Should be where the business logic is
 - [ ] Structure each service as:
   - `api/`: Service interface and methods
   - `database/`: Database operations
