@@ -17,7 +17,6 @@ import { ChatContext } from '../types/ai'
 import MetricChart from '../components/MetricChart'
 import PullRequestItem from '../components/PullRequestItem'
 import { 
-  AICodeAssistantUsageStats, 
   GetMemberAICodeAssistantUsageParams,
   GetMemberAICodeAssistantMetricsParams,
   GetMemberAICodeAssistantMetricsResponse
@@ -68,20 +67,6 @@ export default function MemberProfilePage() {
   const [selectedConversation, setSelectedConversation] = useState<ConversationWithDetails | null>(null)
   const [conversationSidebarMode, setConversationSidebarMode] = useState<'edit' | 'create'>('edit')
   
-  // AI Code Assistant Usage state
-  const [aiUsageStats, setAiUsageStats] = useState<AICodeAssistantUsageStats | null>(null)
-  const [aiUsageStatsLoading, setAiUsageStatsLoading] = useState(false)
-  const [aiUsageDateParams, setAiUsageDateParams] = useState<GetMemberAICodeAssistantUsageParams>(() => {
-    const endDate = new Date()
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - 30) // 1 month ago
-    
-    return {
-      startDate: startDate.toISOString().split('T')[0],
-      endDate: endDate.toISOString().split('T')[0],
-    }
-  })
-  
   // AI Code Assistant Metrics state
   const [aiCodeAssistantMetrics, setAiCodeAssistantMetrics] = useState<GetMemberAICodeAssistantMetricsResponse | null>(null)
   const [aiCodeAssistantMetricsLoading, setAiCodeAssistantMetricsLoading] = useState(false)
@@ -119,13 +104,12 @@ export default function MemberProfilePage() {
     }
   }, [activeTab, member, title, currentOrganization?.id, memberId])
 
-  // Load AI Code Assistant usage stats when tab is selected
+  // Load AI Code Assistant metrics when tab is selected
   useEffect(() => {
     if (activeTab === 'ai-code-assistant-usage' && currentOrganization?.id && memberId) {
-      loadAICodeAssistantUsageStats()
       loadAICodeAssistantMetrics()
     }
-  }, [activeTab, currentOrganization?.id, memberId, aiUsageDateParams.startDate, aiUsageDateParams.endDate])
+  }, [activeTab, currentOrganization?.id, memberId])
   
   // Load AI Code Assistant metrics when date params or interval change
   useEffect(() => {
@@ -193,25 +177,6 @@ export default function MemberProfilePage() {
     }
   }
 
-  const loadAICodeAssistantUsageStats = async () => {
-    if (!currentOrganization?.id || !memberId) return
-
-    setAiUsageStatsLoading(true)
-    try {
-      const response = await Api.getMemberAICodeAssistantUsageStats(
-        currentOrganization.id,
-        memberId,
-        aiUsageDateParams
-      )
-      setAiUsageStats(response.stats)
-    } catch (err) {
-      console.error('Error loading AI code assistant usage stats:', err)
-      setError('Failed to load AI code assistant usage stats')
-    } finally {
-      setAiUsageStatsLoading(false)
-    }
-  }
-
   const loadAICodeAssistantMetrics = async () => {
     if (!currentOrganization?.id || !memberId) return
 
@@ -229,13 +194,6 @@ export default function MemberProfilePage() {
     } finally {
       setAiCodeAssistantMetricsLoading(false)
     }
-  }
-
-  const handleAiUsageDateChange = (field: 'startDate' | 'endDate', value: string) => {
-    setAiUsageDateParams(prev => ({
-      ...prev,
-      [field]: value || undefined
-    }))
   }
 
   const handleAiCodeAssistantMetricsDateChange = (field: 'startDate' | 'endDate', value: string) => {

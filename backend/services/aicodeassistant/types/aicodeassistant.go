@@ -53,14 +53,6 @@ type MemberMetricsParams struct {
 	Interval  string     `json:"interval,omitempty"` // daily, weekly, monthly
 }
 
-// AICodeAssistantUsageStats represents aggregated statistics
-type AICodeAssistantUsageStats struct {
-	TotalLinesAccepted  int     `json:"total_lines_accepted"`
-	TotalLinesSuggested int     `json:"total_lines_suggested"`
-	OverallAcceptRate   float64 `json:"overall_accept_rate"`
-	ActiveSessions      int     `json:"active_sessions"`
-}
-
 // MetricRuleParams represents the parameters for a metric rule
 type MetricRuleParams struct {
 	MetricParams datatypes.JSON `json:"metric_params"`

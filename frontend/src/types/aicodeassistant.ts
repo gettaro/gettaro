@@ -13,13 +13,6 @@ export interface AICodeAssistantDailyMetric {
   updated_at: string
 }
 
-export interface AICodeAssistantUsageStats {
-  total_lines_accepted: number
-  total_lines_suggested: number
-  overall_accept_rate: number
-  active_sessions: number
-}
-
 export interface GetMemberAICodeAssistantUsageParams {
   toolName?: string
   startDate?: string
@@ -28,10 +21,6 @@ export interface GetMemberAICodeAssistantUsageParams {
 
 export interface GetMemberAICodeAssistantUsageResponse {
   metrics: AICodeAssistantDailyMetric[]
-}
-
-export interface GetMemberAICodeAssistantUsageStatsResponse {
-  stats: AICodeAssistantUsageStats
 }
 
 // Metrics types (reusing structure from memberMetrics)

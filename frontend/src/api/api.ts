@@ -26,10 +26,8 @@ import {
   ConversationStatsResponse
 } from '../types/conversation'
 import {
-  AICodeAssistantUsageStats,
   GetMemberAICodeAssistantUsageParams,
   GetMemberAICodeAssistantUsageResponse,
-  GetMemberAICodeAssistantUsageStatsResponse,
   GetMemberAICodeAssistantMetricsParams,
   GetMemberAICodeAssistantMetricsResponse
 } from '../types/aicodeassistant'
@@ -409,36 +407,6 @@ export default class Api {
   }
 
   // Member AI Code Assistant Usage API functions
-  static async getMemberAICodeAssistantUsageStats(organizationId: string, memberId: string, params?: GetMemberAICodeAssistantUsageParams): Promise<GetMemberAICodeAssistantUsageStatsResponse> {
-    const token = this.accessToken
-    const queryParams = new URLSearchParams()
-    
-    if (params?.toolName) {
-      queryParams.append('toolName', params.toolName)
-    }
-    if (params?.startDate) {
-      queryParams.append('startDate', params.startDate)
-    }
-    if (params?.endDate) {
-      queryParams.append('endDate', params.endDate)
-    }
-
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/ai-code-assistant/stats?${queryParams}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error(`Failed to get member AI code assistant usage stats: ${response.statusText}`)
-    }
-
-    const data = await response.json()
-    return data
-  }
-
   static async getMemberAICodeAssistantMetrics(organizationId: string, memberId: string, params?: GetMemberAICodeAssistantMetricsParams): Promise<GetMemberAICodeAssistantMetricsResponse> {
     const token = this.accessToken
     const queryParams = new URLSearchParams()

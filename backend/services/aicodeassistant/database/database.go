@@ -15,7 +15,6 @@ import (
 type DB interface {
 	CreateOrUpdateDailyMetric(ctx context.Context, metric *aicodeassistanttypes.AICodeAssistantDailyMetric) error
 	GetDailyMetrics(ctx context.Context, params *aicodeassistanttypes.AICodeAssistantDailyMetricParams) ([]*aicodeassistanttypes.AICodeAssistantDailyMetric, error)
-	GetUsageStats(ctx context.Context, params *aicodeassistanttypes.AICodeAssistantDailyMetricParams) (*aicodeassistanttypes.AICodeAssistantUsageStats, error)
 
 	// Calculate metrics
 	CalculateLinesOfCodeAccepted(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time, metricOperation types.MetricOperation) (*int, error)
@@ -106,72 +105,4 @@ func (d *AICodeAssistantDB) GetDailyMetrics(ctx context.Context, params *aicodea
 	}
 
 	return metrics, nil
-}
-
-// GetUsageStats calculates aggregated statistics from daily metrics
-func (d *AICodeAssistantDB) GetUsageStats(ctx context.Context, params *aicodeassistanttypes.AICodeAssistantDailyMetricParams) (*aicodeassistanttypes.AICodeAssistantUsageStats, error) {
-	query := d.db.WithContext(ctx).Model(&aicodeassistanttypes.AICodeAssistantDailyMetric{})
-
-	// Apply same filters as GetDailyMetrics
-	query = query.Where("organization_id = ?", params.OrganizationID)
-
-	if len(params.ExternalAccountIDs) > 0 {
-		query = query.Where("external_account_id IN ?", params.ExternalAccountIDs)
-	}
-
-	if params.ToolName != nil && *params.ToolName != "" {
-		query = query.Where("tool_name = ?", *params.ToolName)
-	}
-
-	if params.StartDate != nil {
-		query = query.Where("metric_date >= ?", *params.StartDate)
-	}
-	if params.EndDate != nil {
-		query = query.Where("metric_date <= ?", *params.EndDate)
-	}
-
-	// Initialize stats with zero values
-	stats := aicodeassistanttypes.AICodeAssistantUsageStats{
-		TotalLinesAccepted:  0,
-		TotalLinesSuggested: 0,
-		OverallAcceptRate:   0.0,
-		ActiveSessions:      0,
-	}
-
-	// Calculate total lines accepted
-	var totalLinesAccepted struct {
-		Sum int64
-	}
-	if err := query.Select("COALESCE(SUM(lines_of_code_accepted), 0) as sum").
-		Scan(&totalLinesAccepted).Error; err != nil {
-		return nil, fmt.Errorf("failed to calculate total lines accepted: %w", err)
-	}
-	stats.TotalLinesAccepted = int(totalLinesAccepted.Sum)
-
-	// Calculate total lines suggested
-	var totalLinesSuggested struct {
-		Sum int64
-	}
-	if err := query.Select("COALESCE(SUM(lines_of_code_suggested), 0) as sum").
-		Scan(&totalLinesSuggested).Error; err != nil {
-		return nil, fmt.Errorf("failed to calculate total lines suggested: %w", err)
-	}
-	stats.TotalLinesSuggested = int(totalLinesSuggested.Sum)
-
-	// Calculate overall accept rate (lines accepted / lines suggested)
-	if stats.TotalLinesSuggested > 0 {
-		stats.OverallAcceptRate = (float64(totalLinesAccepted.Sum) / float64(totalLinesSuggested.Sum)) * 100
-	}
-
-	// Sum active sessions from daily metrics
-	var activeSessions struct {
-		Sum int64
-	}
-	if err := query.Select("COALESCE(SUM(active_sessions), 0) as sum").
-		Scan(&activeSessions).Error; err != nil {
-		return nil, fmt.Errorf("failed to sum active sessions: %w", err)
-	}
-	stats.ActiveSessions = int(activeSessions.Sum)
-
-	return &stats, nil
 }
