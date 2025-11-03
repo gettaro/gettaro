@@ -5,12 +5,13 @@ import { Team } from '../types/team'
 import { Member } from '../types/member'
 import { PullRequest } from '../types/sourcecontrol'
 import { OrganizationMetricsResponse } from '../types/organizationMetrics'
+import { GetMemberAICodeAssistantMetricsParams, GetMemberAICodeAssistantMetricsResponse } from '../types/aicodeassistant'
 import Api from '../api/api'
 import MetricChart from '../components/MetricChart'
 import MetricInfoButton from '../components/MetricInfoButton'
 import PullRequestItem from '../components/PullRequestItem'
 
-type TabType = 'overview' | 'code-contributions'
+type TabType = 'overview' | 'code-contributions' | 'ai-code-assistant'
 
 export default function TeamProfilePage() {
   const { teamId } = useParams<{ teamId: string }>()
@@ -42,8 +43,11 @@ export default function TeamProfilePage() {
   const [allPRsLoading, setAllPRsLoading] = useState(false)
   const [metrics, setMetrics] = useState<OrganizationMetricsResponse | null>(null)
   const [metricsLoading, setMetricsLoading] = useState(false)
+  const [aiMetrics, setAiMetrics] = useState<GetMemberAICodeAssistantMetricsResponse | null>(null)
+  const [aiMetricsLoading, setAiMetricsLoading] = useState(false)
   const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set(['pull-requests']))
   const [currentGraphIndex, setCurrentGraphIndex] = useState(0)
+  const [aiCurrentGraphIndex, setAiCurrentGraphIndex] = useState(0)
 
   // Load team data
   useEffect(() => {
@@ -168,6 +172,30 @@ export default function TeamProfilePage() {
     loadMetrics()
   }, [currentOrganization?.id, team, dateParams.startDate, dateParams.endDate, dateParams.interval, activeTab])
 
+  // Load AI code assistant metrics
+  useEffect(() => {
+    if (!currentOrganization?.id || !team || activeTab !== 'ai-code-assistant') return
+
+    const loadAiMetrics = async () => {
+      setAiMetricsLoading(true)
+      try {
+        const params: GetMemberAICodeAssistantMetricsParams = {
+          startDate: dateParams.startDate,
+          endDate: dateParams.endDate,
+          interval: dateParams.interval
+        }
+        const aiMetricsData = await Api.getTeamAICodeAssistantMetrics(currentOrganization.id, teamId!, params)
+        setAiMetrics(aiMetricsData)
+      } catch (err) {
+        console.error('Error loading AI metrics:', err)
+      } finally {
+        setAiMetricsLoading(false)
+      }
+    }
+
+    loadAiMetrics()
+  }, [currentOrganization?.id, team, dateParams.startDate, dateParams.endDate, dateParams.interval, activeTab, teamId])
+
   // Reset graph index when metrics change
   useEffect(() => {
     if (metrics) {
@@ -252,6 +280,64 @@ export default function TeamProfilePage() {
     setCurrentGraphIndex(newIndex)
   }
 
+  // Get all graphs for AI metrics
+  const getAllAiGraphs = (metricsData: GetMemberAICodeAssistantMetricsResponse) => {
+    if (!metricsData.graph_metrics || metricsData.graph_metrics.length === 0) {
+      return []
+    }
+
+    const allGraphs: Array<{ 
+      metric: any
+      category: string
+    }> = []
+
+    metricsData.graph_metrics.forEach((category) => {
+      const metricsWithData = category.metrics.filter((metric) => {
+        if (!metric.time_series || metric.time_series.length === 0) {
+          return false
+        }
+        return metric.time_series.some(entry => 
+          entry.data && entry.data.length > 0
+        )
+      })
+
+      metricsWithData.forEach((metric) => {
+        allGraphs.push({
+          metric: {
+            ...metric,
+            type: metric.type || 'line',
+            unit: metric.unit || 'count'
+          },
+          category: category.category
+        })
+      })
+    })
+
+    return allGraphs
+  }
+
+  const navigateAiGraph = (direction: 'prev' | 'next', totalGraphs: number) => {
+    let newIndex: number
+    
+    if (direction === 'prev') {
+      newIndex = aiCurrentGraphIndex > 0 ? aiCurrentGraphIndex - 1 : totalGraphs - 1
+    } else {
+      newIndex = aiCurrentGraphIndex < totalGraphs - 1 ? aiCurrentGraphIndex + 1 : 0
+    }
+    
+    setAiCurrentGraphIndex(newIndex)
+  }
+
+  // Reset AI graph index when AI metrics change
+  useEffect(() => {
+    if (aiMetrics) {
+      const allGraphs = getAllAiGraphs(aiMetrics)
+      if (allGraphs.length > 0 && aiCurrentGraphIndex >= allGraphs.length) {
+        setAiCurrentGraphIndex(0)
+      }
+    }
+  }, [aiMetrics, aiCurrentGraphIndex])
+
 
   if (loading) {
     return (
@@ -327,6 +413,16 @@ export default function TeamProfilePage() {
                 }`}
               >
                 Code Contributions
+              </button>
+              <button
+                onClick={() => setActiveTab('ai-code-assistant')}
+                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'ai-code-assistant'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
+                }`}
+              >
+                AI Code Assistant
               </button>
             </nav>
           </div>
@@ -665,6 +761,162 @@ export default function TeamProfilePage() {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'ai-code-assistant' && (
+              <div className="space-y-4">
+                {/* Date Filter Controls */}
+                <div className="bg-card rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-foreground">Filter by Date Range</h3>
+                    {aiMetricsLoading && (
+                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Loading...</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">
+                        Start Date
+                      </label>
+                      <input
+                        type="date"
+                        value={dateParams.startDate || ''}
+                        onChange={(e) => handleDateChange('startDate', e.target.value)}
+                        className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">
+                        End Date
+                      </label>
+                      <input
+                        type="date"
+                        value={dateParams.endDate || ''}
+                        onChange={(e) => handleDateChange('endDate', e.target.value)}
+                        className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">
+                        Interval
+                      </label>
+                      <select
+                        value={dateParams.interval}
+                        onChange={(e) => handleIntervalChange(e.target.value as 'daily' | 'weekly' | 'monthly')}
+                        className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                      >
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* AI Code Assistant Metrics Graphs */}
+                {aiMetricsLoading ? (
+                  <div className="bg-card rounded-lg p-4">
+                    <div className="flex justify-center items-center py-12">
+                      <span className="text-muted-foreground">Loading AI metrics...</span>
+                    </div>
+                  </div>
+                ) : aiMetrics ? (() => {
+                  const allGraphs = getAllAiGraphs(aiMetrics)
+                  
+                  if (allGraphs.length === 0) {
+                    return (
+                      <div className="bg-card rounded-lg p-4">
+                        <div className="text-center py-8">
+                          <p className="text-muted-foreground text-sm">No AI metrics available</p>
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  const currentGraph = allGraphs[aiCurrentGraphIndex] || allGraphs[0]
+                  
+                  return (
+                    <div className="bg-card rounded-lg p-4">
+                      <h3 className="text-lg font-semibold mb-4">AI Code Assistant Metrics</h3>
+                      <div className="relative">
+                        {/* Navigation Buttons */}
+                        <div className="flex items-center justify-between mb-3">
+                          <button
+                            onClick={() => navigateAiGraph('prev', allGraphs.length)}
+                            className="p-2 rounded hover:bg-muted/50 transition-colors"
+                            aria-label="Previous graph"
+                          >
+                            <svg
+                              className="w-5 h-5 text-muted-foreground"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 19l-7-7 7-7"
+                              />
+                            </svg>
+                          </button>
+                          
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">
+                              {aiCurrentGraphIndex + 1} of {allGraphs.length}
+                            </span>
+                          </div>
+                          
+                          <button
+                            onClick={() => navigateAiGraph('next', allGraphs.length)}
+                            className="p-2 rounded hover:bg-muted/50 transition-colors"
+                            aria-label="Next graph"
+                          >
+                            <svg
+                              className="w-5 h-5 text-muted-foreground"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+
+                        {/* Current Graph */}
+                        <div className="bg-muted/30 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="flex-1">
+                              <p className="text-xs text-muted-foreground mb-1">{currentGraph.category}</p>
+                              <div className="flex items-center gap-2">
+                                <h5 className="text-sm font-medium">{currentGraph.metric.label}</h5>
+                              </div>
+                            </div>
+                          </div>
+                          <MetricChart metric={currentGraph.metric} height={300} />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })() : (
+                  <div className="bg-card rounded-lg p-4">
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground text-sm">No AI metrics available</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

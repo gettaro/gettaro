@@ -281,6 +281,75 @@ func (h *AICodeAssistantHandler) GetMemberAICodeAssistantMetrics(c *gin.Context)
 	c.JSON(http.StatusOK, response)
 }
 
+// GetTeamAICodeAssistantMetrics handles retrieving AI code assistant metrics for a specific team
+// Query Parameters:
+// - startDate: Optional start date in format "2006-01-02"
+// - endDate: Optional end date in format "2006-01-02"
+// - interval: Optional time interval for graph metrics (daily, weekly, monthly)
+func (h *AICodeAssistantHandler) GetTeamAICodeAssistantMetrics(c *gin.Context) {
+	teamID := c.Param("teamId")
+	if teamID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "team ID is required"})
+		return
+	}
+
+	orgID, err := utils.GetOrganizationIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if user is a member of the organization
+	if !utils.CheckOrganizationMembership(c, h.orgAPI, &orgID) {
+		return
+	}
+
+	// Get query parameters
+	var query aicodeassistanthttp.GetMemberMetricsRequest
+	if err := c.ShouldBindQuery(&query); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Parse dates if provided
+	var startDate, endDate *time.Time
+	if query.StartDate != "" {
+		parsed, err := time.Parse("2006-01-02", query.StartDate)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid startDate format, expected YYYY-MM-DD"})
+			return
+		}
+		startDate = &parsed
+	}
+	if query.EndDate != "" {
+		parsed, err := time.Parse("2006-01-02", query.EndDate)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid endDate format, expected YYYY-MM-DD"})
+			return
+		}
+		endDate = &parsed
+	}
+
+	// Build metrics service params
+	params := metricstypes.OrganizationMetricsParams{
+		OrganizationID: orgID,
+		StartDate:      startDate,
+		EndDate:        endDate,
+		Interval:       query.Interval,
+	}
+
+	// Get metrics from metrics service layer
+	metrics, err := h.metricsAPI.CalculateTeamAICodeAssistantMetrics(c.Request.Context(), orgID, teamID, params)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Convert to HTTP response types
+	response := aicodeassistanthttp.MarshalMetricsResponse(metrics)
+	c.JSON(http.StatusOK, response)
+}
+
 // RegisterRoutes registers the AI code assistant routes
 func (h *AICodeAssistantHandler) RegisterRoutes(router *gin.RouterGroup) {
 	// Organization-level routes
@@ -295,5 +364,11 @@ func (h *AICodeAssistantHandler) RegisterRoutes(router *gin.RouterGroup) {
 	{
 		memberRoutes.GET("/ai-code-assistant", h.GetMemberAICodeAssistantUsage)
 		memberRoutes.GET("/ai-code-assistant/metrics", h.GetMemberAICodeAssistantMetrics)
+	}
+
+	// Team-level routes (under organization)
+	teamRoutes := router.Group("/organizations/:id/teams/:teamId")
+	{
+		teamRoutes.GET("/ai-code-assistant/metrics", h.GetTeamAICodeAssistantMetrics)
 	}
 }

@@ -18,6 +18,8 @@ type MetricsAPI interface {
 	CalculateOrganizationSourceControlMetrics(ctx context.Context, params types.OrganizationMetricsParams) (*types.OrganizationMetricsResponse, error)
 	// CalculateOrganizationAICodeAssistantMetrics calculates aggregated AI code assistant metrics for an organization
 	CalculateOrganizationAICodeAssistantMetrics(ctx context.Context, params types.OrganizationMetricsParams) (*aicodeassistanttypes.MetricsResponse, error)
+	// CalculateTeamAICodeAssistantMetrics calculates AI code assistant metrics for a specific team
+	CalculateTeamAICodeAssistantMetrics(ctx context.Context, organizationID string, teamID string, params types.OrganizationMetricsParams) (*aicodeassistanttypes.MetricsResponse, error)
 }
 
 type Api struct {
