@@ -34,6 +34,9 @@ export default function EngineeringDashboard() {
   const [openPRsLoading, setOpenPRsLoading] = useState(false)
   const [metrics, setMetrics] = useState<OrganizationMetricsResponse | null>(null)
   const [metricsLoading, setMetricsLoading] = useState(false)
+  const [aiMetrics, setAiMetrics] = useState<GetMemberAICodeAssistantMetricsResponse | null>(null)
+  const [aiMetricsLoading, setAiMetricsLoading] = useState(false)
+  const [aiCurrentGraphIndex, setAiCurrentGraphIndex] = useState(0)
   const [teams, setTeams] = useState<Team[]>([])
   const [selectedTeams, setSelectedTeams] = useState<string[]>([])
   const [showTeamBreakdown, setShowTeamBreakdown] = useState(false)
@@ -125,6 +128,29 @@ export default function EngineeringDashboard() {
     }
   }
 
+  // Load AI code assistant metrics
+  const loadAiMetrics = async () => {
+    if (!currentOrganization?.id) return
+
+    setAiMetricsLoading(true)
+    setError(null)
+
+    try {
+      const params: GetMemberAICodeAssistantMetricsParams = {
+        startDate: dateParams.startDate,
+        endDate: dateParams.endDate,
+        interval: dateParams.interval
+      }
+      const aiMetricsData = await Api.getOrganizationAICodeAssistantMetrics(currentOrganization.id, params)
+      setAiMetrics(aiMetricsData)
+    } catch (err) {
+      console.error('Error loading AI metrics:', err)
+      // Don't set error for AI metrics, they're optional
+    } finally {
+      setAiMetricsLoading(false)
+    }
+  }
+
   // Load open PRs when organization changes
   useEffect(() => {
     if (currentOrganization?.id) {
@@ -136,6 +162,7 @@ export default function EngineeringDashboard() {
   useEffect(() => {
     if (currentOrganization?.id) {
       loadMetrics()
+      loadAiMetrics()
     }
   }, [currentOrganization?.id, dateParams.startDate, dateParams.endDate, dateParams.interval, showTeamBreakdown, selectedTeams])
 
@@ -410,6 +437,54 @@ export default function EngineeringDashboard() {
     setCurrentGraphIndex(newIndex)
   }
 
+  // Get all graphs for AI metrics
+  const getAllAiGraphs = (metricsData: GetMemberAICodeAssistantMetricsResponse) => {
+    if (!metricsData.graph_metrics || metricsData.graph_metrics.length === 0) {
+      return []
+    }
+
+    const allGraphs: Array<{ 
+      metric: any
+      category: string
+    }> = []
+
+    metricsData.graph_metrics.forEach((category) => {
+      const metricsWithData = category.metrics.filter((metric) => {
+        if (!metric.time_series || metric.time_series.length === 0) {
+          return false
+        }
+        return metric.time_series.some(entry => 
+          entry.data && entry.data.length > 0
+        )
+      })
+
+      metricsWithData.forEach((metric) => {
+        allGraphs.push({
+          metric: {
+            ...metric,
+            type: metric.type || 'line',
+            unit: metric.unit || 'count'
+          },
+          category: category.category
+        })
+      })
+    })
+
+    return allGraphs
+  }
+
+  const navigateAiGraph = (direction: 'prev' | 'next', totalGraphs: number) => {
+    let newIndex: number
+    
+    if (direction === 'prev') {
+      newIndex = aiCurrentGraphIndex > 0 ? aiCurrentGraphIndex - 1 : totalGraphs - 1
+    } else {
+      newIndex = aiCurrentGraphIndex < totalGraphs - 1 ? aiCurrentGraphIndex + 1 : 0
+    }
+    
+    setAiCurrentGraphIndex(newIndex)
+  }
+
   // Reset graph index when metrics or team breakdown changes
   useEffect(() => {
     if (metrics) {
@@ -420,6 +495,16 @@ export default function EngineeringDashboard() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metrics, showTeamBreakdown, selectedTeams])
+
+  // Reset AI graph index when AI metrics change
+  useEffect(() => {
+    if (aiMetrics) {
+      const allGraphs = getAllAiGraphs(aiMetrics)
+      if (allGraphs.length > 0 && aiCurrentGraphIndex >= allGraphs.length) {
+        setAiCurrentGraphIndex(0)
+      }
+    }
+  }, [aiMetrics, aiCurrentGraphIndex])
 
   const toggleRepoExpansion = (repoName: string) => {
     setExpandedRepos(prev => {
@@ -716,6 +801,104 @@ export default function EngineeringDashboard() {
           })() : (
             <p className="text-muted-foreground py-8 text-center">No metrics available</p>
           )}
+
+          {/* AI Code Assistant Metrics */}
+          <div className="mt-8">
+            <h2 className="text-xl font-semibold mb-4">AI Code Assistant Metrics</h2>
+            
+            {aiMetricsLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <span>Loading AI metrics...</span>
+              </div>
+            ) : aiMetrics ? (() => {
+              const allGraphs = getAllAiGraphs(aiMetrics)
+              
+              if (allGraphs.length === 0) {
+                return (
+                  <p className="text-muted-foreground py-8 text-center">No AI metrics available</p>
+                )
+              }
+              
+              const currentGraph = allGraphs[aiCurrentGraphIndex] || allGraphs[0]
+              const chartElement = currentGraph.metric ? (
+                <MetricChart metric={currentGraph.metric} height={300} />
+              ) : null
+              
+              if (!chartElement) {
+                return (
+                  <p className="text-muted-foreground py-8 text-center">No AI metrics available</p>
+                )
+              }
+              
+              return (
+                <div>
+                  <div className="bg-muted/30 rounded-lg p-4">
+                    <div className="relative">
+                      {/* Navigation Buttons */}
+                      <div className="flex items-center justify-between mb-4">
+                        <button
+                          onClick={() => navigateAiGraph('prev', allGraphs.length)}
+                          className="p-2 rounded hover:bg-muted/50 transition-colors"
+                          aria-label="Previous graph"
+                        >
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15 19l-7-7 7-7"
+                            />
+                          </svg>
+                        </button>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {aiCurrentGraphIndex + 1} of {allGraphs.length}
+                          </span>
+                        </div>
+                        
+                        <button
+                          onClick={() => navigateAiGraph('next', allGraphs.length)}
+                          className="p-2 rounded hover:bg-muted/50 transition-colors"
+                          aria-label="Next graph"
+                        >
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 5l7 7-7 7"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                      
+                      {/* Current Graph */}
+                      <div className="mb-2">
+                        <p className="text-xs text-muted-foreground mb-1">{currentGraph.category}</p>
+                        <div className="flex items-center gap-2 mb-3">
+                          <h5 className="font-medium">{currentGraph.metric.label}</h5>
+                        </div>
+                        {chartElement}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })() : (
+              <p className="text-muted-foreground py-8 text-center">No AI metrics available</p>
+            )}
+          </div>
           </div>
         )}
 

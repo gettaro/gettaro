@@ -436,6 +436,35 @@ export default class Api {
     return await response.json()
   }
 
+  static async getOrganizationAICodeAssistantMetrics(organizationId: string, params?: GetMemberAICodeAssistantMetricsParams): Promise<GetMemberAICodeAssistantMetricsResponse> {
+    const token = this.accessToken
+    const queryParams = new URLSearchParams()
+    
+    if (params?.startDate) {
+      queryParams.append('startDate', params.startDate)
+    }
+    if (params?.endDate) {
+      queryParams.append('endDate', params.endDate)
+    }
+    if (params?.interval) {
+      queryParams.append('interval', params.interval)
+    }
+
+    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/ai-code-assistant/metrics?${queryParams}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to get organization AI code assistant metrics: ${response.statusText}`)
+    }
+
+    return await response.json()
+  }
+
   // Organization Pull Requests API functions
   static async getOrganizationPullRequests(organizationId: string, params?: {
     userIds?: string[]

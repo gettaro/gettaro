@@ -8,6 +8,8 @@ import (
 	"ems.dev/backend/http/utils"
 	aicodeassistantapi "ems.dev/backend/services/aicodeassistant/api"
 	aicodeassistanttypes "ems.dev/backend/services/aicodeassistant/types"
+	metricsapi "ems.dev/backend/services/metrics/api"
+	metricstypes "ems.dev/backend/services/metrics/types"
 	organizationapi "ems.dev/backend/services/organization/api"
 
 	"github.com/gin-gonic/gin"
@@ -16,12 +18,14 @@ import (
 type AICodeAssistantHandler struct {
 	aiCodeAssistantAPI aicodeassistantapi.AICodeAssistantAPI
 	orgAPI             organizationapi.OrganizationAPI
+	metricsAPI         metricsapi.MetricsAPI
 }
 
-func NewAICodeAssistantHandler(aiCodeAssistantAPI aicodeassistantapi.AICodeAssistantAPI, orgAPI organizationapi.OrganizationAPI) *AICodeAssistantHandler {
+func NewAICodeAssistantHandler(aiCodeAssistantAPI aicodeassistantapi.AICodeAssistantAPI, orgAPI organizationapi.OrganizationAPI, metricsAPI metricsapi.MetricsAPI) *AICodeAssistantHandler {
 	return &AICodeAssistantHandler{
 		aiCodeAssistantAPI: aiCodeAssistantAPI,
 		orgAPI:             orgAPI,
+		metricsAPI:         metricsAPI,
 	}
 }
 
@@ -145,6 +149,69 @@ func (h *AICodeAssistantHandler) GetMemberAICodeAssistantUsage(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"metrics": metrics})
 }
 
+// GetOrganizationAICodeAssistantMetrics handles retrieving AI code assistant metrics for an organization
+// Query Parameters:
+// - startDate: Optional start date in format "2006-01-02"
+// - endDate: Optional end date in format "2006-01-02"
+// - interval: Optional time interval for graph metrics (daily, weekly, monthly)
+func (h *AICodeAssistantHandler) GetOrganizationAICodeAssistantMetrics(c *gin.Context) {
+	orgID, err := utils.GetOrganizationIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if user is a member of the organization
+	if !utils.CheckOrganizationMembership(c, h.orgAPI, &orgID) {
+		return
+	}
+
+	// Get query parameters
+	var query aicodeassistanthttp.GetMemberMetricsRequest
+	if err := c.ShouldBindQuery(&query); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Parse dates if provided
+	var startDate, endDate *time.Time
+	if query.StartDate != "" {
+		parsed, err := time.Parse("2006-01-02", query.StartDate)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid startDate format, expected YYYY-MM-DD"})
+			return
+		}
+		startDate = &parsed
+	}
+	if query.EndDate != "" {
+		parsed, err := time.Parse("2006-01-02", query.EndDate)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid endDate format, expected YYYY-MM-DD"})
+			return
+		}
+		endDate = &parsed
+	}
+
+	// Build metrics service params
+	params := metricstypes.OrganizationMetricsParams{
+		OrganizationID: orgID,
+		StartDate:      startDate,
+		EndDate:        endDate,
+		Interval:       query.Interval,
+	}
+
+	// Get metrics from metrics service layer
+	metrics, err := h.metricsAPI.CalculateOrganizationAICodeAssistantMetrics(c.Request.Context(), params)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Convert to HTTP response types
+	response := aicodeassistanthttp.MarshalMetricsResponse(metrics)
+	c.JSON(http.StatusOK, response)
+}
+
 // GetMemberAICodeAssistantMetrics handles retrieving AI code assistant metrics for a specific member
 // Query Parameters:
 // - startDate: Optional start date in format "2006-01-02"
@@ -220,6 +287,7 @@ func (h *AICodeAssistantHandler) RegisterRoutes(router *gin.RouterGroup) {
 	orgRoutes := router.Group("/organizations/:id")
 	{
 		orgRoutes.GET("/ai-code-assistant", h.GetOrganizationAICodeAssistantUsage)
+		orgRoutes.GET("/ai-code-assistant/metrics", h.GetOrganizationAICodeAssistantMetrics)
 	}
 
 	// Member-level routes (under organization)

@@ -66,7 +66,7 @@ func (s *Server) setupRoutes() {
 		aiHandler.RegisterRoutes(protected)
 
 		// AI code assistant routes
-		aiCodeAssistantHandler := handlers.NewAICodeAssistantHandler(s.aiCodeAssistantApi, s.orgApi)
+		aiCodeAssistantHandler := handlers.NewAICodeAssistantHandler(s.aiCodeAssistantApi, s.orgApi, s.metricsApi)
 		aiCodeAssistantHandler.RegisterRoutes(protected)
 	}
 }
