@@ -59,14 +59,68 @@ func (r *LinesOfCodeAcceptedRule) Calculate(ctx context.Context, params types.Me
 		return nil, nil, err
 	}
 
+	// Calculate peers graph value and merge with main metric
+	peersGraphValue, err := r.aicodeassistantDB.CalculateLinesOfCodeAcceptedGraphForAccounts(ctx, *organizationID, peersExternalAccountIDs, toolNames, *startDate, *endDate, params.Interval)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Merge peers data into time series by date
+	mergedTimeSeries := r.mergeTimeSeriesData(locAcceptedGraphValue, peersGraphValue)
+
 	graphMetric := types.GraphMetric{
 		Label:      r.Name,
 		Type:       "line",
 		Unit:       r.Unit,
-		TimeSeries: locAcceptedGraphValue,
+		TimeSeries: mergedTimeSeries,
 	}
 
 	return &snapshotMetric, &graphMetric, nil
+}
+
+// mergeTimeSeriesData merges main metric and peers data by date
+func (r *LinesOfCodeAcceptedRule) mergeTimeSeriesData(mainSeries []types.TimeSeriesEntry, peersSeries []types.TimeSeriesEntry) []types.TimeSeriesEntry {
+	// Create a map of dates to entries for quick lookup
+	dateMap := make(map[string]*types.TimeSeriesEntry)
+
+	// First, add all main series entries
+	for i := range mainSeries {
+		dateMap[mainSeries[i].Date] = &mainSeries[i]
+	}
+
+	// Then, merge peers data into existing entries or create new ones
+	for _, peerEntry := range peersSeries {
+		if entry, exists := dateMap[peerEntry.Date]; exists {
+			// Merge peers data point into existing entry
+			if len(peerEntry.Data) > 0 {
+				entry.Data = append(entry.Data, peerEntry.Data[0])
+			}
+		} else {
+			// Create new entry with peers data
+			newEntry := types.TimeSeriesEntry{
+				Date: peerEntry.Date,
+				Data: peerEntry.Data,
+			}
+			dateMap[peerEntry.Date] = &newEntry
+		}
+	}
+
+	// Convert map back to slice and sort by date
+	result := make([]types.TimeSeriesEntry, 0, len(dateMap))
+	for _, entry := range dateMap {
+		result = append(result, *entry)
+	}
+
+	// Sort by date
+	for i := 0; i < len(result)-1; i++ {
+		for j := i + 1; j < len(result); j++ {
+			if result[i].Date > result[j].Date {
+				result[i], result[j] = result[j], result[i]
+			}
+		}
+	}
+
+	return result
 }
 
 func (r *LinesOfCodeAcceptedRule) Category() types.MetricRuleCategory {

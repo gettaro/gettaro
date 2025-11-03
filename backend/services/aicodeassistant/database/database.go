@@ -28,9 +28,13 @@ type DB interface {
 
 	// Calculate peer metrics (median across peers)
 	CalculateLinesOfCodeAcceptedForAccounts(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time) (*float64, error)
+	CalculateLinesOfCodeAcceptedGraphForAccounts(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time, interval string) ([]aicodeassistanttypes.TimeSeriesEntry, error)
 	CalculateLinesOfCodeSuggestedForAccounts(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time) (*float64, error)
+	CalculateLinesOfCodeSuggestedGraphForAccounts(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time, interval string) ([]aicodeassistanttypes.TimeSeriesEntry, error)
 	CalculateActiveSessionsForAccounts(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time) (*float64, error)
+	CalculateActiveSessionsGraphForAccounts(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time, interval string) ([]aicodeassistanttypes.TimeSeriesEntry, error)
 	CalculateAcceptRateForAccounts(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time) (*float64, error)
+	CalculateAcceptRateGraphForAccounts(ctx context.Context, organizationID string, externalAccountIDs []string, toolNames []string, startDate, endDate time.Time, interval string) ([]aicodeassistanttypes.TimeSeriesEntry, error)
 }
 
 // AICodeAssistantDB implements the database operations

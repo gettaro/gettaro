@@ -104,6 +104,36 @@ export default function MetricChart({ metric, teamMetrics, height = 200 }: Metri
     '#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b', '#6c5ce7'
   ]
 
+  // Check if a key represents a peer metric
+  const isPeerKey = (key: string) => {
+    const lowerKey = key.toLowerCase()
+    return lowerKey.includes('peer') || lowerKey.includes('peers')
+  }
+
+  // Get color for a key, using gray/dashed for peers
+  const getColorForKey = (key: string, index: number) => {
+    if (isPeerKey(key)) {
+      return '#9ca3af' // Gray color for peers
+    }
+    return colors[index % colors.length]
+  }
+
+  // Get line style for a key (dashed for peers)
+  const getLineStyle = (key: string) => {
+    if (isPeerKey(key)) {
+      return '5 5' // Dashed line for peers
+    }
+    return undefined
+  }
+
+  // Format key name for legend
+  const formatKeyName = (key: string) => {
+    if (isPeerKey(key)) {
+      return 'Peers (median)'
+    }
+    return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+  }
+
   // Check if there's any actual data (not all null/undefined values)
   // Note: 0 is a valid value for metrics, so we only check for null/undefined
   const hasData = chartData.length > 0 && chartData.some(point => {
@@ -158,24 +188,25 @@ export default function MetricChart({ metric, teamMetrics, height = 200 }: Metri
               <Bar 
                 key={key} 
                 dataKey={key} 
-                fill={colors[index % colors.length]}
+                fill={getColorForKey(key, index)}
                 name={teamMetrics 
                   ? teamMetrics[index]?.teamName || key
-                  : key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                  : formatKeyName(key)
                 }
               />
             ))}
-            {teamMetrics && teamMetrics.length > 0 && (
-              <Legend 
-                wrapperStyle={{ paddingTop: '20px' }}
-                formatter={(value) => {
+            <Legend 
+              wrapperStyle={{ paddingTop: '20px' }}
+              formatter={(value) => {
+                if (teamMetrics && teamMetrics.length > 0) {
                   const team = teamMetrics.find(t => 
                     t.teamName.replace(/\s+/g, '_').toLowerCase() === value
                   )
                   return team?.teamName || value
-                }}
-              />
-            )}
+                }
+                return value
+              }}
+            />
           </BarChart>
         ) : (
           <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
@@ -216,27 +247,29 @@ export default function MetricChart({ metric, teamMetrics, height = 200 }: Metri
                 key={key} 
                 type="monotone" 
                 dataKey={key} 
-                stroke={colors[index % colors.length]}
+                stroke={getColorForKey(key, index)}
                 strokeWidth={2}
-                dot={{ fill: colors[index % colors.length], strokeWidth: 2, r: 4 }}
+                strokeDasharray={getLineStyle(key)}
+                dot={{ fill: getColorForKey(key, index), strokeWidth: 2, r: 4 }}
                 connectNulls={true}
                 name={teamMetrics 
                   ? teamMetrics[index]?.teamName || key
-                  : key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                  : formatKeyName(key)
                 }
               />
             ))}
-            {teamMetrics && teamMetrics.length > 0 && (
-              <Legend 
-                wrapperStyle={{ paddingTop: '20px' }}
-                formatter={(value) => {
+            <Legend 
+              wrapperStyle={{ paddingTop: '20px' }}
+              formatter={(value) => {
+                if (teamMetrics && teamMetrics.length > 0) {
                   const team = teamMetrics.find(t => 
                     t.teamName.replace(/\s+/g, '_').toLowerCase() === value
                   )
                   return team?.teamName || value
-                }}
-              />
-            )}
+                }
+                return value
+              }}
+            />
           </LineChart>
         )}
       </ResponsiveContainer>
