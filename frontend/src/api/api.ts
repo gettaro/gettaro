@@ -29,7 +29,9 @@ import {
   AICodeAssistantUsageStats,
   GetMemberAICodeAssistantUsageParams,
   GetMemberAICodeAssistantUsageResponse,
-  GetMemberAICodeAssistantUsageStatsResponse
+  GetMemberAICodeAssistantUsageStatsResponse,
+  GetMemberAICodeAssistantMetricsParams,
+  GetMemberAICodeAssistantMetricsResponse
 } from '../types/aicodeassistant'
 import {
   AIQueryRequest,
@@ -435,6 +437,35 @@ export default class Api {
 
     const data = await response.json()
     return data
+  }
+
+  static async getMemberAICodeAssistantMetrics(organizationId: string, memberId: string, params?: GetMemberAICodeAssistantMetricsParams): Promise<GetMemberAICodeAssistantMetricsResponse> {
+    const token = this.accessToken
+    const queryParams = new URLSearchParams()
+    
+    if (params?.startDate) {
+      queryParams.append('startDate', params.startDate)
+    }
+    if (params?.endDate) {
+      queryParams.append('endDate', params.endDate)
+    }
+    if (params?.interval) {
+      queryParams.append('interval', params.interval)
+    }
+
+    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/ai-code-assistant/metrics?${queryParams}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to get member AI code assistant metrics: ${response.statusText}`)
+    }
+
+    return await response.json()
   }
 
   // Organization Pull Requests API functions

@@ -34,4 +34,50 @@ export interface GetMemberAICodeAssistantUsageStatsResponse {
   stats: AICodeAssistantUsageStats
 }
 
+// Metrics types (reusing structure from memberMetrics)
+export interface GetMemberAICodeAssistantMetricsParams {
+  startDate?: string
+  endDate?: string
+  interval?: 'daily' | 'weekly' | 'monthly'
+}
+
+export interface SnapshotMetric {
+  label: string
+  value: number
+  peers_value: number
+  unit: 'count' | 'seconds' | 'percent'
+}
+
+export interface SnapshotCategory {
+  category: string
+  metrics: SnapshotMetric[]
+}
+
+export interface TimeSeriesDataPoint {
+  key: string
+  value: number
+}
+
+export interface TimeSeriesEntry {
+  date: string
+  data: TimeSeriesDataPoint[]
+}
+
+export interface GraphMetric {
+  label: string
+  type?: string
+  unit?: string
+  time_series: TimeSeriesEntry[]
+}
+
+export interface GraphCategory {
+  category: string
+  metrics: GraphMetric[]
+}
+
+export interface GetMemberAICodeAssistantMetricsResponse {
+  snapshot_metrics: SnapshotCategory[]
+  graph_metrics: GraphCategory[]
+}
+
 

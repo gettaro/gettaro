@@ -16,7 +16,12 @@ import { AIChat } from '../components/AIChat'
 import { ChatContext } from '../types/ai'
 import MetricChart from '../components/MetricChart'
 import PullRequestItem from '../components/PullRequestItem'
-import { AICodeAssistantUsageStats, GetMemberAICodeAssistantUsageParams } from '../types/aicodeassistant'
+import { 
+  AICodeAssistantUsageStats, 
+  GetMemberAICodeAssistantUsageParams,
+  GetMemberAICodeAssistantMetricsParams,
+  GetMemberAICodeAssistantMetricsResponse
+} from '../types/aicodeassistant'
 
 type TabType = 'overview' | 'source-control-metrics' | 'management-tree' | 'conversations' | 'ai-chat' | 'ai-code-assistant-usage'
 
@@ -76,6 +81,23 @@ export default function MemberProfilePage() {
       endDate: endDate.toISOString().split('T')[0],
     }
   })
+  
+  // AI Code Assistant Metrics state
+  const [aiCodeAssistantMetrics, setAiCodeAssistantMetrics] = useState<GetMemberAICodeAssistantMetricsResponse | null>(null)
+  const [aiCodeAssistantMetricsLoading, setAiCodeAssistantMetricsLoading] = useState(false)
+  const [aiCodeAssistantMetricsViewMode, setAiCodeAssistantMetricsViewMode] = useState<'snapshot' | 'graph'>('graph')
+  const [aiCodeAssistantCurrentGraphIndex, setAiCodeAssistantCurrentGraphIndex] = useState(0)
+  const [aiCodeAssistantMetricsDateParams, setAiCodeAssistantMetricsDateParams] = useState<GetMemberAICodeAssistantMetricsParams>(() => {
+    const endDate = new Date()
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - 30) // 1 month ago
+    
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+      interval: 'weekly' as 'daily' | 'weekly' | 'monthly'
+    }
+  })
 
   useEffect(() => {
     if (currentOrganization && memberId) {
@@ -101,8 +123,16 @@ export default function MemberProfilePage() {
   useEffect(() => {
     if (activeTab === 'ai-code-assistant-usage' && currentOrganization?.id && memberId) {
       loadAICodeAssistantUsageStats()
+      loadAICodeAssistantMetrics()
     }
   }, [activeTab, currentOrganization?.id, memberId, aiUsageDateParams.startDate, aiUsageDateParams.endDate])
+  
+  // Load AI Code Assistant metrics when date params or interval change
+  useEffect(() => {
+    if (activeTab === 'ai-code-assistant-usage' && currentOrganization?.id && memberId) {
+      loadAICodeAssistantMetrics()
+    }
+  }, [aiCodeAssistantMetricsDateParams.startDate, aiCodeAssistantMetricsDateParams.endDate, aiCodeAssistantMetricsDateParams.interval])
 
   const initializePage = async () => {
     try {
@@ -182,12 +212,100 @@ export default function MemberProfilePage() {
     }
   }
 
+  const loadAICodeAssistantMetrics = async () => {
+    if (!currentOrganization?.id || !memberId) return
+
+    setAiCodeAssistantMetricsLoading(true)
+    try {
+      const metrics = await Api.getMemberAICodeAssistantMetrics(
+        currentOrganization.id,
+        memberId,
+        aiCodeAssistantMetricsDateParams
+      )
+      setAiCodeAssistantMetrics(metrics)
+    } catch (err) {
+      console.error('Error loading AI code assistant metrics:', err)
+      setError('Failed to load AI code assistant metrics')
+    } finally {
+      setAiCodeAssistantMetricsLoading(false)
+    }
+  }
+
   const handleAiUsageDateChange = (field: 'startDate' | 'endDate', value: string) => {
     setAiUsageDateParams(prev => ({
       ...prev,
       [field]: value || undefined
     }))
   }
+
+  const handleAiCodeAssistantMetricsDateChange = (field: 'startDate' | 'endDate', value: string) => {
+    setAiCodeAssistantMetricsDateParams(prev => ({
+      ...prev,
+      [field]: value || undefined
+    }))
+  }
+
+  const handleAiCodeAssistantMetricsIntervalChange = (interval: 'daily' | 'weekly' | 'monthly') => {
+    setAiCodeAssistantMetricsDateParams(prev => ({
+      ...prev,
+      interval
+    }))
+  }
+
+  // Get all graphs from AI code assistant metrics
+  const getAllAICodeAssistantGraphs = (metricsData: GetMemberAICodeAssistantMetricsResponse) => {
+    if (!metricsData.graph_metrics || metricsData.graph_metrics.length === 0) {
+      return []
+    }
+
+    const allGraphs: Array<{ 
+      metric: any
+      category: string
+    }> = []
+
+    metricsData.graph_metrics.forEach((category) => {
+      // Filter metrics that have data
+      const metricsWithData = category.metrics.filter((metric) => {
+        if (!metric.time_series || metric.time_series.length === 0) {
+          return false
+        }
+        return metric.time_series.some(entry => 
+          entry.data && entry.data.length > 0
+        )
+      })
+
+      metricsWithData.forEach((metric) => {
+        allGraphs.push({
+          metric,
+          category: category.category
+        })
+      })
+    })
+
+    return allGraphs
+  }
+
+  const navigateAICodeAssistantGraph = (direction: 'prev' | 'next', totalGraphs: number) => {
+    let newIndex: number
+    
+    if (direction === 'prev') {
+      newIndex = aiCodeAssistantCurrentGraphIndex > 0 ? aiCodeAssistantCurrentGraphIndex - 1 : totalGraphs - 1
+    } else {
+      newIndex = aiCodeAssistantCurrentGraphIndex < totalGraphs - 1 ? aiCodeAssistantCurrentGraphIndex + 1 : 0
+    }
+    
+    setAiCodeAssistantCurrentGraphIndex(newIndex)
+  }
+
+  // Reset graph index when metrics change
+  useEffect(() => {
+    if (aiCodeAssistantMetrics && aiCodeAssistantMetricsViewMode === 'graph') {
+      const allGraphs = getAllAICodeAssistantGraphs(aiCodeAssistantMetrics)
+      if (allGraphs.length > 0 && aiCodeAssistantCurrentGraphIndex >= allGraphs.length) {
+        setAiCodeAssistantCurrentGraphIndex(0)
+      }
+    }
+  }, [aiCodeAssistantMetrics, aiCodeAssistantMetricsViewMode])
 
   const loadManagementTree = async () => {
     if (!currentOrganization?.id || !memberId || !member) return
@@ -1300,7 +1418,7 @@ export default function MemberProfilePage() {
             <div className="bg-card rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-semibold text-foreground">Filter by Date Range</h3>
-                {aiUsageStatsLoading && (
+                {aiCodeAssistantMetricsLoading && (
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                     <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -1310,15 +1428,15 @@ export default function MemberProfilePage() {
                   </div>
                 )}
               </div>
-              <div className="flex space-x-3">
+              <div className="flex flex-wrap gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
                     Start Date
                   </label>
                   <input
                     type="date"
-                    value={aiUsageDateParams.startDate || ''}
-                    onChange={(e) => handleAiUsageDateChange('startDate', e.target.value)}
+                    value={aiCodeAssistantMetricsDateParams.startDate || ''}
+                    onChange={(e) => handleAiCodeAssistantMetricsDateChange('startDate', e.target.value)}
                     className="px-3 py-2 border border-border rounded bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                     style={{ colorScheme: 'dark light' }}
                   />
@@ -1329,61 +1447,210 @@ export default function MemberProfilePage() {
                   </label>
                   <input
                     type="date"
-                    value={aiUsageDateParams.endDate || ''}
-                    onChange={(e) => handleAiUsageDateChange('endDate', e.target.value)}
+                    value={aiCodeAssistantMetricsDateParams.endDate || ''}
+                    onChange={(e) => handleAiCodeAssistantMetricsDateChange('endDate', e.target.value)}
                     className="px-3 py-2 border border-border rounded bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                     style={{ colorScheme: 'dark light' }}
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Interval
+                  </label>
+                  <select
+                    value={aiCodeAssistantMetricsDateParams.interval || 'weekly'}
+                    onChange={(e) => handleAiCodeAssistantMetricsIntervalChange(e.target.value as 'daily' | 'weekly' | 'monthly')}
+                    className="px-3 py-2 border border-border rounded bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
               </div>
             </div>
 
-            {/* Usage Stats */}
+            {/* Metrics Display */}
             <div className="bg-card rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Usage Statistics</h3>
-              {aiUsageStatsLoading ? (
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-foreground">Metrics</h3>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setAiCodeAssistantMetricsViewMode('snapshot')}
+                    className={`px-3 py-1 rounded text-sm transition-colors ${
+                      aiCodeAssistantMetricsViewMode === 'snapshot'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    Snapshot
+                  </button>
+                  <button
+                    onClick={() => setAiCodeAssistantMetricsViewMode('graph')}
+                    className={`px-3 py-1 rounded text-sm transition-colors ${
+                      aiCodeAssistantMetricsViewMode === 'graph'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    Graph
+                  </button>
+                </div>
+              </div>
+              
+              {aiCodeAssistantMetricsLoading ? (
                 <div className="flex items-center justify-center h-24">
                   <div className="flex items-center space-x-2 text-muted-foreground">
                     <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>Loading stats...</span>
+                    <span>Loading metrics...</span>
                   </div>
                 </div>
-              ) : aiUsageStats !== null ? (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-muted/20 rounded-lg p-4 border border-border/30">
-                    <div className="text-sm text-muted-foreground mb-1">Total Lines Accepted</div>
-                    <div className="text-2xl font-bold text-foreground">
-                      {aiUsageStats.total_lines_accepted.toLocaleString()}
-                    </div>
-                  </div>
-                  <div className="bg-muted/20 rounded-lg p-4 border border-border/30">
-                    <div className="text-sm text-muted-foreground mb-1">Total Lines Suggested</div>
-                    <div className="text-2xl font-bold text-foreground">
-                      {aiUsageStats.total_lines_suggested.toLocaleString()}
-                    </div>
-                  </div>
-                  <div className="bg-muted/20 rounded-lg p-4 border border-border/30">
-                    <div className="text-sm text-muted-foreground mb-1">Accept Rate</div>
-                    <div className="text-2xl font-bold text-foreground">
-                      {aiUsageStats.overall_accept_rate.toFixed(1)}%
-                    </div>
-                  </div>
-                  <div className="bg-muted/20 rounded-lg p-4 border border-border/30">
-                    <div className="text-sm text-muted-foreground mb-1">Active Sessions</div>
-                    <div className="text-2xl font-bold text-foreground">
-                      {aiUsageStats.active_sessions}
-                    </div>
-                  </div>
+              ) : aiCodeAssistantMetrics ? (
+                <div className="space-y-6">
+                  {aiCodeAssistantMetricsViewMode === 'snapshot' ? (
+                    // Snapshot View
+                    (aiCodeAssistantMetrics.snapshot_metrics || []).map((category) => (
+                      <div key={category.category} className="space-y-3">
+                        <h4 className="text-md font-semibold text-foreground">{category.category}</h4>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                          {(category.metrics || []).map((metric) => (
+                            <div key={metric.label} className="text-center p-3 bg-muted/20 rounded border border-border/30">
+                              <div className="text-xl font-bold text-foreground">
+                                {formatMetricValue(metric.value, metric.unit)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">{metric.label}</div>
+                              {typeof metric.peers_value === 'number' && metric.peers_value > 0 && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  vs {formatMetricValue(metric.peers_value, metric.unit)} (peers)
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    // Graph View with Slider
+                    (() => {
+                      const allGraphs = getAllAICodeAssistantGraphs(aiCodeAssistantMetrics)
+                      
+                      if (allGraphs.length === 0) {
+                        return (
+                          <div className="flex items-center justify-center h-24">
+                            <div className="text-center">
+                              <div className="text-muted-foreground mb-1 text-sm">No graph data available</div>
+                              <div className="text-xs text-muted-foreground">
+                                Graph data will appear here once you have time-series metrics
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      const currentGraph = allGraphs[aiCodeAssistantCurrentGraphIndex] || allGraphs[0]
+                      
+                      // Prepare metric for MetricChart (add type if not present)
+                      const chartMetric = {
+                        ...currentGraph.metric,
+                        type: currentGraph.metric.type || 'line',
+                        unit: currentGraph.metric.unit || 'count'
+                      }
+                      
+                      const chartElement = chartMetric ? (
+                        <MetricChart metric={chartMetric} height={300} />
+                      ) : null
+
+                      if (!chartElement) {
+                        return (
+                          <div className="flex items-center justify-center h-24">
+                            <div className="text-center">
+                              <div className="text-muted-foreground mb-1 text-sm">No graph data available</div>
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      return (
+                        <div>
+                          <div className="bg-muted/30 rounded-lg p-4">
+                            <div className="relative">
+                              {/* Navigation Buttons */}
+                              <div className="flex items-center justify-between mb-4">
+                                <button
+                                  onClick={() => navigateAICodeAssistantGraph('prev', allGraphs.length)}
+                                  className="p-2 rounded hover:bg-muted/50 transition-colors"
+                                  aria-label="Previous graph"
+                                >
+                                  <svg
+                                    className="w-5 h-5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M15 19l-7-7 7-7"
+                                    />
+                                  </svg>
+                                </button>
+                                
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-muted-foreground">
+                                    {aiCodeAssistantCurrentGraphIndex + 1} of {allGraphs.length}
+                                  </span>
+                                </div>
+                                
+                                <button
+                                  onClick={() => navigateAICodeAssistantGraph('next', allGraphs.length)}
+                                  className="p-2 rounded hover:bg-muted/50 transition-colors"
+                                  aria-label="Next graph"
+                                >
+                                  <svg
+                                    className="w-5 h-5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M9 5l7 7-7 7"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+
+                              {/* Graph Content */}
+                              <div className="bg-muted/10 rounded-lg p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div>
+                                    <h5 className="font-medium text-foreground">{currentGraph.metric.label}</h5>
+                                  </div>
+                                  <span className="text-xs text-muted-foreground capitalize">{currentGraph.category}</span>
+                                </div>
+                                <div className="bg-muted/5 rounded border border-border/30 p-4">
+                                  {chartElement}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })()
+                  )}
                 </div>
               ) : (
                 <div className="flex items-center justify-center h-24">
                   <div className="text-center">
-                    <div className="text-muted-foreground mb-1 text-sm">No usage data available</div>
+                    <div className="text-muted-foreground mb-1 text-sm">No metrics available</div>
                     <div className="text-xs text-muted-foreground">
-                      Usage statistics will appear here once AI code assistant data is synced
+                      Metrics will appear here once you have AI code assistant activity
                     </div>
                   </div>
                 </div>

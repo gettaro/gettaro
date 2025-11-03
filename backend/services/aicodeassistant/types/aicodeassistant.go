@@ -45,6 +45,14 @@ type AICodeAssistantMemberMetricsParams struct {
 	EndDate   *time.Time `json:"end_date,omitempty"`
 }
 
+// MemberMetricsParams represents the parameters for getting member metrics
+type MemberMetricsParams struct {
+	MemberID  string     `json:"member_id"`
+	StartDate *time.Time `json:"start_date,omitempty"`
+	EndDate   *time.Time `json:"end_date,omitempty"`
+	Interval  string     `json:"interval,omitempty"` // daily, weekly, monthly
+}
+
 // AICodeAssistantUsageStats represents aggregated statistics
 type AICodeAssistantUsageStats struct {
 	TotalLinesAccepted  int     `json:"total_lines_accepted"`
