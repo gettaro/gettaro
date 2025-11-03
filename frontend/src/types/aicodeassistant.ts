@@ -5,8 +5,7 @@ export interface AICodeAssistantDailyMetric {
   tool_name: string
   metric_date: string
   lines_of_code_accepted: number
-  total_suggestions: number
-  suggestions_accepted: number
+  lines_of_code_suggested: number
   suggestion_accept_rate?: number
   active_sessions: number
   metadata?: Record<string, any>
@@ -16,9 +15,9 @@ export interface AICodeAssistantDailyMetric {
 
 export interface AICodeAssistantUsageStats {
   total_lines_accepted: number
-  total_suggestions: number
+  total_lines_suggested: number
   overall_accept_rate: number
-  active_users: number
+  active_sessions: number
 }
 
 export interface GetMemberAICodeAssistantUsageParams {
@@ -34,4 +33,5 @@ export interface GetMemberAICodeAssistantUsageResponse {
 export interface GetMemberAICodeAssistantUsageStatsResponse {
   stats: AICodeAssistantUsageStats
 }
+
 

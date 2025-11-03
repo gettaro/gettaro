@@ -101,10 +101,10 @@ func (a *Api) GetMemberUsageStats(ctx context.Context, organizationID, memberID 
 	// If member has no AI code assistant accounts, return zero stats
 	if len(externalAccounts) == 0 {
 		return &types.AICodeAssistantUsageStats{
-			TotalLinesAccepted: 0,
-			TotalSuggestions:   0,
-			OverallAcceptRate:  0.0,
-			ActiveUsers:        0,
+			TotalLinesAccepted:  0,
+			TotalLinesSuggested: 0,
+			OverallAcceptRate:   0.0,
+			ActiveSessions:      0,
 		}, nil
 	}
 

@@ -1360,9 +1360,9 @@ export default function MemberProfilePage() {
                     </div>
                   </div>
                   <div className="bg-muted/20 rounded-lg p-4 border border-border/30">
-                    <div className="text-sm text-muted-foreground mb-1">Total Suggestions</div>
+                    <div className="text-sm text-muted-foreground mb-1">Total Lines Suggested</div>
                     <div className="text-2xl font-bold text-foreground">
-                      {aiUsageStats.total_suggestions.toLocaleString()}
+                      {aiUsageStats.total_lines_suggested.toLocaleString()}
                     </div>
                   </div>
                   <div className="bg-muted/20 rounded-lg p-4 border border-border/30">
@@ -1374,7 +1374,7 @@ export default function MemberProfilePage() {
                   <div className="bg-muted/20 rounded-lg p-4 border border-border/30">
                     <div className="text-sm text-muted-foreground mb-1">Active Sessions</div>
                     <div className="text-2xl font-bold text-foreground">
-                      {aiUsageStats.active_users}
+                      {aiUsageStats.active_sessions}
                     </div>
                   </div>
                 </div>

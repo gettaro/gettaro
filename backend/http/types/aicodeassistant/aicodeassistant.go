@@ -8,16 +8,15 @@ import (
 )
 
 type AICodeAssistantDailyMetricResponse struct {
-	ID                   string     `json:"id"`
-	OrganizationID       string     `json:"organization_id"`
-	ExternalAccountID    string     `json:"external_account_id"`
-	ToolName             string     `json:"tool_name"`
-	MetricDate           time.Time  `json:"metric_date"`
-	LinesOfCodeAccepted  int        `json:"lines_of_code_accepted"`
-	TotalSuggestions     int        `json:"total_suggestions"`
-	SuggestionsAccepted  int        `json:"suggestions_accepted"`
-	SuggestionAcceptRate *float64   `json:"suggestion_accept_rate,omitempty"`
-	ActiveSessions       int        `json:"active_sessions"`
+	ID                   string      `json:"id"`
+	OrganizationID       string      `json:"organization_id"`
+	ExternalAccountID    string      `json:"external_account_id"`
+	ToolName             string      `json:"tool_name"`
+	MetricDate           time.Time   `json:"metric_date"`
+	LinesOfCodeAccepted  int         `json:"lines_of_code_accepted"`
+	LinesOfCodeSuggested int         `json:"lines_of_code_suggested"`
+	SuggestionAcceptRate *float64    `json:"suggestion_accept_rate,omitempty"`
+	ActiveSessions       int         `json:"active_sessions"`
 	Metadata             interface{} `json:"metadata,omitempty"`
 	CreatedAt            time.Time   `json:"created_at"`
 	UpdatedAt            time.Time   `json:"updated_at"`
@@ -44,8 +43,7 @@ func MarshalAICodeAssistantDailyMetric(m *types.AICodeAssistantDailyMetric) *AIC
 		ToolName:             m.ToolName,
 		MetricDate:           m.MetricDate,
 		LinesOfCodeAccepted:  m.LinesOfCodeAccepted,
-		TotalSuggestions:     m.TotalSuggestions,
-		SuggestionsAccepted:  m.SuggestionsAccepted,
+		LinesOfCodeSuggested: m.LinesOfCodeSuggested,
 		SuggestionAcceptRate: m.SuggestionAcceptRate,
 		ActiveSessions:       m.ActiveSessions,
 		Metadata:             metadata,

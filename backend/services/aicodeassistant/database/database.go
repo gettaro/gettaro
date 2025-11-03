@@ -43,8 +43,7 @@ func (d *AICodeAssistantDB) CreateOrUpdateDailyMetric(ctx context.Context, metri
 			},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"lines_of_code_accepted",
-				"total_suggestions",
-				"suggestions_accepted",
+				"lines_of_code_suggested",
 				"suggestion_accept_rate",
 				"active_sessions",
 				"metadata",
@@ -115,10 +114,10 @@ func (d *AICodeAssistantDB) GetUsageStats(ctx context.Context, params *types.AIC
 
 	// Initialize stats with zero values
 	stats := types.AICodeAssistantUsageStats{
-		TotalLinesAccepted: 0,
-		TotalSuggestions:   0,
-		OverallAcceptRate:  0.0,
-		ActiveUsers:        0,
+		TotalLinesAccepted:  0,
+		TotalLinesSuggested: 0,
+		OverallAcceptRate:   0.0,
+		ActiveSessions:      0,
 	}
 
 	// Calculate total lines accepted
@@ -131,39 +130,30 @@ func (d *AICodeAssistantDB) GetUsageStats(ctx context.Context, params *types.AIC
 	}
 	stats.TotalLinesAccepted = int(totalLinesAccepted.Sum)
 
-	// Calculate total suggestions
-	var totalSuggestions struct {
+	// Calculate total lines suggested
+	var totalLinesSuggested struct {
 		Sum int64
 	}
-	if err := query.Select("COALESCE(SUM(total_suggestions), 0) as sum").
-		Scan(&totalSuggestions).Error; err != nil {
-		return nil, fmt.Errorf("failed to calculate total suggestions: %w", err)
+	if err := query.Select("COALESCE(SUM(lines_of_code_suggested), 0) as sum").
+		Scan(&totalLinesSuggested).Error; err != nil {
+		return nil, fmt.Errorf("failed to calculate total lines suggested: %w", err)
 	}
-	stats.TotalSuggestions = int(totalSuggestions.Sum)
+	stats.TotalLinesSuggested = int(totalLinesSuggested.Sum)
 
-	// Calculate total accepted suggestions
-	var totalAccepted struct {
+	// Calculate overall accept rate (lines accepted / lines suggested)
+	if stats.TotalLinesSuggested > 0 {
+		stats.OverallAcceptRate = (float64(totalLinesAccepted.Sum) / float64(totalLinesSuggested.Sum)) * 100
+	}
+
+	// Sum active sessions from daily metrics
+	var activeSessions struct {
 		Sum int64
 	}
-	if err := query.Select("COALESCE(SUM(suggestions_accepted), 0) as sum").
-		Scan(&totalAccepted).Error; err != nil {
-		return nil, fmt.Errorf("failed to calculate total accepted: %w", err)
+	if err := query.Select("COALESCE(SUM(active_sessions), 0) as sum").
+		Scan(&activeSessions).Error; err != nil {
+		return nil, fmt.Errorf("failed to sum active sessions: %w", err)
 	}
-
-	// Calculate overall accept rate
-	if stats.TotalSuggestions > 0 {
-		stats.OverallAcceptRate = (float64(totalAccepted.Sum) / float64(stats.TotalSuggestions)) * 100
-	}
-
-	// Count unique active users (distinct external_account_ids)
-	var activeUsers struct {
-		Count int64
-	}
-	if err := query.Select("COALESCE(COUNT(DISTINCT external_account_id), 0) as count").
-		Scan(&activeUsers).Error; err != nil {
-		return nil, fmt.Errorf("failed to count active users: %w", err)
-	}
-	stats.ActiveUsers = int(activeUsers.Count)
+	stats.ActiveSessions = int(activeSessions.Sum)
 
 	return &stats, nil
 }

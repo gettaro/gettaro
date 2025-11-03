@@ -115,29 +115,28 @@ func (p *CursorProvider) SyncUsageData(ctx context.Context, config *inttypes.Int
 		metric, exists := userDateMetrics[key]
 		if !exists {
 			metric = &aicodeassistanttypes.AICodeAssistantDailyMetric{
-				OrganizationID:      config.OrganizationID,
-				ExternalAccountID:   accountID,
-				ToolName:            "cursor",
-				MetricDate:          metricDate,
-				LinesOfCodeAccepted: 0,
-				TotalSuggestions:    0,
-				SuggestionsAccepted: 0,
-				ActiveSessions:      0,
+				OrganizationID:       config.OrganizationID,
+				ExternalAccountID:    accountID,
+				ToolName:             "cursor",
+				MetricDate:           metricDate,
+				LinesOfCodeAccepted:  0,
+				LinesOfCodeSuggested: 0,
+				ActiveSessions:       0,
 			}
 			userDateMetrics[key] = metric
 		}
 
 		// Map Cursor API fields to our metrics
 		// Lines accepted = acceptedLinesAdded (lines from accepted AI suggestions)
-		metric.LinesOfCodeAccepted += entry.AcceptedLinesAdded
+		metric.LinesOfCodeAccepted += entry.AcceptedLinesAdded + entry.AcceptedLinesDeleted
 
-		// Total suggestions = totalApplies (apply operations) + totalTabsShown (tab completions shown)
-		totalSuggestions := entry.TotalApplies + entry.TotalTabsShown
-		metric.TotalSuggestions += totalSuggestions
+		// Lines suggested = totalLinesAdded + totalLinesDeleted
+		linesSuggested := entry.TotalLinesAdded + entry.TotalLinesDeleted
+		metric.LinesOfCodeSuggested += linesSuggested
 
-		// Suggestions accepted = totalAccepts (accepted suggestions) + totalTabsAccepted (tab completions accepted)
-		suggestionsAccepted := entry.TotalAccepts + entry.TotalTabsAccepted
-		metric.SuggestionsAccepted += suggestionsAccepted
+		// Suggestion accept rate = (acceptedLinesAdded + acceptedLinesDeleted) / (totalLinesAdded + totalLinesDeleted)
+		acceptRate := float64(entry.AcceptedLinesAdded+entry.AcceptedLinesDeleted) / float64(entry.TotalLinesAdded+entry.TotalLinesDeleted) * 100
+		metric.SuggestionAcceptRate = &acceptRate
 
 		// Active sessions: use isActive as indicator (we could also track unique session IDs if available)
 		if entry.IsActive {
@@ -187,14 +186,8 @@ func (p *CursorProvider) SyncUsageData(ctx context.Context, config *inttypes.Int
 		metric.Metadata = datatypes.JSON(metadataBytes)
 	}
 
-	// 5. Calculate accept rates and save daily metrics
+	// 5. Save daily metrics
 	for _, metric := range userDateMetrics {
-		// Calculate suggestion accept rate (if we have suggestions data)
-		if metric.TotalSuggestions > 0 {
-			acceptRate := float64(metric.SuggestionsAccepted) / float64(metric.TotalSuggestions) * 100
-			metric.SuggestionAcceptRate = &acceptRate
-		}
-
 		// Create or update daily metric
 		if err := p.aiCodeAssistantAPI.CreateOrUpdateDailyMetric(ctx, metric); err != nil {
 			fmt.Printf("Warning: failed to create/update daily metric for user %s on %s: %v\n",
