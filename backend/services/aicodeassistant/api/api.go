@@ -98,9 +98,14 @@ func (a *Api) GetMemberUsageStats(ctx context.Context, organizationID, memberID 
 		return nil, fmt.Errorf("failed to get member external accounts: %w", err)
 	}
 
-	// If member has no AI code assistant accounts, return empty stats
+	// If member has no AI code assistant accounts, return zero stats
 	if len(externalAccounts) == 0 {
-		return &types.AICodeAssistantUsageStats{}, nil
+		return &types.AICodeAssistantUsageStats{
+			TotalLinesAccepted: 0,
+			TotalSuggestions:   0,
+			OverallAcceptRate:  0.0,
+			ActiveUsers:        0,
+		}, nil
 	}
 
 	// Extract external account IDs

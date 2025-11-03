@@ -113,7 +113,13 @@ func (d *AICodeAssistantDB) GetUsageStats(ctx context.Context, params *types.AIC
 		query = query.Where("metric_date <= ?", *params.EndDate)
 	}
 
-	var stats types.AICodeAssistantUsageStats
+	// Initialize stats with zero values
+	stats := types.AICodeAssistantUsageStats{
+		TotalLinesAccepted: 0,
+		TotalSuggestions:   0,
+		OverallAcceptRate:  0.0,
+		ActiveUsers:        0,
+	}
 
 	// Calculate total lines accepted
 	var totalLinesAccepted struct {
@@ -135,15 +141,17 @@ func (d *AICodeAssistantDB) GetUsageStats(ctx context.Context, params *types.AIC
 	}
 	stats.TotalSuggestions = int(totalSuggestions.Sum)
 
+	// Calculate total accepted suggestions
+	var totalAccepted struct {
+		Sum int64
+	}
+	if err := query.Select("COALESCE(SUM(suggestions_accepted), 0) as sum").
+		Scan(&totalAccepted).Error; err != nil {
+		return nil, fmt.Errorf("failed to calculate total accepted: %w", err)
+	}
+
 	// Calculate overall accept rate
 	if stats.TotalSuggestions > 0 {
-		var totalAccepted struct {
-			Sum int64
-		}
-		if err := query.Select("COALESCE(SUM(suggestions_accepted), 0) as sum").
-			Scan(&totalAccepted).Error; err != nil {
-			return nil, fmt.Errorf("failed to calculate total accepted: %w", err)
-		}
 		stats.OverallAcceptRate = (float64(totalAccepted.Sum) / float64(stats.TotalSuggestions)) * 100
 	}
 
@@ -151,7 +159,7 @@ func (d *AICodeAssistantDB) GetUsageStats(ctx context.Context, params *types.AIC
 	var activeUsers struct {
 		Count int64
 	}
-	if err := query.Select("COUNT(DISTINCT external_account_id) as count").
+	if err := query.Select("COALESCE(COUNT(DISTINCT external_account_id), 0) as count").
 		Scan(&activeUsers).Error; err != nil {
 		return nil, fmt.Errorf("failed to count active users: %w", err)
 	}

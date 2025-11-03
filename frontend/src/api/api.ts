@@ -26,6 +26,12 @@ import {
   ConversationStatsResponse
 } from '../types/conversation'
 import {
+  AICodeAssistantUsageStats,
+  GetMemberAICodeAssistantUsageParams,
+  GetMemberAICodeAssistantUsageResponse,
+  GetMemberAICodeAssistantUsageStatsResponse
+} from '../types/aicodeassistant'
+import {
   AIQueryRequest,
   AIQueryResponse,
   AIQueryHistoryItem,
@@ -398,6 +404,37 @@ export default class Api {
 
     const data = await response.json()
     return data.reviews
+  }
+
+  // Member AI Code Assistant Usage API functions
+  static async getMemberAICodeAssistantUsageStats(organizationId: string, memberId: string, params?: GetMemberAICodeAssistantUsageParams): Promise<GetMemberAICodeAssistantUsageStatsResponse> {
+    const token = this.accessToken
+    const queryParams = new URLSearchParams()
+    
+    if (params?.toolName) {
+      queryParams.append('toolName', params.toolName)
+    }
+    if (params?.startDate) {
+      queryParams.append('startDate', params.startDate)
+    }
+    if (params?.endDate) {
+      queryParams.append('endDate', params.endDate)
+    }
+
+    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/ai-code-assistant/stats?${queryParams}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to get member AI code assistant usage stats: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    return data
   }
 
   // Organization Pull Requests API functions

@@ -16,8 +16,9 @@ import { AIChat } from '../components/AIChat'
 import { ChatContext } from '../types/ai'
 import MetricChart from '../components/MetricChart'
 import PullRequestItem from '../components/PullRequestItem'
+import { AICodeAssistantUsageStats, GetMemberAICodeAssistantUsageParams } from '../types/aicodeassistant'
 
-type TabType = 'overview' | 'source-control-metrics' | 'management-tree' | 'conversations' | 'ai-chat'
+type TabType = 'overview' | 'source-control-metrics' | 'management-tree' | 'conversations' | 'ai-chat' | 'ai-code-assistant-usage'
 
 export default function MemberProfilePage() {
   const { memberId } = useParams<{ memberId: string }>()
@@ -61,6 +62,20 @@ export default function MemberProfilePage() {
   const [showConversationSidebar, setShowConversationSidebar] = useState(false)
   const [selectedConversation, setSelectedConversation] = useState<ConversationWithDetails | null>(null)
   const [conversationSidebarMode, setConversationSidebarMode] = useState<'edit' | 'create'>('edit')
+  
+  // AI Code Assistant Usage state
+  const [aiUsageStats, setAiUsageStats] = useState<AICodeAssistantUsageStats | null>(null)
+  const [aiUsageStatsLoading, setAiUsageStatsLoading] = useState(false)
+  const [aiUsageDateParams, setAiUsageDateParams] = useState<GetMemberAICodeAssistantUsageParams>(() => {
+    const endDate = new Date()
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - 30) // 1 month ago
+    
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+    }
+  })
 
   useEffect(() => {
     if (currentOrganization && memberId) {
@@ -81,6 +96,13 @@ export default function MemberProfilePage() {
       loadManagementTree()
     }
   }, [activeTab, member, title, currentOrganization?.id, memberId])
+
+  // Load AI Code Assistant usage stats when tab is selected
+  useEffect(() => {
+    if (activeTab === 'ai-code-assistant-usage' && currentOrganization?.id && memberId) {
+      loadAICodeAssistantUsageStats()
+    }
+  }, [activeTab, currentOrganization?.id, memberId, aiUsageDateParams.startDate, aiUsageDateParams.endDate])
 
   const initializePage = async () => {
     try {
@@ -139,6 +161,32 @@ export default function MemberProfilePage() {
       setPullRequestsLoading(false)
       setPullRequestReviewsLoading(false)
     }
+  }
+
+  const loadAICodeAssistantUsageStats = async () => {
+    if (!currentOrganization?.id || !memberId) return
+
+    setAiUsageStatsLoading(true)
+    try {
+      const response = await Api.getMemberAICodeAssistantUsageStats(
+        currentOrganization.id,
+        memberId,
+        aiUsageDateParams
+      )
+      setAiUsageStats(response.stats)
+    } catch (err) {
+      console.error('Error loading AI code assistant usage stats:', err)
+      setError('Failed to load AI code assistant usage stats')
+    } finally {
+      setAiUsageStatsLoading(false)
+    }
+  }
+
+  const handleAiUsageDateChange = (field: 'startDate' | 'endDate', value: string) => {
+    setAiUsageDateParams(prev => ({
+      ...prev,
+      [field]: value || undefined
+    }))
   }
 
   const loadManagementTree = async () => {
@@ -1245,6 +1293,105 @@ export default function MemberProfilePage() {
           </div>
         )
 
+      case 'ai-code-assistant-usage':
+        return (
+          <div className="space-y-4">
+            {/* Date Filter Controls */}
+            <div className="bg-card rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-foreground">Filter by Date Range</h3>
+                {aiUsageStatsLoading && (
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Loading...</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex space-x-3">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={aiUsageDateParams.startDate || ''}
+                    onChange={(e) => handleAiUsageDateChange('startDate', e.target.value)}
+                    className="px-3 py-2 border border-border rounded bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                    style={{ colorScheme: 'dark light' }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={aiUsageDateParams.endDate || ''}
+                    onChange={(e) => handleAiUsageDateChange('endDate', e.target.value)}
+                    className="px-3 py-2 border border-border rounded bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                    style={{ colorScheme: 'dark light' }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Usage Stats */}
+            <div className="bg-card rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-foreground mb-4">Usage Statistics</h3>
+              {aiUsageStatsLoading ? (
+                <div className="flex items-center justify-center h-24">
+                  <div className="flex items-center space-x-2 text-muted-foreground">
+                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Loading stats...</span>
+                  </div>
+                </div>
+              ) : aiUsageStats !== null ? (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-muted/20 rounded-lg p-4 border border-border/30">
+                    <div className="text-sm text-muted-foreground mb-1">Total Lines Accepted</div>
+                    <div className="text-2xl font-bold text-foreground">
+                      {aiUsageStats.total_lines_accepted.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="bg-muted/20 rounded-lg p-4 border border-border/30">
+                    <div className="text-sm text-muted-foreground mb-1">Total Suggestions</div>
+                    <div className="text-2xl font-bold text-foreground">
+                      {aiUsageStats.total_suggestions.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="bg-muted/20 rounded-lg p-4 border border-border/30">
+                    <div className="text-sm text-muted-foreground mb-1">Accept Rate</div>
+                    <div className="text-2xl font-bold text-foreground">
+                      {aiUsageStats.overall_accept_rate.toFixed(1)}%
+                    </div>
+                  </div>
+                  <div className="bg-muted/20 rounded-lg p-4 border border-border/30">
+                    <div className="text-sm text-muted-foreground mb-1">Active Sessions</div>
+                    <div className="text-2xl font-bold text-foreground">
+                      {aiUsageStats.active_users}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-24">
+                  <div className="text-center">
+                    <div className="text-muted-foreground mb-1 text-sm">No usage data available</div>
+                    <div className="text-xs text-muted-foreground">
+                      Usage statistics will appear here once AI code assistant data is synced
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+
       default:
         return null
     }
@@ -1438,6 +1585,16 @@ export default function MemberProfilePage() {
                 }`}
               >
                 AI Assistant
+              </button>
+              <button
+                onClick={() => setActiveTab('ai-code-assistant-usage')}
+                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'ai-code-assistant-usage'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
+                }`}
+              >
+                AI Code Assistant Usage
               </button>
             </nav>
           </div>
