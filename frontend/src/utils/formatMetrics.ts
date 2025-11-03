@@ -72,6 +72,10 @@ export function formatTimeMetric(seconds: number): string {
  * // LOC metrics
  * formatMetricValue(1500, 'loc')       // "1.5k"
  * formatMetricValue(500, 'loc')        // "500"
+ * 
+ * // Percent metrics
+ * formatMetricValue(75.5, 'percent')   // "75.5%"
+ * formatMetricValue(100, 'percent')   // "100%"
  */
 export function formatMetricValue(value: number, unit: string): string {
   switch (unit) {
@@ -85,6 +89,12 @@ export function formatMetricValue(value: number, unit: string): string {
         return `${(value / 1000).toFixed(1)}k`
       }
       return value.toLocaleString()
+    case 'percent':
+      // Format percentage with appropriate decimal places
+      if (value % 1 === 0) {
+        return `${Math.round(value)}%`
+      }
+      return `${value.toFixed(1)}%`
     default:
       return value.toLocaleString()
   }
