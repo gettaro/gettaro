@@ -301,8 +301,9 @@ export default class Api {
     return response.members
   }
 
-  static async addOrganizationMember(organizationId: string, request: AddMemberRequest): Promise<void> {
-    await this.post(`/organizations/${organizationId}/members`, request)
+  static async addOrganizationMember(organizationId: string, request: AddMemberRequest): Promise<Member | null> {
+    const response = await this.post(`/organizations/${organizationId}/members`, request)
+    return response.member || null
   }
 
   static async updateOrganizationMember(organizationId: string, memberId: string, request: UpdateMemberRequest): Promise<void> {
@@ -348,6 +349,19 @@ export default class Api {
   static async getOrganizationSourceControlAccounts(organizationId: string): Promise<ExternalAccount[]> {
     const response = await this.get(`/organizations/${organizationId}/external-accounts?account_type=sourcecontrol`)
     return response.external_accounts || []
+  }
+
+  static async getOrganizationExternalAccounts(organizationId: string, accountType?: string): Promise<ExternalAccount[]> {
+    const queryParam = accountType ? `?account_type=${accountType}` : ''
+    const response = await this.get(`/organizations/${organizationId}/external-accounts${queryParam}`)
+    return response.external_accounts || []
+  }
+
+  static async updateExternalAccount(organizationId: string, accountId: string, account: ExternalAccount): Promise<void> {
+    // Update only the member_id field
+    await this.put(`/organizations/${organizationId}/external-accounts/${accountId}`, {
+      member_id: account.member_id
+    })
   }
 
   // Member Pull Requests API functions

@@ -5,7 +5,7 @@ type AddOrganizationMemberRequest struct {
 	Email             string  `json:"email" binding:"required"`
 	Username          string  `json:"username" binding:"required"`
 	TitleID           string  `json:"title_id" binding:"required"`
-	ExternalAccountID string  `json:"external_account_id" binding:"required"`
+	ExternalAccountID string  `json:"external_account_id,omitempty"`
 	ManagerID         *string `json:"manager_id,omitempty"`
 }
 
@@ -13,7 +13,7 @@ type AddOrganizationMemberRequest struct {
 type UpdateOrganizationMemberRequest struct {
 	Username          string  `json:"username" binding:"required"`
 	TitleID           string  `json:"title_id" binding:"required"`
-	ExternalAccountID string  `json:"external_account_id" binding:"required"`
+	ExternalAccountID string  `json:"external_account_id,omitempty"`
 	ManagerID         *string `json:"manager_id,omitempty"`
 }
 

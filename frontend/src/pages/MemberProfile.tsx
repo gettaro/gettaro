@@ -22,7 +22,7 @@ import {
   GetMemberAICodeAssistantMetricsResponse
 } from '../types/aicodeassistant'
 
-type TabType = 'overview' | 'source-control-metrics' | 'management-tree' | 'conversations' | 'ai-chat' | 'ai-code-assistant-usage'
+type TabType = 'overview' | 'source-control-metrics' | 'management-tree' | 'conversations' | 'ai-chat' | 'ai-code-assistant-usage' | 'integrations'
 
 export default function MemberProfilePage() {
   const { memberId } = useParams<{ memberId: string }>()
@@ -30,6 +30,12 @@ export default function MemberProfilePage() {
   const [member, setMember] = useState<Member | null>(null)
   const [title, setTitle] = useState<Title | null>(null)
   const [sourceControlAccount, setSourceControlAccount] = useState<ExternalAccount | null>(null)
+  const [externalAccounts, setExternalAccounts] = useState<ExternalAccount[]>([])
+  const [externalAccountsLoading, setExternalAccountsLoading] = useState(false)
+  const [availableAccounts, setAvailableAccounts] = useState<ExternalAccount[]>([])
+  const [availableAccountsLoading, setAvailableAccountsLoading] = useState(false)
+  const [accountTypeFilter, setAccountTypeFilter] = useState<string>('')
+  const [accountSearchQuery, setAccountSearchQuery] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabType>('overview')
@@ -682,11 +688,134 @@ export default function MemberProfilePage() {
         console.error('Error loading source control account:', err)
       }
 
+      // Load all external accounts for this member
+      await loadExternalAccounts()
+
     } catch (err) {
       console.error('Error loading member data:', err)
       setError('Failed to load member data')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadExternalAccounts = async () => {
+    if (!currentOrganization?.id || !memberId) return
+
+    try {
+      setExternalAccountsLoading(true)
+      const allAccounts = await Api.getOrganizationExternalAccounts(currentOrganization.id)
+      // Filter accounts for this member
+      const memberAccounts = allAccounts.filter(acc => acc.member_id === memberId)
+      setExternalAccounts(memberAccounts)
+      
+      // Also load available accounts (unassociated)
+      const unassociatedAccounts = allAccounts.filter(acc => acc.member_id !== memberId && (!acc.member_id || acc.member_id === ''))
+      setAvailableAccounts(unassociatedAccounts)
+    } catch (err) {
+      console.error('Error loading external accounts:', err)
+    } finally {
+      setExternalAccountsLoading(false)
+      setAvailableAccountsLoading(false)
+    }
+  }
+
+  // Load available accounts when integrations tab is active
+  useEffect(() => {
+    if (activeTab === 'integrations' && currentOrganization?.id && memberId) {
+      const loadAvailable = async () => {
+        try {
+          setAvailableAccountsLoading(true)
+          const allAccounts = await Api.getOrganizationExternalAccounts(currentOrganization.id)
+          const unassociatedAccounts = allAccounts.filter(acc => acc.member_id !== memberId && (!acc.member_id || acc.member_id === ''))
+          setAvailableAccounts(unassociatedAccounts)
+        } catch (err) {
+          console.error('Error loading available accounts:', err)
+        } finally {
+          setAvailableAccountsLoading(false)
+        }
+      }
+      loadAvailable()
+    }
+  }, [activeTab, memberId, currentOrganization?.id])
+
+  // Filter and search accounts
+  const getFilteredAvailableAccounts = () => {
+    let filtered = availableAccounts
+
+    // Filter by type
+    if (accountTypeFilter) {
+      filtered = filtered.filter(acc => acc.account_type === accountTypeFilter)
+    }
+
+    // Filter by search query (username or provider name)
+    if (accountSearchQuery) {
+      const query = accountSearchQuery.toLowerCase()
+      filtered = filtered.filter(acc => 
+        acc.username.toLowerCase().includes(query) ||
+        acc.provider_name.toLowerCase().includes(query)
+      )
+    }
+
+    return filtered
+  }
+
+  // Get unique account types from available accounts
+  const getUniqueAccountTypes = () => {
+    const types = new Set<string>()
+    availableAccounts.forEach(acc => types.add(acc.account_type))
+    return Array.from(types).sort()
+  }
+
+  const handleAssociateAccount = async (accountId: string) => {
+    if (!currentOrganization?.id || !memberId) return
+
+    try {
+      // Get the account
+      const allAccounts = await Api.getOrganizationExternalAccounts(currentOrganization.id)
+      const account = allAccounts.find(acc => acc.id === accountId)
+      if (!account) return
+
+      // Update the account to associate it with this member
+      await Api.updateExternalAccount(currentOrganization.id, accountId, {
+        ...account,
+        member_id: memberId
+      })
+
+      await loadExternalAccounts()
+      // Also reload source control account if it's a source control account
+      if (account.account_type === 'sourcecontrol') {
+        const sourceControlAccounts = await Api.getOrganizationSourceControlAccounts(currentOrganization.id)
+        const foundAccount = sourceControlAccounts.find(acc => acc.member_id === memberId)
+        setSourceControlAccount(foundAccount || null)
+      }
+    } catch (err) {
+      console.error('Error associating account:', err)
+    }
+  }
+
+  const handleDisassociateAccount = async (accountId: string) => {
+    if (!currentOrganization?.id || !memberId) return
+
+    try {
+      // Get the account
+      const allAccounts = await Api.getOrganizationExternalAccounts(currentOrganization.id)
+      const account = allAccounts.find(acc => acc.id === accountId)
+      if (!account) return
+
+      // Update the account to disassociate it from this member
+      await Api.updateExternalAccount(currentOrganization.id, accountId, {
+        ...account,
+        member_id: undefined
+      })
+
+      await loadExternalAccounts()
+      // Also reload source control account if it's a source control account
+      if (account.account_type === 'sourcecontrol') {
+        setSourceControlAccount(null)
+      }
+    } catch (err) {
+      console.error('Error disassociating account:', err)
     }
   }
 
@@ -1369,6 +1498,148 @@ export default function MemberProfilePage() {
           </div>
         )
 
+      case 'integrations':
+        return (
+          <div className="space-y-4">
+            <div className="bg-card rounded-lg p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">External Accounts</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Manage integrations and external accounts for this member
+                  </p>
+                </div>
+              </div>
+
+              {/* Filter and Search Controls */}
+              <div className="flex flex-wrap gap-4 mb-4 pb-4 border-b border-border/50">
+                <div className="flex-1 min-w-[200px]">
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Search by name
+                  </label>
+                  <input
+                    type="text"
+                    value={accountSearchQuery}
+                    onChange={(e) => setAccountSearchQuery(e.target.value)}
+                    placeholder="Search by username or provider..."
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  />
+                </div>
+                <div className="min-w-[150px]">
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Filter by type
+                  </label>
+                  <select
+                    value={accountTypeFilter}
+                    onChange={(e) => setAccountTypeFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  >
+                    <option value="">All types</option>
+                    {getUniqueAccountTypes().map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {externalAccountsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="flex items-center space-x-2 text-muted-foreground">
+                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Loading...</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Associated Accounts */}
+                  {externalAccounts.length > 0 && (
+                    <div>
+                      <h4 className="text-md font-medium text-foreground mb-3">Associated Accounts</h4>
+                      <div className="space-y-2">
+                        {externalAccounts.map((account) => (
+                          <div key={account.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/50">
+                            <div className="flex items-center space-x-3">
+                              <div className="flex-shrink-0">
+                                <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                                </svg>
+                              </div>
+                              <div>
+                                <div className="font-medium text-foreground">{account.username}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {account.provider_name} • {account.account_type}
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleDisassociateAccount(account.id)}
+                              className="px-3 py-1.5 text-sm font-medium text-white bg-destructive hover:bg-destructive/90 rounded-md transition-colors"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Available Accounts to Associate */}
+                  <div>
+                    <h4 className="text-md font-medium text-foreground mb-3">
+                      {externalAccounts.length > 0 ? 'Available Accounts' : 'No accounts associated'}
+                    </h4>
+                    {availableAccountsLoading ? (
+                      <div className="flex items-center justify-center py-4">
+                        <span className="text-sm text-muted-foreground">Loading available accounts...</span>
+                      </div>
+                    ) : (() => {
+                      const filteredAccounts = getFilteredAvailableAccounts()
+                      return filteredAccounts.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground text-sm">
+                          {availableAccounts.length === 0
+                            ? 'No unassociated accounts available. All external accounts are already associated with members.'
+                            : 'No accounts match your search criteria.'}
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {filteredAccounts.map((account) => (
+                            <div key={account.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/50">
+                              <div className="flex items-center space-x-3">
+                                <div className="flex-shrink-0">
+                                  <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                                  </svg>
+                                </div>
+                                <div>
+                                  <div className="font-medium text-foreground">{account.username}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {account.provider_name} • {account.account_type}
+                                  </div>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleAssociateAccount(account.id)}
+                                className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                              >
+                                Associate
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+
       case 'ai-code-assistant-usage':
         return (
           <div className="space-y-4">
@@ -1820,6 +2091,16 @@ export default function MemberProfilePage() {
                 }`}
               >
                 AI Code Assistant Usage
+              </button>
+              <button
+                onClick={() => setActiveTab('integrations')}
+                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'integrations'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
+                }`}
+              >
+                Integrations
               </button>
             </nav>
           </div>

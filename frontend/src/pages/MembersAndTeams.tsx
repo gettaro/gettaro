@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Api from '../api/api'
 import { Team, CreateTeamRequest, UpdateTeamRequest, AddTeamMemberRequest, TeamType } from '../types/team'
 import { Member, AddMemberRequest, UpdateMemberRequest } from '../types/member'
@@ -8,6 +9,7 @@ import { useOrganizationStore } from '../stores/organization'
 import { useToast } from '../hooks/useToast'
 
 export default function MembersAndTeams() {
+  const navigate = useNavigate()
   const { currentOrganization } = useOrganizationStore()
   const { toast } = useToast()
   
@@ -355,7 +357,7 @@ export default function MembersAndTeams() {
     try {
       setIsAddingMember(true)
       setError(null)
-      await Api.addOrganizationMember(currentOrganization.id, addMemberFormData)
+      const createdMember = await Api.addOrganizationMember(currentOrganization.id, addMemberFormData)
       setAddMemberFormData({
         email: '',
         username: '',
@@ -365,6 +367,11 @@ export default function MembersAndTeams() {
       })
       setIsAddMemberModalOpen(false)
       await loadMembers()
+      
+      // Navigate to the member profile page
+      if (createdMember?.id) {
+        navigate(`/members/${createdMember.id}/profile`)
+      }
     } catch (err) {
       setError('Failed to add member')
       console.error('Error adding member:', err)
@@ -403,7 +410,7 @@ export default function MembersAndTeams() {
     setUpdateMemberFormData({
       username: member.username,
       title_id: member.title_id || '',
-      external_account_id: sourceControlAccounts.find(acc => acc.member_id === member.id)?.id || '',
+      external_account_id: '',
       manager_id: member.manager_id
     })
     setIsUpdateMemberModalOpen(true)
@@ -524,7 +531,11 @@ export default function MembersAndTeams() {
                   </thead>
                   <tbody>
                     {members.map((member) => (
-                      <tr key={member.id} className="border-b border-border last:border-b-0">
+                      <tr 
+                        key={member.id} 
+                        className="border-b border-border last:border-b-0 hover:bg-muted/30 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/members/${member.id}/profile`)}
+                      >
                         <td className="p-4">
                           <div className="flex items-center space-x-3">
                             <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
@@ -539,10 +550,10 @@ export default function MembersAndTeams() {
                         <td className="p-4 text-muted-foreground">{getTitleName(member.title_id)}</td>
                         <td className="p-4 text-muted-foreground">{getManagerName(member.manager_id)}</td>
                         <td className="p-4">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                             <button
                               onClick={() => handleEditMember(member)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/10 rounded-md border border-primary/20 hover:border-primary/40 transition-colors"
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md transition-colors"
                               title="Edit member"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -552,7 +563,7 @@ export default function MembersAndTeams() {
                             </button>
                             <button
                               onClick={() => handleDeleteMember(member)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-md border border-destructive/20 hover:border-destructive/40 transition-colors"
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-destructive hover:bg-destructive/90 rounded-md transition-colors"
                               title="Delete member"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -840,21 +851,6 @@ export default function MembersAndTeams() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Source Control Account</label>
-                    <select
-                      value={addMemberFormData.external_account_id}
-                      onChange={(e) => setAddMemberFormData({ ...addMemberFormData, external_account_id: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-md"
-                    >
-                      <option value="">Select an account</option>
-                      {sourceControlAccounts.map((account) => (
-                        <option key={account.id} value={account.id}>
-                          {account.username} ({account.provider_name})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
                     <label className="block text-sm font-medium mb-2">Manager</label>
                     <select
                       value={addMemberFormData.manager_id || ''}
@@ -921,21 +917,6 @@ export default function MembersAndTeams() {
                       {titles.map((title) => (
                         <option key={title.id} value={title.id}>
                           {title.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Source Control Account</label>
-                    <select
-                      value={updateMemberFormData.external_account_id}
-                      onChange={(e) => setUpdateMemberFormData({ ...updateMemberFormData, external_account_id: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-md"
-                    >
-                      <option value="">Select an account</option>
-                      {sourceControlAccounts.map((account) => (
-                        <option key={account.id} value={account.id}>
-                          {account.username} ({account.provider_name})
                         </option>
                       ))}
                     </select>

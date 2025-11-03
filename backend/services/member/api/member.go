@@ -19,7 +19,7 @@ import (
 
 // MemberAPI defines the interface for member operations
 type MemberAPI interface {
-	AddOrganizationMember(ctx context.Context, req types.AddMemberRequest, member *types.OrganizationMember) error
+	AddOrganizationMember(ctx context.Context, req types.AddMemberRequest, member *types.OrganizationMember) (*types.OrganizationMember, error)
 	RemoveOrganizationMember(ctx context.Context, orgID string, userID string) error
 	GetOrganizationMembers(ctx context.Context, orgID string, params *types.OrganizationMemberParams) ([]types.OrganizationMember, error)
 	GetOrganizationMemberByID(ctx context.Context, memberID string) (*types.OrganizationMember, error)
@@ -32,6 +32,9 @@ type MemberAPI interface {
 	CreateExternalAccounts(ctx context.Context, accounts []*types.ExternalAccount) error
 	GetExternalAccount(ctx context.Context, id string) (*types.ExternalAccount, error)
 	UpdateExternalAccount(ctx context.Context, account *types.ExternalAccount) error
+	// UpdateExternalAccountMemberID updates the member_id association for an external account
+	// Validates that the account belongs to the specified organization
+	UpdateExternalAccountMemberID(ctx context.Context, organizationID string, accountID string, memberID *string) (*types.ExternalAccount, error)
 }
 
 type Api struct {
@@ -53,21 +56,13 @@ func NewApi(memberDb memberdb.DB, userApi userapi.UserAPI, sourceControlApi sour
 }
 
 // AddOrganizationMember adds a user as a member to an organization
-func (a *Api) AddOrganizationMember(ctx context.Context, req types.AddMemberRequest, member *types.OrganizationMember) error {
+func (a *Api) AddOrganizationMember(ctx context.Context, req types.AddMemberRequest, member *types.OrganizationMember) (*types.OrganizationMember, error) {
 	// Note: Title validation will be handled by the database foreign key constraint
-	// Get the external account
-	externalAccount, err := a.GetExternalAccount(ctx, req.ExternalAccountID)
-	if err != nil {
-		return err
-	}
-	if externalAccount == nil {
-		return errors.NewNotFoundError("external account not found")
-	}
 
 	// Look up user by email
 	user, err := a.userApi.FindUser(usertypes.UserSearchParams{Email: &member.Email})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if user == nil {
@@ -76,18 +71,18 @@ func (a *Api) AddOrganizationMember(ctx context.Context, req types.AddMemberRequ
 		})
 
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	// Check for duplicate member
 	existingMember, err := a.db.GetOrganizationMember(member.OrganizationID, user.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if existingMember != nil {
-		return errors.NewConflictError("user already a member of organization")
+		return nil, errors.NewConflictError("user already a member of organization")
 	}
 
 	member.UserID = user.ID
@@ -96,20 +91,31 @@ func (a *Api) AddOrganizationMember(ctx context.Context, req types.AddMemberRequ
 	// Add user as member
 	err = a.db.AddOrganizationMember(member)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Now get the member ID and update the source control account
+	// Now get the member ID
 	createdMember, err := a.db.GetOrganizationMember(member.OrganizationID, user.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if createdMember != nil {
-		externalAccount.MemberID = &createdMember.ID
-		err = a.UpdateExternalAccount(ctx, externalAccount)
-		if err != nil {
-			return err
+		// Update external account if provided
+		if req.ExternalAccountID != "" {
+			externalAccount, err := a.GetExternalAccount(ctx, req.ExternalAccountID)
+			if err != nil {
+				return nil, err
+			}
+			if externalAccount == nil {
+				return nil, errors.NewNotFoundError("external account not found")
+			}
+
+			externalAccount.MemberID = &createdMember.ID
+			err = a.UpdateExternalAccount(ctx, externalAccount)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		// Create manager relationship if specified
@@ -117,10 +123,10 @@ func (a *Api) AddOrganizationMember(ctx context.Context, req types.AddMemberRequ
 			// Get the manager's member record
 			managerMember, err := a.db.GetOrganizationMemberByID(ctx, *req.ManagerID)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			if managerMember == nil {
-				return errors.NewNotFoundError("manager not found")
+				return nil, errors.NewNotFoundError("manager not found")
 			}
 
 			// Create direct report relationship using member IDs
@@ -133,12 +139,12 @@ func (a *Api) AddOrganizationMember(ctx context.Context, req types.AddMemberRequ
 			if err != nil {
 				// Log the error but don't fail the member creation
 				// The member is already created, just the manager relationship failed
-				return err
+				return nil, err
 			}
 		}
 	}
 
-	return nil
+	return createdMember, nil
 }
 
 // RemoveOrganizationMember removes a user from an organization
@@ -190,54 +196,57 @@ func (a *Api) UpdateOrganizationMember(ctx context.Context, orgID string, member
 		return errors.NewNotFoundError("member not found in this organization")
 	}
 
-	// Verify the new external account exists and belongs to the organization
-	newExternalAccount, err := a.GetExternalAccount(ctx, req.ExternalAccountID)
-	if err != nil {
-		return err
-	}
-	if newExternalAccount == nil {
-		return errors.NewNotFoundError("external account not found")
-	}
-
-	// Check if the external account belongs to the organization
-	if newExternalAccount.OrganizationID == nil || *newExternalAccount.OrganizationID != orgID {
-		return errors.NewNotFoundError("external account does not belong to this organization")
-	}
-
 	// Update the username and title_id in the organization_members table
 	err = a.db.UpdateOrganizationMember(orgID, existingMember.UserID, req.Username, &req.TitleID)
 	if err != nil {
 		return err
 	}
 
-	// First, remove the member_id from any existing external accounts for this member
-	// This ensures we don't have multiple accounts pointing to the same member
-	// Filter by account type sourcecontrol since that's what we're managing here
-	sourceControlType := "sourcecontrol"
-	existingAccounts, err := a.GetExternalAccounts(ctx, &types.ExternalAccountParams{
-		OrganizationID: orgID,
-		AccountType:    &sourceControlType,
-	})
-	if err != nil {
-		return err
-	}
+	// Update external account if provided
+	if req.ExternalAccountID != "" {
+		// Verify the new external account exists and belongs to the organization
+		newExternalAccount, err := a.GetExternalAccount(ctx, req.ExternalAccountID)
+		if err != nil {
+			return err
+		}
+		if newExternalAccount == nil {
+			return errors.NewNotFoundError("external account not found")
+		}
 
-	for _, account := range existingAccounts {
-		if account.MemberID != nil && *account.MemberID == memberID {
-			// Clear the member_id from this account
-			account.MemberID = nil
-			err = a.UpdateExternalAccount(ctx, &account)
-			if err != nil {
-				return err
+		// Check if the external account belongs to the organization
+		if newExternalAccount.OrganizationID == nil || *newExternalAccount.OrganizationID != orgID {
+			return errors.NewNotFoundError("external account does not belong to this organization")
+		}
+
+		// First, remove the member_id from any existing external accounts for this member
+		// This ensures we don't have multiple accounts pointing to the same member
+		// Filter by account type sourcecontrol since that's what we're managing here
+		sourceControlType := "sourcecontrol"
+		existingAccounts, err := a.GetExternalAccounts(ctx, &types.ExternalAccountParams{
+			OrganizationID: orgID,
+			AccountType:    &sourceControlType,
+		})
+		if err != nil {
+			return err
+		}
+
+		for _, account := range existingAccounts {
+			if account.MemberID != nil && *account.MemberID == memberID {
+				// Clear the member_id from this account
+				account.MemberID = nil
+				err = a.UpdateExternalAccount(ctx, &account)
+				if err != nil {
+					return err
+				}
 			}
 		}
-	}
 
-	// Now assign the new external account to this member
-	newExternalAccount.MemberID = &memberID
-	err = a.UpdateExternalAccount(ctx, newExternalAccount)
-	if err != nil {
-		return err
+		// Now assign the new external account to this member
+		newExternalAccount.MemberID = &memberID
+		err = a.UpdateExternalAccount(ctx, newExternalAccount)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Update manager relationship if specified

@@ -89,22 +89,23 @@ func (h *MemberHandler) AddOrganizationMember(c *gin.Context) {
 		return
 	}
 
-	if err := h.memberApi.AddOrganizationMember(c.Request.Context(), membertypes.AddMemberRequest{
-		Email:            req.Email,
-		Username:         req.Username,
-		TitleID:          req.TitleID,
+	createdMember, err := h.memberApi.AddOrganizationMember(c.Request.Context(), membertypes.AddMemberRequest{
+		Email:             req.Email,
+		Username:          req.Username,
+		TitleID:           req.TitleID,
 		ExternalAccountID: req.ExternalAccountID,
-		ManagerID:        req.ManagerID,
+		ManagerID:         req.ManagerID,
 	}, &membertypes.OrganizationMember{
 		OrganizationID: orgID,
 		Email:          req.Email,
 		Username:       req.Username,
-	}); err != nil {
+	})
+	if err != nil {
 		utils.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{})
+	c.JSON(http.StatusCreated, gin.H{"member": createdMember})
 }
 
 // RemoveOrganizationMember handles removing a user from an organization
@@ -211,7 +212,7 @@ func (h *MemberHandler) UpdateOrganizationMember(c *gin.Context) {
 		Username:          req.Username,
 		TitleID:           req.TitleID,
 		ExternalAccountID: req.ExternalAccountID,
-		ManagerID:          req.ManagerID,
+		ManagerID:         req.ManagerID,
 	}); err != nil {
 		utils.HandleError(c, err)
 		return
@@ -333,6 +334,45 @@ func (h *MemberHandler) ListOrganizationExternalAccounts(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"external_accounts": externalAccounts})
 }
 
+// UpdateExternalAccount handles updating an external account
+// It updates the member_id association for an external account
+func (h *MemberHandler) UpdateExternalAccount(c *gin.Context) {
+	orgID, err := utils.GetOrganizationIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	accountID := c.Param("accountId")
+	if accountID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "account ID is required"})
+		return
+	}
+
+	// Check if user has access to the organization
+	if !utils.CheckOrganizationMembership(c, h.orgApi, &orgID) {
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		MemberID *string `json:"member_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Update the account member_id through service layer
+	updatedAccount, err := h.memberApi.UpdateExternalAccountMemberID(c.Request.Context(), orgID, accountID, req.MemberID)
+	if err != nil {
+		utils.HandleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"external_account": updatedAccount})
+}
+
 // RegisterRoutes registers all member-related routes
 func (h *MemberHandler) RegisterRoutes(api *gin.RouterGroup) {
 	members := api.Group("/organizations/:id/members")
@@ -348,5 +388,6 @@ func (h *MemberHandler) RegisterRoutes(api *gin.RouterGroup) {
 	externalAccounts := api.Group("/organizations/:id")
 	{
 		externalAccounts.GET("/external-accounts", h.ListOrganizationExternalAccounts)
+		externalAccounts.PUT("/external-accounts/:accountId", h.UpdateExternalAccount)
 	}
 }
