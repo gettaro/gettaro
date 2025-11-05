@@ -4,27 +4,39 @@
 
 @layer base {
   :root {
-    /* Light mode - Material UI default */
-    /* Purple Primary: #412485 */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 13%;
+    /* Light mode - Custom palette */
+    /* Background: #F9FAFB (Off-white) */
+    /* Surface / Card: #FFFFFF (White) */
+    /* Text primary: #111827 (Charcoal) */
+    /* Text secondary: #6B7280 (Gray) */
+    /* Border / Divider: #E5E7EB (Light gray) */
+    /* Accent / Primary: #7C3AED (Violet base) */
+    /* Success: #10B981 (Green) */
+    /* Warning: #F59E0B (Amber) */
+    /* Error: #EF4444 (Red) */
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 13%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 13%;
-    --primary: 258 65% 50%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 258 30% 85%;
-    --secondary-foreground: 258 65% 50%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 258 65% 95%;
-    --accent-foreground: 258 65% 50%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 258 65% 50%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 258 83% 58%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 258 88% 68%;
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 20% 98%;
+    --success: 160 84% 39%;
+    --success-foreground: 210 20% 98%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 258 83% 58%;
     --radius: 0.5rem;
   }
 
