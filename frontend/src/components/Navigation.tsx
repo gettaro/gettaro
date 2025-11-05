@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import OrganizationDropdown from './OrganizationDropdown'
 import { useAuth } from '../hooks/useAuth'
 import { useTheme } from '../hooks/useTheme'
@@ -10,16 +11,46 @@ export default function Navigation() {
   const { isAuthenticated, user, login, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false)
+  const location = useLocation()
   
   useEffect(() => {
     console.log(user)
   }, [user])
 
+  const isActive = (path: string) => {
+    return location.pathname === path || location.pathname.startsWith(path + '/')
+  }
+
   return (
     <nav className="flex items-center justify-between w-full">
-      <div className="flex items-center space-x-4">
+      <div className="flex-1"></div>
+      <div className="flex items-center justify-center space-x-4 flex-1">
+        {isAuthenticated && (
+          <>
+            <Link
+              to="/dashboard"
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                isActive('/dashboard')
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              Dashboard
+            </Link>
+            <Link
+              to="/teams"
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                isActive('/teams')
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              Teams
+            </Link>
+          </>
+        )}
       </div>
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-4 flex-1 justify-end">
         {isAuthenticated && (
           <>
             <OrganizationDropdown />

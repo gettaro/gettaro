@@ -1953,21 +1953,7 @@ export default function MemberProfilePage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className={`max-w-6xl mx-auto ${showConversationSidebar ? 'mr-[28rem]' : ''}`}>
-        {/* Breadcrumb Navigation */}
-        <nav className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
-          <a
-            href={`/settings/members`}
-            className="hover:text-foreground transition-colors"
-          >
-            Members
-          </a>
-          <span>/</span>
-          <span className="text-foreground">
-            {member.username}
-          </span>
-        </nav>
-
+      <div className={`max-w-7xl mx-auto ${showConversationSidebar ? 'mr-[28rem]' : ''}`}>
         {/* Member Basic Information */}
         <div className="bg-card rounded-lg p-4 mb-6">
           <div className="flex items-center justify-between">

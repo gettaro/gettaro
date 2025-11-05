@@ -9,6 +9,7 @@ import MemberProfile from './pages/MemberProfile'
 import TeamProfile from './pages/TeamProfile'
 import ConversationTemplates from './pages/ConversationTemplates'
 import EngineeringDashboard from './pages/EngineeringDashboard'
+import Teams from './pages/Teams'
 
 export const router = createBrowserRouter([
   {
@@ -22,6 +23,10 @@ export const router = createBrowserRouter([
       {
         path: "dashboard",
         element: <EngineeringDashboard />,
+      },
+      {
+        path: "teams",
+        element: <Teams />,
       },
       {
         path: "settings",
