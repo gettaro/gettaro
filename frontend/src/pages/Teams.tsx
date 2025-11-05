@@ -210,7 +210,7 @@ export default function Teams() {
         </div>
 
         {/* Date Range Picker for Teams */}
-        <div className="bg-muted/30 rounded-lg p-4 mb-6">
+        <div className="bg-card rounded-lg p-4 mb-6 border border-border">
           <div className="flex flex-wrap items-end gap-4">
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">

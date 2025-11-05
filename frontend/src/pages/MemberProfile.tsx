@@ -913,8 +913,8 @@ export default function MemberProfilePage() {
           )}
           
           {/* Avatar */}
-          <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
-            <span className="text-primary font-medium text-xs">
+          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+            <span className="text-primary font-medium text-sm">
               {node.member.username.charAt(0).toUpperCase()}
             </span>
           </div>

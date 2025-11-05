@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useOrganizationStore } from '../stores/organization'
 import { Team } from '../types/team'
 import { Member } from '../types/member'
+import { Title } from '../types/title'
 import { PullRequest } from '../types/sourcecontrol'
 import { OrganizationMetricsResponse } from '../types/organizationMetrics'
 import { GetMemberAICodeAssistantMetricsParams, GetMemberAICodeAssistantMetricsResponse } from '../types/aicodeassistant'
@@ -11,7 +12,7 @@ import MetricChart from '../components/MetricChart'
 import MetricInfoButton from '../components/MetricInfoButton'
 import PullRequestItem from '../components/PullRequestItem'
 
-type TabType = 'overview' | 'code-contributions' | 'ai-code-assistant'
+type TabType = 'overview' | 'members' | 'code-contributions' | 'ai-code-assistant'
 
 export default function TeamProfilePage() {
   const { teamId } = useParams<{ teamId: string }>()
@@ -20,6 +21,7 @@ export default function TeamProfilePage() {
   
   const [team, setTeam] = useState<Team | null>(null)
   const [members, setMembers] = useState<Member[]>([])
+  const [titles, setTitles] = useState<Title[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabType>('overview')
@@ -68,6 +70,22 @@ export default function TeamProfilePage() {
 
     loadTeam()
   }, [currentOrganization?.id, teamId])
+
+  // Load titles
+  useEffect(() => {
+    if (!currentOrganization?.id) return
+
+    const loadTitles = async () => {
+      try {
+        const titlesData = await Api.getOrganizationTitles(currentOrganization.id)
+        setTitles(titlesData)
+      } catch (err) {
+        console.error('Error loading titles:', err)
+      }
+    }
+
+    loadTitles()
+  }, [currentOrganization?.id])
 
   // Load team members
   useEffect(() => {
@@ -405,6 +423,16 @@ export default function TeamProfilePage() {
                 Overview
               </button>
               <button
+                onClick={() => setActiveTab('members')}
+                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'members'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
+                }`}
+              >
+                Members
+              </button>
+              <button
                 onClick={() => setActiveTab('code-contributions')}
                 className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'code-contributions'
@@ -430,26 +458,6 @@ export default function TeamProfilePage() {
           <div className="p-4">
             {activeTab === 'overview' && (
               <div className="space-y-4">
-                {/* Team Members */}
-                <div className="bg-muted/30 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold mb-3">Team Members</h3>
-                  {members.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No members in this team</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {members.map((member) => (
-                        <button
-                          key={member.id}
-                          onClick={() => navigate(`/members/${member.id}/profile`)}
-                          className="px-3 py-1 bg-background rounded border border-border text-sm hover:bg-primary/10 hover:border-primary/50 cursor-pointer transition-colors text-left"
-                        >
-                          {member.username} ({member.email})
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
                 {/* Open Pull Requests */}
                 <div className="bg-card rounded-lg">
                   <div className="p-4 border-b border-border/50">
@@ -513,6 +521,48 @@ export default function TeamProfilePage() {
                           ))}
                         </div>
                       )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'members' && (
+              <div className="space-y-4">
+                <div className="bg-card rounded-lg p-6">
+                  <h3 className="text-lg font-semibold mb-4">Team Members</h3>
+                  {members.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No members in this team</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {members.map((member) => {
+                        const memberTitle = member.title_id 
+                          ? titles.find(t => t.id === member.title_id)?.name 
+                          : null
+                        
+                        return (
+                          <button
+                            key={member.id}
+                            onClick={() => navigate(`/members/${member.id}/profile`)}
+                            className="w-full flex items-center space-x-3 p-3 bg-muted/20 rounded border border-border/30 hover:bg-muted/30 transition-colors text-left"
+                          >
+                            {/* Avatar */}
+                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                              <span className="text-primary font-medium text-sm">
+                                {member.username.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            
+                            {/* Member Info */}
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-medium text-foreground text-sm">{member.username}</h4>
+                              {memberTitle && (
+                                <p className="text-xs text-muted-foreground">{memberTitle}</p>
+                              )}
+                            </div>
+                          </button>
+                        )
+                      })}
                     </div>
                   )}
                 </div>

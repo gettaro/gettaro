@@ -29,20 +29,20 @@ export default function Navigation() {
           <>
             <Link
               to="/dashboard"
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
                 isActive('/dashboard')
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  ? 'text-foreground border-foreground'
+                  : 'text-muted-foreground border-transparent hover:text-foreground hover:border-foreground/50'
               }`}
             >
               Dashboard
             </Link>
             <Link
               to="/teams"
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
                 isActive('/teams')
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  ? 'text-foreground border-foreground'
+                  : 'text-muted-foreground border-transparent hover:text-foreground hover:border-foreground/50'
               }`}
             >
               Teams
