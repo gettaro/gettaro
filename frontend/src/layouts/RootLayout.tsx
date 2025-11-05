@@ -15,7 +15,16 @@ export default function RootLayout() {
       <header className="bg-card/50 backdrop-blur-sm border-b">
         <div className="container">
           <div className="flex items-center justify-between py-4">
-            <h1 className="text-3xl font-bold text-foreground">EMS.dev</h1>
+            <img 
+              src="/logo/taro_light.png" 
+              alt="Taro" 
+              className="h-12 block dark:hidden"
+            />
+            <img 
+              src="/logo/taro_dark.png" 
+              alt="Taro" 
+              className="h-12 hidden dark:block"
+            />
             <Navigation />
           </div>
         </div>
