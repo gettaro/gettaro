@@ -403,13 +403,13 @@ export default function MemberProfilePage() {
         )
       case 'pr_comment':
         return (
-          <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
         )
       case 'pr_review':
         return (
-          <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         )
@@ -441,10 +441,10 @@ export default function MemberProfilePage() {
                 {activity.metadata.state && (
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     activity.metadata.state === 'open' 
-                      ? 'bg-green-100 text-green-800' 
+                      ? 'bg-success/10 text-success dark:text-success' 
                       : activity.metadata.state === 'closed' 
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-gray-100 text-gray-800'
+                      ? 'bg-destructive/10 text-destructive dark:text-destructive'
+                      : 'bg-muted text-muted-foreground'
                   }`}>
                     {activity.metadata.state === 'open' ? 'Open' : 
                      activity.metadata.state === 'closed' ? 'Closed' : 
@@ -454,7 +454,7 @@ export default function MemberProfilePage() {
                 
                 {activity.metadata.additions !== undefined && (
                   <span className="flex items-center space-x-1">
-                    <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                     <span>+{activity.metadata.additions}</span>
@@ -462,7 +462,7 @@ export default function MemberProfilePage() {
                 )}
                 {activity.metadata.deletions !== undefined && (
                   <span className="flex items-center space-x-1">
-                    <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                     </svg>
                     <span>-{activity.metadata.deletions}</span>
@@ -501,7 +501,7 @@ export default function MemberProfilePage() {
                 {/* Time to merge */}
                 {activity.pr_metrics.time_to_merge_seconds !== undefined && (
                   <span className="flex items-center space-x-1">
-                    <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span>Merge: {formatTimeMetric(activity.pr_metrics.time_to_merge_seconds)}</span>
@@ -511,7 +511,7 @@ export default function MemberProfilePage() {
                 {/* Time to first review */}
                 {activity.pr_metrics.time_to_first_non_bot_review_seconds !== undefined && (
                   <span className="flex items-center space-x-1">
-                    <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span>First review: {formatTimeMetric(activity.pr_metrics.time_to_first_non_bot_review_seconds)}</span>
@@ -521,7 +521,7 @@ export default function MemberProfilePage() {
                 {/* Show opened duration for open PRs */}
                 {activity.metadata?.state === 'open' && (
                   <span className="flex items-center space-x-1">
-                    <svg className="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span>Opened {Math.ceil((Date.now() - new Date(activity.created_at).getTime()) / (1000 * 60 * 60 * 24))}d</span>
@@ -535,7 +535,7 @@ export default function MemberProfilePage() {
               <div className="mb-3">
                 <button
                   onClick={() => toggleExpanded(`${activity.id}-description`)}
-                  className="flex items-center space-x-2 text-sm text-primary hover:text-primary/80 transition-colors"
+                  className="flex items-center space-x-2 text-sm text-primary hover:text-accent transition-colors"
                 >
                   <svg 
                     className={`w-4 h-4 transition-transform ${expandedItems.has(`${activity.id}-description`) ? 'rotate-90' : ''}`}
@@ -575,7 +575,7 @@ export default function MemberProfilePage() {
               <div className="mb-3">
                 <button
                   onClick={() => toggleExpanded(`${activity.id}-comment`)}
-                  className="flex items-center space-x-2 text-sm text-primary hover:text-primary/80 transition-colors"
+                  className="flex items-center space-x-2 text-sm text-primary hover:text-accent transition-colors"
                 >
                   <svg 
                     className={`w-4 h-4 transition-transform ${expandedItems.has(`${activity.id}-comment`) ? 'rotate-90' : ''}`}
@@ -615,7 +615,7 @@ export default function MemberProfilePage() {
               <div className="mb-3">
                 <button
                   onClick={() => toggleExpanded(`${activity.id}-review`)}
-                  className="flex items-center space-x-2 text-sm text-primary hover:text-primary/80 transition-colors"
+                  className="flex items-center space-x-2 text-sm text-primary hover:text-accent transition-colors"
                 >
                   <svg 
                     className={`w-4 h-4 transition-transform ${expandedItems.has(`${activity.id}-review`) ? 'rotate-90' : ''}`}
@@ -1236,7 +1236,7 @@ export default function MemberProfilePage() {
                     )}
                     <button
                       onClick={() => toggleTableExpanded('pull-requests')}
-                      className="flex items-center space-x-2 text-sm text-primary hover:text-primary/80 transition-colors"
+                      className="flex items-center space-x-2 text-sm text-primary hover:text-accent transition-colors"
                     >
                       <svg 
                         className={`w-4 h-4 transition-transform ${expandedTables.has('pull-requests') ? 'rotate-90' : ''}`}
@@ -1285,7 +1285,7 @@ export default function MemberProfilePage() {
                                   })}
                                 </span>
                                 {pr.merged_at && (
-                                  <span className="text-green-600">
+                                  <span className="text-success">
                                     Merged {new Date(pr.merged_at).toLocaleString('en-US', {
                                       year: 'numeric',
                                       month: 'short',
@@ -1300,7 +1300,7 @@ export default function MemberProfilePage() {
                                     href={pr.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-primary hover:text-primary/80 transition-colors"
+                                    className="text-primary hover:text-accent transition-colors"
                                   >
                                     View on GitHub →
                                   </a>
@@ -1328,7 +1328,7 @@ export default function MemberProfilePage() {
                   </div>
                   <button
                     onClick={() => toggleTableExpanded('pr-reviews')}
-                    className="flex items-center space-x-2 text-sm text-primary hover:text-primary/80 transition-colors"
+                    className="flex items-center space-x-2 text-sm text-primary hover:text-accent transition-colors"
                   >
                     <svg 
                       className={`w-4 h-4 transition-transform ${expandedTables.has('pr-reviews') ? 'rotate-90' : ''}`}
@@ -1382,7 +1382,7 @@ export default function MemberProfilePage() {
                                       href={review.url}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="text-primary hover:text-primary/80 transition-colors"
+                                      className="text-primary hover:text-accent transition-colors"
                                     >
                                       View on GitHub →
                                     </a>
@@ -1624,7 +1624,7 @@ export default function MemberProfilePage() {
                               </div>
                               <button
                                 onClick={() => handleAssociateAccount(account.id)}
-                                className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                                className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-accent transition-colors"
                               >
                                 Associate
                               </button>
@@ -1897,7 +1897,7 @@ export default function MemberProfilePage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          <div className="text-red-600">Invalid member ID</div>
+          <div className="text-destructive">Invalid member ID</div>
         </div>
       </div>
     )
@@ -1920,7 +1920,7 @@ export default function MemberProfilePage() {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-center h-64">
-            <div className="text-red-600">{error}</div>
+            <div className="text-destructive">{error}</div>
           </div>
         </div>
       </div>
@@ -1932,7 +1932,7 @@ export default function MemberProfilePage() {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-center h-64">
-            <div className="text-red-600">Member not found</div>
+            <div className="text-destructive">Member not found</div>
           </div>
         </div>
       </div>

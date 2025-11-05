@@ -741,7 +741,7 @@ export default function TeamProfilePage() {
                                       })}
                                     </span>
                                     {pr.merged_at && (
-                                      <span className="text-green-600">
+                                      <span className="text-success">
                                         Merged {new Date(pr.merged_at).toLocaleString('en-US', {
                                           year: 'numeric',
                                           month: 'short',

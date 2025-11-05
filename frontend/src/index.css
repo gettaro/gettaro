@@ -29,30 +29,40 @@
   }
 
   .dark {
-    /* Dark mode - Material UI exact palette */
-    /* Background: #121212 (Material UI dark theme default) */
-    /* Paper/Card: #1e1e1e (Material UI elevated surface) */
-    /* Text: #fff (white) */
-    /* Purple Primary: #412485 (same as light theme) */
-    --background: 0 0% 7%;
-    --foreground: 0 0% 100%;
-    --card: 0 0% 12%;
-    --card-foreground: 0 0% 100%;
-    --popover: 0 0% 12%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 258 65% 50%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 19%;
-    --secondary-foreground: 0 0% 70%;
-    --muted: 0 0% 19%;
-    --muted-foreground: 0 0% 70%;
-    --accent: 258 50% 40%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 27%;
-    --input: 0 0% 27%;
-    --ring: 258 65% 50%;
+    /* Dark mode - Custom palette */
+    /* Background: #0F1116 (Near-black) */
+    /* Surface / Card: #1C1E26 (Dark gray) */
+    /* Text primary: #F9FAFB (White) */
+    /* Text secondary: #9CA3AF (Cool gray) */
+    /* Border / Divider: #2D2F36 (Medium gray) */
+    /* Accent / Primary: #7C3AED (Violet base) */
+    /* Accent hover: #9F67F6 (Lighter violet) */
+    /* Success: #34D399 (Green) */
+    /* Warning: #FBBF24 (Amber) */
+    /* Error: #F87171 (Red) */
+    --background: 220 19% 7%;
+    --foreground: 210 50% 98%;
+    --card: 220 15% 13%;
+    --card-foreground: 210 50% 98%;
+    --popover: 220 15% 13%;
+    --popover-foreground: 210 50% 98%;
+    --primary: 258 83% 58%;
+    --primary-foreground: 210 50% 98%;
+    --secondary: 230 9% 19%;
+    --secondary-foreground: 213 12% 65%;
+    --muted: 230 9% 19%;
+    --muted-foreground: 213 12% 65%;
+    --accent: 258 88% 68%;
+    --accent-foreground: 210 50% 98%;
+    --destructive: 0 89% 71%;
+    --destructive-foreground: 210 50% 98%;
+    --success: 160 61% 52%;
+    --success-foreground: 210 50% 98%;
+    --warning: 43 96% 56%;
+    --warning-foreground: 220 19% 7%;
+    --border: 230 9% 19%;
+    --input: 230 9% 19%;
+    --ring: 258 83% 58%;
   }
 }
 

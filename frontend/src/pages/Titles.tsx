@@ -148,8 +148,8 @@ export default function Titles() {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-red-800">{error}</p>
+          <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-md">
+            <p className="text-destructive">{error}</p>
           </div>
         )}
 
@@ -159,7 +159,7 @@ export default function Titles() {
               <h2 className="text-xl font-semibold text-foreground">Organization Titles</h2>
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors"
+                className="bg-primary text-primary-foreground hover:bg-accent px-4 py-2 rounded-md transition-colors"
               >
                 Add Title
               </button>

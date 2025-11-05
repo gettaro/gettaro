@@ -147,7 +147,7 @@ export default function Navigation() {
         {!isAuthenticated && (
           <button
             onClick={() => login()}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md"
+            className="bg-primary text-primary-foreground hover:bg-accent px-4 py-2 rounded-md"
           >
             Log In
           </button>
