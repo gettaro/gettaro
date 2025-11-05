@@ -37,21 +37,9 @@ func (r *TimeToMergeRule) Calculate(ctx context.Context, params types.MetricRule
 		return nil, nil, err
 	}
 
-	// Calculate time to merge peers value
-	peersTimeToMergeValue, err := r.sourceControlDB.CalculateTimeToMergeForAccounts(ctx, *organizationID, peersSourceControlAccountIDs, nil, *startDate, *endDate)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	snapshotMetric := types.SnapshotMetric{
-		Label:          r.Name,
-		Description:    r.Description,
-		Unit:           r.Unit,
-		Value:          float64(*timeToMergeValue),
-		PeersValue:     float64(*peersTimeToMergeValue),
-		IconIdentifier: r.IconIdentifier,
-		IconColor:      r.IconColor,
-	}
+	// Calculate peer values only if peer account IDs are provided (member metrics)
+	var peersValue float64
+	var timeSeries []types.TimeSeriesEntry
 
 	// Calculate time to merge graph value
 	timeToMergeGraphValue, err := r.sourceControlDB.CalculateTimeToMergeGraph(ctx, *organizationID, sourceControlAccountIDs, prPrefixes, *startDate, *endDate, r.Operation, r.Name, params.Interval)
@@ -59,11 +47,43 @@ func (r *TimeToMergeRule) Calculate(ctx context.Context, params types.MetricRule
 		return nil, nil, err
 	}
 
+	// Only calculate peer values if peer account IDs are provided (member metrics only)
+	if len(peersSourceControlAccountIDs) > 0 {
+		// Calculate time to merge peers value
+		peersTimeToMergeValue, err := r.sourceControlDB.CalculateTimeToMergeForAccounts(ctx, *organizationID, peersSourceControlAccountIDs, nil, *startDate, *endDate)
+		if err != nil {
+			return nil, nil, err
+		}
+		peersValue = float64(*peersTimeToMergeValue)
+
+		// Calculate peer time to merge graph value
+		peersTimeToMergeGraphValue, err := r.sourceControlDB.CalculateTimeToMergeGraphForAccounts(ctx, *organizationID, peersSourceControlAccountIDs, nil, *startDate, *endDate, params.Interval)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Merge peer values into the member's time series
+		timeSeries = mergeTimeSeriesWithPeers(timeToMergeGraphValue, peersTimeToMergeGraphValue, r.Name)
+	} else {
+		// No peer account IDs, use member's time series as-is
+		timeSeries = timeToMergeGraphValue
+	}
+
+	snapshotMetric := types.SnapshotMetric{
+		Label:          r.Name,
+		Description:    r.Description,
+		Unit:           r.Unit,
+		Value:          float64(*timeToMergeValue),
+		PeersValue:     peersValue,
+		IconIdentifier: r.IconIdentifier,
+		IconColor:      r.IconColor,
+	}
+
 	graphMetric := types.GraphMetric{
 		Label:      r.Name,
 		Type:       "line",
 		Unit:       r.Unit,
-		TimeSeries: timeToMergeGraphValue,
+		TimeSeries: timeSeries,
 	}
 
 	return &snapshotMetric, &graphMetric, nil

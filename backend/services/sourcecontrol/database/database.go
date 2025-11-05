@@ -54,6 +54,14 @@ type DB interface {
 	CalculatePRsReviewedForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time) (*float64, error)
 	CalculateTimeToMergeForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time) (*float64, error)
 	CalculatePRReviewComplexityForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time) (*float64, error)
+
+	// Calculate peer graph metrics (median across peers over time)
+	CalculateLOCAddedGraphForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, interval string) ([]types.TimeSeriesEntry, error)
+	CalculateLOCRemovedGraphForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, interval string) ([]types.TimeSeriesEntry, error)
+	CalculatePRsMergedGraphForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, interval string) ([]types.TimeSeriesEntry, error)
+	CalculatePRsReviewedGraphForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, interval string) ([]types.TimeSeriesEntry, error)
+	CalculateTimeToMergeGraphForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, interval string) ([]types.TimeSeriesEntry, error)
+	CalculatePRReviewComplexityGraphForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, interval string) ([]types.TimeSeriesEntry, error)
 }
 
 type SourceControlDB struct {
@@ -1392,4 +1400,492 @@ func (d *SourceControlDB) CalculatePRReviewComplexityForAccounts(ctx context.Con
 	}
 
 	return &value, nil
+}
+
+// CalculatePRsReviewedGraphForAccounts calculates the median PRs reviewed across peers over time
+func (d *SourceControlDB) CalculatePRsReviewedGraphForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, interval string) ([]types.TimeSeriesEntry, error) {
+	// Map interval values to PostgreSQL DATE_TRUNC units
+	postgresInterval := interval
+	switch interval {
+	case "daily":
+		postgresInterval = "day"
+	case "weekly":
+		postgresInterval = "week"
+	case "monthly":
+		postgresInterval = "month"
+	}
+
+	query := `
+		SELECT 
+			date,
+			PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_total) as peer_value
+		FROM (
+			SELECT 
+				DATE_TRUNC('` + postgresInterval + `', pr.created_at) as date,
+				sca.member_id,
+				COUNT(DISTINCT pr.id) as member_total
+			FROM pull_requests pr
+			JOIN pr_comments pc ON pc.pr_id = pr.id
+			JOIN member_external_accounts sca ON pc.external_account_id = sca.id
+			WHERE sca.organization_id = ?
+			AND pr.created_at >= ?
+			AND pr.created_at <= ?
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate)
+
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += "			AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
+		query += "			AND sca.id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	query += `
+			GROUP BY DATE_TRUNC('` + postgresInterval + `', pr.created_at), sca.member_id
+		) member_totals
+		GROUP BY date
+		ORDER BY date
+	`
+
+	var result struct {
+		Date      time.Time `json:"date"`
+		PeerValue float64   `json:"peer_value"`
+	}
+
+	rows, err := d.db.WithContext(ctx).Raw(query, args...).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	dataPoints := []types.TimeSeriesEntry{}
+	for rows.Next() {
+		if err := rows.Scan(&result.Date, &result.PeerValue); err != nil {
+			return nil, err
+		}
+		dataPoints = append(dataPoints, types.TimeSeriesEntry{
+			Date: result.Date.Format("2006-01-02"),
+			Data: []types.TimeSeriesDataPoint{
+				{
+					Key:   "Peers",
+					Value: result.PeerValue,
+				},
+			},
+		})
+	}
+
+	return dataPoints, nil
+}
+
+// CalculatePRsMergedGraphForAccounts calculates the median PRs merged across peers over time
+func (d *SourceControlDB) CalculatePRsMergedGraphForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, interval string) ([]types.TimeSeriesEntry, error) {
+	// Map interval values to PostgreSQL DATE_TRUNC units
+	postgresInterval := interval
+	switch interval {
+	case "daily":
+		postgresInterval = "day"
+	case "weekly":
+		postgresInterval = "week"
+	case "monthly":
+		postgresInterval = "month"
+	}
+
+	query := `
+		SELECT 
+			date,
+			PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_total) as peer_value
+		FROM (
+			SELECT 
+				DATE_TRUNC('` + postgresInterval + `', pr.created_at) as date,
+				sca.member_id,
+				COUNT(DISTINCT pr.id) as member_total
+			FROM pull_requests pr
+			JOIN member_external_accounts sca ON pr.external_account_id = sca.id
+			WHERE sca.organization_id = ?
+			AND pr.created_at >= ?
+			AND pr.created_at <= ?
+			AND pr.merged_at IS NOT NULL
+			AND pr.status = 'closed'
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate)
+
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += "			AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
+		query += "			AND sca.id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	query += `
+			GROUP BY DATE_TRUNC('` + postgresInterval + `', pr.created_at), sca.member_id
+		) member_totals
+		GROUP BY date
+		ORDER BY date
+	`
+
+	var result struct {
+		Date      time.Time `json:"date"`
+		PeerValue float64   `json:"peer_value"`
+	}
+
+	rows, err := d.db.WithContext(ctx).Raw(query, args...).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	dataPoints := []types.TimeSeriesEntry{}
+	for rows.Next() {
+		if err := rows.Scan(&result.Date, &result.PeerValue); err != nil {
+			return nil, err
+		}
+		dataPoints = append(dataPoints, types.TimeSeriesEntry{
+			Date: result.Date.Format("2006-01-02"),
+			Data: []types.TimeSeriesDataPoint{
+				{
+					Key:   "Peers",
+					Value: result.PeerValue,
+				},
+			},
+		})
+	}
+
+	return dataPoints, nil
+}
+
+// CalculateLOCAddedGraphForAccounts calculates the median LOC added across peers over time
+func (d *SourceControlDB) CalculateLOCAddedGraphForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, interval string) ([]types.TimeSeriesEntry, error) {
+	// Map interval values to PostgreSQL DATE_TRUNC units
+	postgresInterval := interval
+	switch interval {
+	case "daily":
+		postgresInterval = "day"
+	case "weekly":
+		postgresInterval = "week"
+	case "monthly":
+		postgresInterval = "month"
+	}
+
+	query := `
+		SELECT 
+			date,
+			PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_total) as peer_value
+		FROM (
+			SELECT 
+				DATE_TRUNC('` + postgresInterval + `', pr.created_at) as date,
+				sca.member_id,
+				COALESCE(SUM(CAST(pr.metadata->>'additions' AS BIGINT)), 0) as member_total
+			FROM pull_requests pr
+			JOIN member_external_accounts sca ON pr.external_account_id = sca.id
+			WHERE sca.organization_id = ?
+			AND pr.created_at >= ?
+			AND pr.created_at <= ?
+			AND pr.merged_at IS NOT NULL
+			AND pr.status = 'closed'
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate)
+
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += "			AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
+		query += "			AND sca.id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	query += `
+			GROUP BY DATE_TRUNC('` + postgresInterval + `', pr.created_at), sca.member_id
+		) member_totals
+		GROUP BY date
+		ORDER BY date
+	`
+
+	var result struct {
+		Date      time.Time `json:"date"`
+		PeerValue float64   `json:"peer_value"`
+	}
+
+	rows, err := d.db.WithContext(ctx).Raw(query, args...).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	dataPoints := []types.TimeSeriesEntry{}
+	for rows.Next() {
+		if err := rows.Scan(&result.Date, &result.PeerValue); err != nil {
+			return nil, err
+		}
+		dataPoints = append(dataPoints, types.TimeSeriesEntry{
+			Date: result.Date.Format("2006-01-02"),
+			Data: []types.TimeSeriesDataPoint{
+				{
+					Key:   "Peers",
+					Value: result.PeerValue,
+				},
+			},
+		})
+	}
+
+	return dataPoints, nil
+}
+
+// CalculateLOCRemovedGraphForAccounts calculates the median LOC removed across peers over time
+func (d *SourceControlDB) CalculateLOCRemovedGraphForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, interval string) ([]types.TimeSeriesEntry, error) {
+	// Map interval values to PostgreSQL DATE_TRUNC units
+	postgresInterval := interval
+	switch interval {
+	case "daily":
+		postgresInterval = "day"
+	case "weekly":
+		postgresInterval = "week"
+	case "monthly":
+		postgresInterval = "month"
+	}
+
+	query := `
+		SELECT 
+			date,
+			PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_total) as peer_value
+		FROM (
+			SELECT 
+				DATE_TRUNC('` + postgresInterval + `', pr.created_at) as date,
+				sca.member_id,
+				COALESCE(SUM(CAST(pr.metadata->>'deletions' AS BIGINT)), 0) as member_total
+			FROM pull_requests pr
+			JOIN member_external_accounts sca ON pr.external_account_id = sca.id
+			WHERE sca.organization_id = ?
+			AND pr.created_at >= ?
+			AND pr.created_at <= ?
+			AND pr.merged_at IS NOT NULL
+			AND pr.status = 'closed'
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate)
+
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += "			AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
+		query += "			AND sca.id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	query += `
+			GROUP BY DATE_TRUNC('` + postgresInterval + `', pr.created_at), sca.member_id
+		) member_totals
+		GROUP BY date
+		ORDER BY date
+	`
+
+	var result struct {
+		Date      time.Time `json:"date"`
+		PeerValue float64   `json:"peer_value"`
+	}
+
+	rows, err := d.db.WithContext(ctx).Raw(query, args...).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	dataPoints := []types.TimeSeriesEntry{}
+	for rows.Next() {
+		if err := rows.Scan(&result.Date, &result.PeerValue); err != nil {
+			return nil, err
+		}
+		dataPoints = append(dataPoints, types.TimeSeriesEntry{
+			Date: result.Date.Format("2006-01-02"),
+			Data: []types.TimeSeriesDataPoint{
+				{
+					Key:   "Peers",
+					Value: result.PeerValue,
+				},
+			},
+		})
+	}
+
+	return dataPoints, nil
+}
+
+// CalculateTimeToMergeGraphForAccounts calculates the median time to merge across peers over time
+func (d *SourceControlDB) CalculateTimeToMergeGraphForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, interval string) ([]types.TimeSeriesEntry, error) {
+	// Map interval values to PostgreSQL DATE_TRUNC units
+	postgresInterval := interval
+	switch interval {
+	case "daily":
+		postgresInterval = "day"
+	case "weekly":
+		postgresInterval = "week"
+	case "monthly":
+		postgresInterval = "month"
+	}
+
+	query := `
+		SELECT 
+			date,
+			PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_avg) as peer_value
+		FROM (
+			SELECT 
+				DATE_TRUNC('` + postgresInterval + `', pr.created_at) as date,
+				sca.member_id,
+				AVG(EXTRACT(EPOCH FROM (pr.merged_at - pr.created_at))) as member_avg
+			FROM pull_requests pr
+			JOIN member_external_accounts sca ON pr.external_account_id = sca.id
+			WHERE sca.organization_id = ?
+			AND pr.created_at >= ?
+			AND pr.created_at <= ?
+			AND pr.merged_at IS NOT NULL
+			AND pr.status = 'closed'
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate)
+
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += "			AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
+		query += "			AND sca.id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	query += `
+			GROUP BY DATE_TRUNC('` + postgresInterval + `', pr.created_at), sca.member_id
+		) member_averages
+		GROUP BY date
+		ORDER BY date
+	`
+
+	var result struct {
+		Date      time.Time `json:"date"`
+		PeerValue float64   `json:"peer_value"`
+	}
+
+	rows, err := d.db.WithContext(ctx).Raw(query, args...).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	dataPoints := []types.TimeSeriesEntry{}
+	for rows.Next() {
+		if err := rows.Scan(&result.Date, &result.PeerValue); err != nil {
+			return nil, err
+		}
+		dataPoints = append(dataPoints, types.TimeSeriesEntry{
+			Date: result.Date.Format("2006-01-02"),
+			Data: []types.TimeSeriesDataPoint{
+				{
+					Key:   "Peers",
+					Value: result.PeerValue,
+				},
+			},
+		})
+	}
+
+	return dataPoints, nil
+}
+
+// CalculatePRReviewComplexityGraphForAccounts calculates the median PR review complexity across peers over time
+func (d *SourceControlDB) CalculatePRReviewComplexityGraphForAccounts(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, interval string) ([]types.TimeSeriesEntry, error) {
+	// Map interval values to PostgreSQL DATE_TRUNC units
+	postgresInterval := interval
+	switch interval {
+	case "daily":
+		postgresInterval = "day"
+	case "weekly":
+		postgresInterval = "week"
+	case "monthly":
+		postgresInterval = "month"
+	}
+
+	query := `
+		SELECT 
+			date,
+			PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY member_avg) as peer_value
+		FROM (
+			SELECT 
+				date,
+				member_id,
+				AVG(pr_complexity) as member_avg
+			FROM (
+				SELECT DISTINCT
+					DATE_TRUNC('` + postgresInterval + `', pr.created_at) as date,
+					sca.member_id,
+					pr.id,
+					pr.additions + pr.deletions as pr_complexity
+				FROM pull_requests pr
+				JOIN pr_comments pc ON pc.pr_id = pr.id
+				JOIN member_external_accounts sca ON pc.external_account_id = sca.id
+				WHERE sca.organization_id = ?
+				AND pr.created_at >= ?
+				AND pr.created_at <= ?
+				AND pr.merged_at IS NOT NULL
+				AND pr.status = 'closed'
+				AND pc.type = 'REVIEW'
+	`
+
+	var args []any
+	args = append(args, organizationID, startDate, endDate)
+
+	// Filter by prefix if provided, otherwise filter by source control account IDs
+	if len(prPrefixes) > 0 {
+		query += "				AND pr.prefix IN ?"
+		args = append(args, prPrefixes)
+	} else if len(sourceControlAccountIDs) > 0 {
+		query += "				AND sca.id IN ?"
+		args = append(args, sourceControlAccountIDs)
+	}
+
+	query += `
+			) pr_complexities
+			GROUP BY date, member_id
+		) member_averages
+		GROUP BY date
+		ORDER BY date
+	`
+
+	var result struct {
+		Date      time.Time `json:"date"`
+		PeerValue float64   `json:"peer_value"`
+	}
+
+	rows, err := d.db.WithContext(ctx).Raw(query, args...).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	dataPoints := []types.TimeSeriesEntry{}
+	for rows.Next() {
+		if err := rows.Scan(&result.Date, &result.PeerValue); err != nil {
+			return nil, err
+		}
+		dataPoints = append(dataPoints, types.TimeSeriesEntry{
+			Date: result.Date.Format("2006-01-02"),
+			Data: []types.TimeSeriesDataPoint{
+				{
+					Key:   "Peers",
+					Value: result.PeerValue,
+				},
+			},
+		})
+	}
+
+	return dataPoints, nil
 }

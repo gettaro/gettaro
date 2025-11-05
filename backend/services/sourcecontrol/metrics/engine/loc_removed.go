@@ -37,21 +37,9 @@ func (r *LOCRemovedRule) Calculate(ctx context.Context, params types.MetricRuleP
 		return nil, nil, err
 	}
 
-	// Calculate LOC removed peers value
-	peersLOCRemovedValue, err := r.sourceControlDB.CalculateLOCRemovedForAccounts(ctx, *organizationID, peersSourceControlAccountIDs, nil, *startDate, *endDate)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	snapshotMetric := types.SnapshotMetric{
-		Label:          r.Name,
-		Description:    r.Description,
-		Unit:           r.Unit,
-		Value:          float64(*locRemovedValue),
-		PeersValue:     float64(*peersLOCRemovedValue),
-		IconIdentifier: r.IconIdentifier,
-		IconColor:      r.IconColor,
-	}
+	// Calculate peer values only if peer account IDs are provided (member metrics)
+	var peersValue float64
+	var timeSeries []types.TimeSeriesEntry
 
 	// Calculate LOC removed graph value
 	locRemovedGraphValue, err := r.sourceControlDB.CalculateLOCRemovedGraph(ctx, *organizationID, sourceControlAccountIDs, prPrefixes, *startDate, *endDate, r.Operation, r.Name, params.Interval)
@@ -59,11 +47,43 @@ func (r *LOCRemovedRule) Calculate(ctx context.Context, params types.MetricRuleP
 		return nil, nil, err
 	}
 
+	// Only calculate peer values if peer account IDs are provided (member metrics only)
+	if len(peersSourceControlAccountIDs) > 0 {
+		// Calculate LOC removed peers value
+		peersLOCRemovedValue, err := r.sourceControlDB.CalculateLOCRemovedForAccounts(ctx, *organizationID, peersSourceControlAccountIDs, nil, *startDate, *endDate)
+		if err != nil {
+			return nil, nil, err
+		}
+		peersValue = float64(*peersLOCRemovedValue)
+
+		// Calculate peer LOC removed graph value
+		peersLOCRemovedGraphValue, err := r.sourceControlDB.CalculateLOCRemovedGraphForAccounts(ctx, *organizationID, peersSourceControlAccountIDs, nil, *startDate, *endDate, params.Interval)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Merge peer values into the member's time series
+		timeSeries = mergeTimeSeriesWithPeers(locRemovedGraphValue, peersLOCRemovedGraphValue, r.Name)
+	} else {
+		// No peer account IDs, use member's time series as-is
+		timeSeries = locRemovedGraphValue
+	}
+
+	snapshotMetric := types.SnapshotMetric{
+		Label:          r.Name,
+		Description:    r.Description,
+		Unit:           r.Unit,
+		Value:          float64(*locRemovedValue),
+		PeersValue:     peersValue,
+		IconIdentifier: r.IconIdentifier,
+		IconColor:      r.IconColor,
+	}
+
 	graphMetric := types.GraphMetric{
 		Label:      r.Name,
 		Type:       "line",
 		Unit:       r.Unit,
-		TimeSeries: locRemovedGraphValue,
+		TimeSeries: timeSeries,
 	}
 
 	return &snapshotMetric, &graphMetric, nil

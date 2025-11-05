@@ -37,21 +37,9 @@ func (r *LOCAddedRule) Calculate(ctx context.Context, params types.MetricRulePar
 		return nil, nil, err
 	}
 
-	// Calculate LOC added peers value
-	peersLOCAddedValue, err := r.sourceControlDB.CalculateLOCAddedForAccounts(ctx, *organizationID, peersSourceControlAccountIDs, nil, *startDate, *endDate)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	snapshotMetric := types.SnapshotMetric{
-		Label:          r.Name,
-		Description:    r.Description,
-		Unit:           r.Unit,
-		Value:          float64(*locAddedValue),
-		PeersValue:     float64(*peersLOCAddedValue),
-		IconIdentifier: r.IconIdentifier,
-		IconColor:      r.IconColor,
-	}
+	// Calculate peer values only if peer account IDs are provided (member metrics)
+	var peersValue float64
+	var timeSeries []types.TimeSeriesEntry
 
 	// Calculate LOC added graph value
 	locAddedGraphValue, err := r.sourceControlDB.CalculateLOCAddedGraph(ctx, *organizationID, sourceControlAccountIDs, prPrefixes, *startDate, *endDate, r.Operation, r.Name, params.Interval)
@@ -59,11 +47,43 @@ func (r *LOCAddedRule) Calculate(ctx context.Context, params types.MetricRulePar
 		return nil, nil, err
 	}
 
+	// Only calculate peer values if peer account IDs are provided (member metrics only)
+	if len(peersSourceControlAccountIDs) > 0 {
+		// Calculate LOC added peers value
+		peersLOCAddedValue, err := r.sourceControlDB.CalculateLOCAddedForAccounts(ctx, *organizationID, peersSourceControlAccountIDs, nil, *startDate, *endDate)
+		if err != nil {
+			return nil, nil, err
+		}
+		peersValue = float64(*peersLOCAddedValue)
+
+		// Calculate peer LOC added graph value
+		peersLOCAddedGraphValue, err := r.sourceControlDB.CalculateLOCAddedGraphForAccounts(ctx, *organizationID, peersSourceControlAccountIDs, nil, *startDate, *endDate, params.Interval)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Merge peer values into the member's time series
+		timeSeries = mergeTimeSeriesWithPeers(locAddedGraphValue, peersLOCAddedGraphValue, r.Name)
+	} else {
+		// No peer account IDs, use member's time series as-is
+		timeSeries = locAddedGraphValue
+	}
+
+	snapshotMetric := types.SnapshotMetric{
+		Label:          r.Name,
+		Description:    r.Description,
+		Unit:           r.Unit,
+		Value:          float64(*locAddedValue),
+		PeersValue:     peersValue,
+		IconIdentifier: r.IconIdentifier,
+		IconColor:      r.IconColor,
+	}
+
 	graphMetric := types.GraphMetric{
 		Label:      r.Name,
 		Type:       "line",
 		Unit:       r.Unit,
-		TimeSeries: locAddedGraphValue,
+		TimeSeries: timeSeries,
 	}
 
 	return &snapshotMetric, &graphMetric, nil

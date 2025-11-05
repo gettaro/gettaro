@@ -37,21 +37,9 @@ func (r *PRsReviewedRule) Calculate(ctx context.Context, params types.MetricRule
 		return nil, nil, err
 	}
 
-	// Calculate PRs reviewed peers value
-	peersPRsReviewedValue, err := r.sourceControlDB.CalculatePRsReviewedForAccounts(ctx, *organizationID, peersSourceControlAccountIDs, nil, *startDate, *endDate)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	snapshotMetric := types.SnapshotMetric{
-		Label:          r.Name,
-		Description:    r.Description,
-		Unit:           r.Unit,
-		Value:          float64(*prsReviewedValue),
-		PeersValue:     float64(*peersPRsReviewedValue),
-		IconIdentifier: r.IconIdentifier,
-		IconColor:      r.IconColor,
-	}
+	// Calculate peer values only if peer account IDs are provided (member metrics)
+	var peersValue float64
+	var timeSeries []types.TimeSeriesEntry
 
 	// Calculate PRs reviewed graph value
 	prsReviewedGraphValue, err := r.sourceControlDB.CalculatePRsReviewedGraph(ctx, *organizationID, sourceControlAccountIDs, prPrefixes, *startDate, *endDate, r.Operation, r.Name, params.Interval)
@@ -59,11 +47,43 @@ func (r *PRsReviewedRule) Calculate(ctx context.Context, params types.MetricRule
 		return nil, nil, err
 	}
 
+	// Only calculate peer values if peer account IDs are provided (member metrics only)
+	if len(peersSourceControlAccountIDs) > 0 {
+		// Calculate PRs reviewed peers value
+		peersPRsReviewedValue, err := r.sourceControlDB.CalculatePRsReviewedForAccounts(ctx, *organizationID, peersSourceControlAccountIDs, nil, *startDate, *endDate)
+		if err != nil {
+			return nil, nil, err
+		}
+		peersValue = float64(*peersPRsReviewedValue)
+
+		// Calculate peer PRs reviewed graph value
+		peersPRsReviewedGraphValue, err := r.sourceControlDB.CalculatePRsReviewedGraphForAccounts(ctx, *organizationID, peersSourceControlAccountIDs, nil, *startDate, *endDate, params.Interval)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Merge peer values into the member's time series
+		timeSeries = mergeTimeSeriesWithPeers(prsReviewedGraphValue, peersPRsReviewedGraphValue, r.Name)
+	} else {
+		// No peer account IDs, use member's time series as-is
+		timeSeries = prsReviewedGraphValue
+	}
+
+	snapshotMetric := types.SnapshotMetric{
+		Label:          r.Name,
+		Description:    r.Description,
+		Unit:           r.Unit,
+		Value:          float64(*prsReviewedValue),
+		PeersValue:     peersValue,
+		IconIdentifier: r.IconIdentifier,
+		IconColor:      r.IconColor,
+	}
+
 	graphMetric := types.GraphMetric{
 		Label:      r.Name,
 		Type:       "line",
 		Unit:       r.Unit,
-		TimeSeries: prsReviewedGraphValue,
+		TimeSeries: timeSeries,
 	}
 
 	return &snapshotMetric, &graphMetric, nil

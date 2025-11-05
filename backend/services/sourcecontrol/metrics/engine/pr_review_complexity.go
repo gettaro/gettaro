@@ -49,17 +49,21 @@ func (r *PRReviewComplexityRule) Calculate(ctx context.Context, params types.Met
 		return nil, nil, fmt.Errorf("failed to calculate PR review complexity: %w", err)
 	}
 
-	// Calculate PR review complexity for peers (other members in the organization)
-	peersPRReviewComplexityValue, err := r.sourceControlDB.CalculatePRReviewComplexityForAccounts(
-		ctx,
-		*organizationID,
-		peersSourceControlAccountIDs,
-		nil,
-		*startDate,
-		*endDate,
-	)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to calculate peers PR review complexity: %w", err)
+	// Calculate peer values only if peer account IDs are provided (member metrics)
+	var peersValue float64
+	if len(peersSourceControlAccountIDs) > 0 {
+		peersPRReviewComplexityValue, err := r.sourceControlDB.CalculatePRReviewComplexityForAccounts(
+			ctx,
+			*organizationID,
+			peersSourceControlAccountIDs,
+			nil,
+			*startDate,
+			*endDate,
+		)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to calculate peers PR review complexity: %w", err)
+		}
+		peersValue = *peersPRReviewComplexityValue
 	}
 
 	// Create snapshot metric
@@ -68,13 +72,13 @@ func (r *PRReviewComplexityRule) Calculate(ctx context.Context, params types.Met
 		Description:    r.Description,
 		Unit:           r.Unit,
 		Value:          *prReviewComplexityValue,
-		PeersValue:     *peersPRReviewComplexityValue,
+		PeersValue:     peersValue,
 		IconIdentifier: r.IconIdentifier,
 		IconColor:      r.IconColor,
 	}
 
 	// Calculate graph metric
-	graphMetric, err := r.calculateGraphMetric(ctx, *organizationID, sourceControlAccountIDs, prPrefixes, *startDate, *endDate, params.Interval)
+	graphMetric, err := r.calculateGraphMetric(ctx, *organizationID, sourceControlAccountIDs, peersSourceControlAccountIDs, prPrefixes, *startDate, *endDate, params.Interval)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to calculate graph metric: %w", err)
 	}
@@ -83,7 +87,7 @@ func (r *PRReviewComplexityRule) Calculate(ctx context.Context, params types.Met
 }
 
 // calculateGraphMetric calculates the time series data for the metric
-func (r *PRReviewComplexityRule) calculateGraphMetric(ctx context.Context, organizationID string, sourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, interval string) (*types.GraphMetric, error) {
+func (r *PRReviewComplexityRule) calculateGraphMetric(ctx context.Context, organizationID string, sourceControlAccountIDs []string, peersSourceControlAccountIDs []string, prPrefixes []string, startDate, endDate time.Time, interval string) (*types.GraphMetric, error) {
 	// Calculate time series data
 	timeSeriesData, err := r.sourceControlDB.CalculatePRReviewComplexityGraph(
 		ctx,
@@ -100,11 +104,27 @@ func (r *PRReviewComplexityRule) calculateGraphMetric(ctx context.Context, organ
 		return nil, fmt.Errorf("failed to calculate PR review complexity graph: %w", err)
 	}
 
+	// Only calculate peer values if peer account IDs are provided (member metrics only)
+	var finalTimeSeries []types.TimeSeriesEntry
+	if len(peersSourceControlAccountIDs) > 0 {
+		// Calculate peer PR review complexity graph value
+		peersPRReviewComplexityGraphValue, err := r.sourceControlDB.CalculatePRReviewComplexityGraphForAccounts(ctx, organizationID, peersSourceControlAccountIDs, nil, startDate, endDate, interval)
+		if err != nil {
+			return nil, fmt.Errorf("failed to calculate peers PR review complexity graph: %w", err)
+		}
+
+		// Merge peer values into the member's time series
+		finalTimeSeries = mergeTimeSeriesWithPeers(timeSeriesData, peersPRReviewComplexityGraphValue, r.Name)
+	} else {
+		// No peer account IDs, use member's time series as-is
+		finalTimeSeries = timeSeriesData
+	}
+
 	// Create graph metric
 	graphMetric := types.GraphMetric{
 		Label:      r.Name,
 		Type:       "line", // PR review complexity is typically shown as a line chart
-		TimeSeries: timeSeriesData,
+		TimeSeries: finalTimeSeries,
 	}
 
 	return &graphMetric, nil
