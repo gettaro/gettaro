@@ -91,8 +91,8 @@ export default function Navigation() {
                 </svg>
               )}
             </button>
-            <button
-              onClick={() => window.location.href = '/settings'}
+            <Link
+              to="/settings"
               className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-muted transition-colors"
               title="Settings"
             >
@@ -116,7 +116,7 @@ export default function Navigation() {
                   d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                 />
               </svg>
-            </button>
+            </Link>
             <div className="relative">
               <button
                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
