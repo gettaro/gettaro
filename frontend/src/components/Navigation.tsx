@@ -47,6 +47,16 @@ export default function Navigation() {
             >
               Teams
             </Link>
+            <Link
+              to="/members"
+              className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
+                isActive('/members')
+                  ? 'text-foreground border-foreground'
+                  : 'text-muted-foreground border-transparent hover:text-foreground hover:border-foreground/50'
+              }`}
+            >
+              Members
+            </Link>
           </>
         )}
       </div>

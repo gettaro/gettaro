@@ -10,6 +10,7 @@ import TeamProfile from './pages/TeamProfile'
 import ConversationTemplates from './pages/ConversationTemplates'
 import EngineeringDashboard from './pages/EngineeringDashboard'
 import Teams from './pages/Teams'
+import Members from './pages/Members'
 
 export const router = createBrowserRouter([
   {
@@ -27,6 +28,10 @@ export const router = createBrowserRouter([
       {
         path: "teams",
         element: <Teams />,
+      },
+      {
+        path: "members",
+        element: <Members />,
       },
       {
         path: "settings",
