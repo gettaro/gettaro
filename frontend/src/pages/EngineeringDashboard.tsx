@@ -9,8 +9,9 @@ import { Member } from '../types/member'
 import MetricChart from '../components/MetricChart'
 import MetricInfoButton from '../components/MetricInfoButton'
 import PullRequestItem from '../components/PullRequestItem'
+import { Code2, Heart, Bot } from 'lucide-react'
 
-type TabType = 'engineering-productivity' | 'tech-health'
+type TabType = 'engineering-productivity' | 'ai-usage-metrics' | 'tech-health'
 
 export default function EngineeringDashboard() {
   const navigate = useNavigate()
@@ -155,13 +156,19 @@ export default function EngineeringDashboard() {
     }
   }, [currentOrganization?.id])
 
-  // Load metrics when params change
+  // Load metrics when Engineering Productivity tab is active and params change
   useEffect(() => {
-    if (currentOrganization?.id) {
+    if (activeTab === 'engineering-productivity' && currentOrganization?.id) {
       loadMetrics()
+    }
+  }, [activeTab, currentOrganization?.id, dateParams.startDate, dateParams.endDate, dateParams.interval, showTeamBreakdown, selectedTeams])
+
+  // Load AI code assistant metrics when AI Usage Metrics tab is active
+  useEffect(() => {
+    if (activeTab === 'ai-usage-metrics' && currentOrganization?.id) {
       loadAiMetrics()
     }
-  }, [currentOrganization?.id, dateParams.startDate, dateParams.endDate, dateParams.interval, showTeamBreakdown, selectedTeams])
+  }, [activeTab, currentOrganization?.id, dateParams.startDate, dateParams.endDate, dateParams.interval])
 
   const handleDateChange = (field: 'startDate' | 'endDate', value: string) => {
     setDateParams(prev => ({
@@ -445,42 +452,67 @@ export default function EngineeringDashboard() {
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">Engineering Dashboard</h1>
 
-        {/* Tab Navigation */}
-        <div className="border-b border-border mb-6">
-          <nav className="flex space-x-8">
-            <button
-              onClick={() => setActiveTab('engineering-productivity')}
-              className={`py-4 px-1 border-b-2 transition-colors ${
-                activeTab === 'engineering-productivity'
-                  ? 'border-primary text-primary font-medium'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Engineering Productivity
-            </button>
-            <button
-              onClick={() => setActiveTab('tech-health')}
-              className={`py-4 px-1 border-b-2 transition-colors ${
-                activeTab === 'tech-health'
-                  ? 'border-primary text-primary font-medium'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Tech Health
-            </button>
-          </nav>
-        </div>
+        {/* Sidebar Navigation with Content */}
+        <div className="flex gap-6">
+          {/* Sidebar */}
+          <aside className="w-64 flex-shrink-0">
+            <nav className="bg-card rounded-lg border border-border p-2">
+              <div className="space-y-1">
+                <button
+                  onClick={() => setActiveTab('engineering-productivity')}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors
+                    ${activeTab === 'engineering-productivity'
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    }
+                  `}
+                >
+                  <Code2 className="w-4 h-4 flex-shrink-0" />
+                  <span>Engineering Metrics</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('ai-usage-metrics')}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors
+                    ${activeTab === 'ai-usage-metrics'
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    }
+                  `}
+                >
+                  <Bot className="w-4 h-4 flex-shrink-0" />
+                  <span>AI Usage Metrics</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('tech-health')}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors
+                    ${activeTab === 'tech-health'
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    }
+                  `}
+                >
+                  <Heart className="w-4 h-4 flex-shrink-0" />
+                  <span>Tech Health</span>
+                </button>
+              </div>
+            </nav>
+          </aside>
 
-        {error && (
-          <div className="bg-destructive/10 text-destructive px-4 py-3 rounded mb-6">
-            {error}
-          </div>
-        )}
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            {error && (
+              <div className="bg-destructive/10 text-destructive px-4 py-3 rounded mb-6">
+                {error}
+              </div>
+            )}
 
-        {/* Engineering Productivity Tab Content */}
-        {activeTab === 'engineering-productivity' && (
-          <div className="bg-card rounded-lg p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
+            {/* Engineering Productivity Tab Content */}
+            {activeTab === 'engineering-productivity' && (
+              <div className="bg-card rounded-lg p-6 mb-6">
+                <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Coding Contribution Metrics</h2>
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-foreground">Break down by team</span>
@@ -500,437 +532,499 @@ export default function EngineeringDashboard() {
                     ${showTeamBreakdown ? 'translate-x-6' : 'translate-x-1'}
                   `}
                 />
-              </button>
-            </div>
-          </div>
-
-          {/* Date Range Picker */}
-          <div className="bg-muted/30 rounded-lg p-4 mb-6">
-            <div className="flex flex-wrap items-end gap-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Start Date
-                </label>
-                <input
-                  type="date"
-                  value={dateParams.startDate || ''}
-                  onChange={(e) => handleDateChange('startDate', e.target.value)}
-                  className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  End Date
-                </label>
-                <input
-                  type="date"
-                  value={dateParams.endDate || ''}
-                  onChange={(e) => handleDateChange('endDate', e.target.value)}
-                  className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Interval
-                </label>
-                <select
-                  value={dateParams.interval}
-                  onChange={(e) => handleIntervalChange(e.target.value as 'daily' | 'weekly' | 'monthly')}
-                  className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {showTeamBreakdown && teams.length > 0 && (
-            <div className="mb-6 p-5 bg-card border border-border rounded-lg">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-base font-semibold text-foreground mb-1">Select Teams</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Choose which teams to include in the breakdown
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-medium text-muted-foreground">Filter:</label>
-                  <select
-                    value={selectedTeamType}
-                    onChange={(e) => setSelectedTeamType(e.target.value as TeamType | 'all')}
-                    className="px-3 py-1.5 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm bg-background text-foreground"
-                  >
-                    <option value="all">All Types</option>
-                    <option value="squad">Squads</option>
-                    <option value="chapter">Chapters</option>
-                    <option value="tribe">Tribes</option>
-                    <option value="guild">Guilds</option>
-                  </select>
+                  </button>
                 </div>
               </div>
-              {filteredTeams.length > 0 ? (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-3">
-                    {filteredTeams.map(team => {
-                      const isSelected = selectedTeams.includes(team.id)
-                      return (
-                        <button
-                          key={team.id}
-                          type="button"
-                          onClick={() => toggleTeamSelection(team.id)}
-                          className={`
-                            relative flex items-center gap-3 p-3 rounded-lg border-2 transition-all
-                            ${isSelected 
-                              ? 'bg-primary/10 border-primary text-foreground' 
-                              : 'bg-background border-border hover:border-primary/50 text-foreground'
-                            }
-                          `}
-                        >
-                          <div className={`
-                            flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all
-                            ${isSelected 
-                              ? 'bg-primary border-primary' 
-                              : 'border-border bg-background'
-                            }
-                          `}>
-                            {isSelected && (
-                              <svg
-                                className="w-3 h-3 text-primary-foreground"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={3}
-                                  d="M5 13l4 4L19 7"
-                                />
-                              </svg>
-                            )}
-                          </div>
-                          <span className="text-sm font-medium flex-1 text-left">{team.name}</span>
-                        </button>
-                      )
-                    })}
+
+              {/* Date Range Picker */}
+              <div className="bg-muted/30 rounded-lg p-4 mb-6">
+                <div className="flex flex-wrap items-end gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={dateParams.startDate || ''}
+                      onChange={(e) => handleDateChange('startDate', e.target.value)}
+                      className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                    />
                   </div>
-                  <div className="flex items-center justify-between pt-3 border-t border-border">
-                    <p className="text-xs text-muted-foreground">
-                      {selectedTeams.length} of {filteredTeams.length} team{filteredTeams.length !== 1 ? 's' : ''} selected
-                    </p>
-                    {filteredTeams.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (selectedTeams.length === filteredTeams.length) {
-                            setSelectedTeams([])
-                          } else {
-                            setSelectedTeams(filteredTeams.map(t => t.id))
-                          }
-                        }}
-                        className="text-xs text-primary hover:text-primary/80 font-medium"
-                      >
-                        {selectedTeams.length === filteredTeams.length ? 'Deselect all' : 'Select all'}
-                      </button>
-                    )}
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      value={dateParams.endDate || ''}
+                      onChange={(e) => handleDateChange('endDate', e.target.value)}
+                      className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                    />
                   </div>
-                </>
-              ) : (
-                <div className="text-center py-6">
-                  <p className="text-sm text-muted-foreground">No teams of this type available</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {metricsLoading ? (
-            <div className="flex justify-center items-center py-12">
-              <span>Loading metrics...</span>
-            </div>
-          ) : metrics ? (() => {
-            const allGraphs = getAllMainGraphs(metrics)
-            
-            if (allGraphs.length === 0) {
-              return (
-                <p className="text-muted-foreground py-8 text-center">No metrics available</p>
-              )
-            }
-            
-            const currentGraph = allGraphs[currentGraphIndex] || allGraphs[0]
-            const chartElement = currentGraph.teamMetrics && currentGraph.teamMetrics.length > 0 ? (
-              <MetricChart teamMetrics={currentGraph.teamMetrics} height={300} />
-            ) : (
-              <MetricChart metric={currentGraph.metric} height={300} />
-            )
-            
-            if (!chartElement) {
-              return (
-                <p className="text-muted-foreground py-8 text-center">No metrics available</p>
-              )
-            }
-            
-            return (
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Trends</h3>
-                <div className="bg-muted/30 rounded-lg p-4">
-                  <div className="relative">
-                    {/* Navigation Buttons */}
-                    <div className="flex items-center justify-between mb-4">
-                      <button
-                        onClick={() => navigateMainGraph('prev', allGraphs.length)}
-                        className="p-2 rounded hover:bg-muted/50 transition-colors"
-                        aria-label="Previous graph"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 19l-7-7 7-7"
-                          />
-                        </svg>
-                      </button>
-                      
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">
-                          {currentGraphIndex + 1} of {allGraphs.length}
-                        </span>
-                      </div>
-                      
-                      <button
-                        onClick={() => navigateMainGraph('next', allGraphs.length)}
-                        className="p-2 rounded hover:bg-muted/50 transition-colors"
-                        aria-label="Next graph"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5l7 7-7 7"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                    
-                    {/* Current Graph */}
-                    <div className="mb-2">
-                      <p className="text-xs text-muted-foreground mb-1">{currentGraph.category}</p>
-                      <div className="flex items-center gap-2 mb-3">
-                        <h5 className="font-medium">{currentGraph.metric.label}</h5>
-                        {currentGraph.description && (
-                          <MetricInfoButton description={currentGraph.description} />
-                        )}
-                      </div>
-                      {chartElement}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )
-          })() : (
-            <p className="text-muted-foreground py-8 text-center">No metrics available</p>
-          )}
-
-          {/* AI Code Assistant Metrics */}
-          <div className="mt-8">
-            <h2 className="text-xl font-semibold mb-4">AI Code Assistant Metrics</h2>
-            
-            {aiMetricsLoading ? (
-              <div className="flex justify-center items-center py-12">
-                <span>Loading AI metrics...</span>
-              </div>
-            ) : aiMetrics ? (() => {
-              const allGraphs = getAllAiGraphs(aiMetrics)
-              
-              if (allGraphs.length === 0) {
-                return (
-                  <p className="text-muted-foreground py-8 text-center">No AI metrics available</p>
-                )
-              }
-              
-              const currentGraph = allGraphs[aiCurrentGraphIndex] || allGraphs[0]
-              const chartElement = currentGraph.metric ? (
-                <MetricChart metric={currentGraph.metric} height={300} />
-              ) : null
-              
-              if (!chartElement) {
-                return (
-                  <p className="text-muted-foreground py-8 text-center">No AI metrics available</p>
-                )
-              }
-              
-              return (
-                <div>
-                  <div className="bg-muted/30 rounded-lg p-4">
-                    <div className="relative">
-                      {/* Navigation Buttons */}
-                      <div className="flex items-center justify-between mb-4">
-                        <button
-                          onClick={() => navigateAiGraph('prev', allGraphs.length)}
-                          className="p-2 rounded hover:bg-muted/50 transition-colors"
-                          aria-label="Previous graph"
-                        >
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M15 19l-7-7 7-7"
-                            />
-                          </svg>
-                        </button>
-                        
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground">
-                            {aiCurrentGraphIndex + 1} of {allGraphs.length}
-                          </span>
-                        </div>
-                        
-                        <button
-                          onClick={() => navigateAiGraph('next', allGraphs.length)}
-                          className="p-2 rounded hover:bg-muted/50 transition-colors"
-                          aria-label="Next graph"
-                        >
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 5l7 7-7 7"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                      
-                      {/* Current Graph */}
-                      <div className="mb-2">
-                        <p className="text-xs text-muted-foreground mb-1">{currentGraph.category}</p>
-                        <div className="flex items-center gap-2 mb-3">
-                          <h5 className="font-medium">{currentGraph.metric.label}</h5>
-                        </div>
-                        {chartElement}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })() : (
-              <p className="text-muted-foreground py-8 text-center">No AI metrics available</p>
-            )}
-          </div>
-          </div>
-        )}
-
-        {/* Tech Health Tab Content */}
-        {activeTab === 'tech-health' && (
-          <div className="bg-card rounded-lg p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Open Pull Requests</h2>
-              {openPRsLoading && <span className="text-sm text-muted-foreground">Loading...</span>}
-            </div>
-            
-            {!openPRsLoading && (
-              <>
-                <div className="mb-4">
-                  <span className="text-3xl font-bold">{openPRs.length}</span>
-                  <span className="text-muted-foreground ml-2">total open PRs</span>
-                </div>
-                
-                {Object.keys(prsByRepository).length > 0 ? (
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => setShowRepositories(!showRepositories)}
-                      className="w-full flex items-center justify-between p-2 hover:bg-muted/30 rounded transition-colors"
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Interval
+                    </label>
+                    <select
+                      value={dateParams.interval}
+                      onChange={(e) => handleIntervalChange(e.target.value as 'daily' | 'weekly' | 'monthly')}
+                      className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
                     >
-                      <div className="flex items-center gap-2">
-                        <svg
-                          className={`w-4 h-4 transition-transform ${showRepositories ? 'rotate-90' : ''}`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                        <h3 className="text-sm font-medium text-muted-foreground">Repositories</h3>
-                        <span className="text-xs text-muted-foreground">
-                          ({Object.keys(prsByRepository).length} {Object.keys(prsByRepository).length === 1 ? 'repository' : 'repositories'})
-                        </span>
-                      </div>
-                    </button>
-                    {showRepositories && (
-                      <div className="space-y-2 pl-6">
-                        {Object.entries(prsByRepository)
-                          .sort((a, b) => b[1].length - a[1].length)
-                          .map(([repo, prs]) => (
-                            <div key={repo} className="bg-muted/30 rounded">
-                              <button
-                                onClick={() => toggleRepoExpansion(repo)}
-                                className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
-                              >
-                                <div className="flex items-center gap-2">
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {showTeamBreakdown && teams.length > 0 && (
+                <div className="mb-6 p-5 bg-card border border-border rounded-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-base font-semibold text-foreground mb-1">Select Teams</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Choose which teams to include in the breakdown
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-muted-foreground">Filter:</label>
+                      <select
+                        value={selectedTeamType}
+                        onChange={(e) => setSelectedTeamType(e.target.value as TeamType | 'all')}
+                        className="px-3 py-1.5 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm bg-background text-foreground"
+                      >
+                        <option value="all">All Types</option>
+                        <option value="squad">Squads</option>
+                        <option value="chapter">Chapters</option>
+                        <option value="tribe">Tribes</option>
+                        <option value="guild">Guilds</option>
+                      </select>
+                    </div>
+                  </div>
+                  {filteredTeams.length > 0 ? (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-3">
+                        {filteredTeams.map(team => {
+                          const isSelected = selectedTeams.includes(team.id)
+                          return (
+                            <button
+                              key={team.id}
+                              type="button"
+                              onClick={() => toggleTeamSelection(team.id)}
+                              className={`
+                                relative flex items-center gap-3 p-3 rounded-lg border-2 transition-all
+                                ${isSelected 
+                                  ? 'bg-primary/10 border-primary text-foreground' 
+                                  : 'bg-background border-border hover:border-primary/50 text-foreground'
+                                }
+                              `}
+                            >
+                              <div className={`
+                                flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all
+                                ${isSelected 
+                                  ? 'bg-primary border-primary' 
+                                  : 'border-border bg-background'
+                                }
+                              `}>
+                                {isSelected && (
                                   <svg
-                                    className={`w-4 h-4 transition-transform ${expandedRepos.has(repo) ? 'rotate-90' : ''}`}
+                                    className="w-3 h-3 text-primary-foreground"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
                                   >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={3}
+                                      d="M5 13l4 4L19 7"
+                                    />
                                   </svg>
-                                  <span className="font-medium">{repo}</span>
-                                </div>
-                                <span className="text-lg font-semibold">{prs.length}</span>
-                              </button>
-                              {expandedRepos.has(repo) && (
-                                <div className="px-3 pb-3 space-y-4 border-t border-border/50 pt-3">
-                                  {prs.map((pr) => (
-                                    <div key={pr.id} className="bg-background rounded p-3">
-                                      <PullRequestItem pr={pr} showRepository={false} showAuthor={true} />
-                                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2 pt-2 border-t border-border/30">
-                                        <span>{new Date(pr.created_at).toLocaleDateString('en-US', {
-                                          year: 'numeric',
-                                          month: 'short',
-                                          day: 'numeric'
-                                        })}</span>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ))}
+                                )}
+                              </div>
+                              <span className="text-sm font-medium flex-1 text-left">{team.name}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <div className="flex items-center justify-between pt-3 border-t border-border">
+                        <p className="text-xs text-muted-foreground">
+                          {selectedTeams.length} of {filteredTeams.length} team{filteredTeams.length !== 1 ? 's' : ''} selected
+                        </p>
+                        {filteredTeams.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (selectedTeams.length === filteredTeams.length) {
+                                setSelectedTeams([])
+                              } else {
+                                setSelectedTeams(filteredTeams.map(t => t.id))
+                              }
+                            }}
+                            className="text-xs text-primary hover:text-primary/80 font-medium"
+                          >
+                            {selectedTeams.length === filteredTeams.length ? 'Deselect all' : 'Select all'}
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-6">
+                      <p className="text-sm text-muted-foreground">No teams of this type available</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {metricsLoading ? (
+                <div className="flex justify-center items-center py-12">
+                  <span>Loading metrics...</span>
+                </div>
+              ) : metrics ? (() => {
+                const allGraphs = getAllMainGraphs(metrics)
+                
+                if (allGraphs.length === 0) {
+                  return (
+                    <p className="text-muted-foreground py-8 text-center">No metrics available</p>
+                  )
+                }
+                
+                const currentGraph = allGraphs[currentGraphIndex] || allGraphs[0]
+                const chartElement = currentGraph.teamMetrics && currentGraph.teamMetrics.length > 0 ? (
+                  <MetricChart teamMetrics={currentGraph.teamMetrics} height={300} />
+                ) : (
+                  <MetricChart metric={currentGraph.metric} height={300} />
+                )
+                
+                if (!chartElement) {
+                  return (
+                    <p className="text-muted-foreground py-8 text-center">No metrics available</p>
+                  )
+                }
+                
+                return (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Trends</h3>
+                    <div className="bg-muted/30 rounded-lg p-4">
+                      <div className="relative">
+                        {/* Navigation Buttons */}
+                        <div className="flex items-center justify-between mb-4">
+                          <button
+                            onClick={() => navigateMainGraph('prev', allGraphs.length)}
+                            className="p-2 rounded hover:bg-muted/50 transition-colors"
+                            aria-label="Previous graph"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 19l-7-7 7-7"
+                              />
+                            </svg>
+                          </button>
+                          
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">
+                              {currentGraphIndex + 1} of {allGraphs.length}
+                            </span>
+                          </div>
+                          
+                          <button
+                            onClick={() => navigateMainGraph('next', allGraphs.length)}
+                            className="p-2 rounded hover:bg-muted/50 transition-colors"
+                            aria-label="Next graph"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                        
+                        {/* Current Graph */}
+                        <div className="mb-2">
+                          <p className="text-xs text-muted-foreground mb-1">{currentGraph.category}</p>
+                          <div className="flex items-center gap-2 mb-3">
+                            <h5 className="font-medium">{currentGraph.metric.label}</h5>
+                            {currentGraph.description && (
+                              <MetricInfoButton description={currentGraph.description} />
+                            )}
+                          </div>
+                          {chartElement}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })() : (
+                <p className="text-muted-foreground py-8 text-center">No metrics available</p>
+              )}
+
+              </div>
+            )}
+
+            {/* AI Usage Metrics Tab Content */}
+            {activeTab === 'ai-usage-metrics' && (
+              <div className="space-y-4">
+                {/* Date Range Picker */}
+                <div className="bg-card rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-foreground">Filter by Date Range</h3>
+                    {aiMetricsLoading && (
+                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Loading...</span>
                       </div>
                     )}
                   </div>
-                ) : (
-                  <p className="text-muted-foreground">No open pull requests</p>
+                  <div className="flex flex-wrap items-end gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">
+                        Start Date
+                      </label>
+                      <input
+                        type="date"
+                        value={dateParams.startDate || ''}
+                        onChange={(e) => handleDateChange('startDate', e.target.value)}
+                        className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">
+                        End Date
+                      </label>
+                      <input
+                        type="date"
+                        value={dateParams.endDate || ''}
+                        onChange={(e) => handleDateChange('endDate', e.target.value)}
+                        className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">
+                        Interval
+                      </label>
+                      <select
+                        value={dateParams.interval}
+                        onChange={(e) => handleIntervalChange(e.target.value as 'daily' | 'weekly' | 'monthly')}
+                        className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                      >
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* AI Code Assistant Metrics */}
+                <div className="bg-card rounded-lg p-6">
+                  <h2 className="text-xl font-semibold mb-4">AI Code Assistant Metrics</h2>
+                  
+                  {aiMetricsLoading ? (
+                    <div className="flex justify-center items-center py-12">
+                      <span>Loading AI metrics...</span>
+                    </div>
+                  ) : aiMetrics ? (() => {
+                    const allGraphs = getAllAiGraphs(aiMetrics)
+                    
+                    if (allGraphs.length === 0) {
+                      return (
+                        <p className="text-muted-foreground py-8 text-center">No AI metrics available</p>
+                      )
+                    }
+                    
+                    const currentGraph = allGraphs[aiCurrentGraphIndex] || allGraphs[0]
+                    const chartElement = currentGraph.metric ? (
+                      <MetricChart metric={currentGraph.metric} height={300} />
+                    ) : null
+                    
+                    if (!chartElement) {
+                      return (
+                        <p className="text-muted-foreground py-8 text-center">No AI metrics available</p>
+                      )
+                    }
+                    
+                    return (
+                      <div>
+                        <div className="bg-muted/30 rounded-lg p-4">
+                          <div className="relative">
+                            {/* Navigation Buttons */}
+                            <div className="flex items-center justify-between mb-4">
+                              <button
+                                onClick={() => navigateAiGraph('prev', allGraphs.length)}
+                                className="p-2 rounded hover:bg-muted/50 transition-colors"
+                                aria-label="Previous graph"
+                              >
+                                <svg
+                                  className="w-5 h-5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M15 19l-7-7 7-7"
+                                  />
+                                </svg>
+                              </button>
+                              
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-muted-foreground">
+                                  {aiCurrentGraphIndex + 1} of {allGraphs.length}
+                                </span>
+                              </div>
+                              
+                              <button
+                                onClick={() => navigateAiGraph('next', allGraphs.length)}
+                                className="p-2 rounded hover:bg-muted/50 transition-colors"
+                                aria-label="Next graph"
+                              >
+                                <svg
+                                  className="w-5 h-5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 5l7 7-7 7"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                            
+                            {/* Current Graph */}
+                            <div className="mb-2">
+                              <p className="text-xs text-muted-foreground mb-1">{currentGraph.category}</p>
+                              <div className="flex items-center gap-2 mb-3">
+                                <h5 className="font-medium">{currentGraph.metric.label}</h5>
+                              </div>
+                              {chartElement}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })() : (
+                    <p className="text-muted-foreground py-8 text-center">No AI metrics available</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Tech Health Tab Content */}
+            {activeTab === 'tech-health' && (
+              <div className="bg-card rounded-lg p-6 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold">Open Pull Requests</h2>
+                  {openPRsLoading && <span className="text-sm text-muted-foreground">Loading...</span>}
+                </div>
+                
+                {!openPRsLoading && (
+                  <>
+                    <div className="mb-4">
+                      <span className="text-3xl font-bold">{openPRs.length}</span>
+                      <span className="text-muted-foreground ml-2">total open PRs</span>
+                    </div>
+                    
+                    {Object.keys(prsByRepository).length > 0 ? (
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => setShowRepositories(!showRepositories)}
+                          className="w-full flex items-center justify-between p-2 hover:bg-muted/30 rounded transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <svg
+                              className={`w-4 h-4 transition-transform ${showRepositories ? 'rotate-90' : ''}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                            <h3 className="text-sm font-medium text-muted-foreground">Repositories</h3>
+                            <span className="text-xs text-muted-foreground">
+                              ({Object.keys(prsByRepository).length} {Object.keys(prsByRepository).length === 1 ? 'repository' : 'repositories'})
+                            </span>
+                          </div>
+                        </button>
+                        {showRepositories && (
+                          <div className="space-y-2 pl-6">
+                            {Object.entries(prsByRepository)
+                              .sort((a, b) => b[1].length - a[1].length)
+                              .map(([repo, prs]) => (
+                                <div key={repo} className="bg-muted/30 rounded">
+                                  <button
+                                    onClick={() => toggleRepoExpansion(repo)}
+                                    className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <svg
+                                        className={`w-4 h-4 transition-transform ${expandedRepos.has(repo) ? 'rotate-90' : ''}`}
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                      </svg>
+                                      <span className="font-medium">{repo}</span>
+                                    </div>
+                                    <span className="text-lg font-semibold">{prs.length}</span>
+                                  </button>
+                                  {expandedRepos.has(repo) && (
+                                    <div className="px-3 pb-3 space-y-4 border-t border-border/50 pt-3">
+                                      {prs.map((pr) => (
+                                        <div key={pr.id} className="bg-background rounded p-3">
+                                          <PullRequestItem pr={pr} showRepository={false} showAuthor={true} />
+                                          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2 pt-2 border-t border-border/30">
+                                            <span>{new Date(pr.created_at).toLocaleDateString('en-US', {
+                                              year: 'numeric',
+                                              month: 'short',
+                                              day: 'numeric'
+                                            })}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">No open pull requests</p>
+                    )}
+                  </>
                 )}
-              </>
+              </div>
             )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   )
