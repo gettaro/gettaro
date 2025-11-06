@@ -37,10 +37,14 @@ func (r *LinesOfCodeAcceptedRule) Calculate(ctx context.Context, params types.Me
 		return nil, nil, err
 	}
 
-	// Calculate lines of code accepted peers value
-	peersLOCAcceptedValue, err := r.aicodeassistantDB.CalculateLinesOfCodeAcceptedForAccounts(ctx, *organizationID, peersExternalAccountIDs, toolNames, *startDate, *endDate)
-	if err != nil {
-		return nil, nil, err
+	// Calculate peer values only if peer account IDs are provided (member metrics)
+	var peersValue float64
+	if len(peersExternalAccountIDs) > 0 {
+		peersLOCAcceptedValueFloat, err := r.aicodeassistantDB.CalculateLinesOfCodeAcceptedForAccounts(ctx, *organizationID, peersExternalAccountIDs, toolNames, *startDate, *endDate)
+		if err != nil {
+			return nil, nil, err
+		}
+		peersValue = *peersLOCAcceptedValueFloat
 	}
 
 	snapshotMetric := types.SnapshotMetric{
@@ -48,7 +52,7 @@ func (r *LinesOfCodeAcceptedRule) Calculate(ctx context.Context, params types.Me
 		Description:    r.Description,
 		Unit:           r.Unit,
 		Value:          float64(*locAcceptedValue),
-		PeersValue:     float64(*peersLOCAcceptedValue),
+		PeersValue:     peersValue,
 		IconIdentifier: r.IconIdentifier,
 		IconColor:      r.IconColor,
 	}
@@ -59,14 +63,18 @@ func (r *LinesOfCodeAcceptedRule) Calculate(ctx context.Context, params types.Me
 		return nil, nil, err
 	}
 
-	// Calculate peers graph value and merge with main metric
-	peersGraphValue, err := r.aicodeassistantDB.CalculateLinesOfCodeAcceptedGraphForAccounts(ctx, *organizationID, peersExternalAccountIDs, toolNames, *startDate, *endDate, params.Interval)
-	if err != nil {
-		return nil, nil, err
+	// Calculate peers graph value and merge with main metric only if peer account IDs are provided
+	var mergedTimeSeries []types.TimeSeriesEntry
+	if len(peersExternalAccountIDs) > 0 {
+		peersGraphValue, err := r.aicodeassistantDB.CalculateLinesOfCodeAcceptedGraphForAccounts(ctx, *organizationID, peersExternalAccountIDs, toolNames, *startDate, *endDate, params.Interval)
+		if err != nil {
+			return nil, nil, err
+		}
+		// Merge peers data into time series by date
+		mergedTimeSeries = r.mergeTimeSeriesData(locAcceptedGraphValue, peersGraphValue)
+	} else {
+		mergedTimeSeries = locAcceptedGraphValue
 	}
-
-	// Merge peers data into time series by date
-	mergedTimeSeries := r.mergeTimeSeriesData(locAcceptedGraphValue, peersGraphValue)
 
 	graphMetric := types.GraphMetric{
 		Label:      r.Name,

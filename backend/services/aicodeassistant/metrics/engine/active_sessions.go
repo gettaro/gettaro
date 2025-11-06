@@ -37,10 +37,14 @@ func (r *ActiveSessionsRule) Calculate(ctx context.Context, params types.MetricR
 		return nil, nil, err
 	}
 
-	// Calculate active sessions peers value
-	peersActiveSessionsValue, err := r.aicodeassistantDB.CalculateActiveSessionsForAccounts(ctx, *organizationID, peersExternalAccountIDs, toolNames, *startDate, *endDate)
-	if err != nil {
-		return nil, nil, err
+	// Calculate peer values only if peer account IDs are provided (member metrics)
+	var peersValue float64
+	if len(peersExternalAccountIDs) > 0 {
+		peersActiveSessionsValueFloat, err := r.aicodeassistantDB.CalculateActiveSessionsForAccounts(ctx, *organizationID, peersExternalAccountIDs, toolNames, *startDate, *endDate)
+		if err != nil {
+			return nil, nil, err
+		}
+		peersValue = *peersActiveSessionsValueFloat
 	}
 
 	snapshotMetric := types.SnapshotMetric{
@@ -48,7 +52,7 @@ func (r *ActiveSessionsRule) Calculate(ctx context.Context, params types.MetricR
 		Description:    r.Description,
 		Unit:           r.Unit,
 		Value:          float64(*activeSessionsValue),
-		PeersValue:     float64(*peersActiveSessionsValue),
+		PeersValue:     peersValue,
 		IconIdentifier: r.IconIdentifier,
 		IconColor:      r.IconColor,
 	}
@@ -59,14 +63,18 @@ func (r *ActiveSessionsRule) Calculate(ctx context.Context, params types.MetricR
 		return nil, nil, err
 	}
 
-	// Calculate peers graph value and merge with main metric
-	peersGraphValue, err := r.aicodeassistantDB.CalculateActiveSessionsGraphForAccounts(ctx, *organizationID, peersExternalAccountIDs, toolNames, *startDate, *endDate, params.Interval)
-	if err != nil {
-		return nil, nil, err
+	// Calculate peers graph value and merge with main metric only if peer account IDs are provided
+	var mergedTimeSeries []types.TimeSeriesEntry
+	if len(peersExternalAccountIDs) > 0 {
+		peersGraphValue, err := r.aicodeassistantDB.CalculateActiveSessionsGraphForAccounts(ctx, *organizationID, peersExternalAccountIDs, toolNames, *startDate, *endDate, params.Interval)
+		if err != nil {
+			return nil, nil, err
+		}
+		// Merge peers data into time series by date
+		mergedTimeSeries = r.mergeTimeSeriesData(activeSessionsGraphValue, peersGraphValue)
+	} else {
+		mergedTimeSeries = activeSessionsGraphValue
 	}
-
-	// Merge peers data into time series by date
-	mergedTimeSeries := r.mergeTimeSeriesData(activeSessionsGraphValue, peersGraphValue)
 
 	graphMetric := types.GraphMetric{
 		Label:      r.Name,

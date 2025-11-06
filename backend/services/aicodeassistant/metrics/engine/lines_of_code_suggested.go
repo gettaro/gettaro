@@ -37,10 +37,14 @@ func (r *LinesOfCodeSuggestedRule) Calculate(ctx context.Context, params types.M
 		return nil, nil, err
 	}
 
-	// Calculate lines of code suggested peers value
-	peersLOCSuggestedValue, err := r.aicodeassistantDB.CalculateLinesOfCodeSuggestedForAccounts(ctx, *organizationID, peersExternalAccountIDs, toolNames, *startDate, *endDate)
-	if err != nil {
-		return nil, nil, err
+	// Calculate peer values only if peer account IDs are provided (member metrics)
+	var peersValue float64
+	if len(peersExternalAccountIDs) > 0 {
+		peersLOCSuggestedValueFloat, err := r.aicodeassistantDB.CalculateLinesOfCodeSuggestedForAccounts(ctx, *organizationID, peersExternalAccountIDs, toolNames, *startDate, *endDate)
+		if err != nil {
+			return nil, nil, err
+		}
+		peersValue = *peersLOCSuggestedValueFloat
 	}
 
 	snapshotMetric := types.SnapshotMetric{
@@ -48,7 +52,7 @@ func (r *LinesOfCodeSuggestedRule) Calculate(ctx context.Context, params types.M
 		Description:    r.Description,
 		Unit:           r.Unit,
 		Value:          float64(*locSuggestedValue),
-		PeersValue:     float64(*peersLOCSuggestedValue),
+		PeersValue:     peersValue,
 		IconIdentifier: r.IconIdentifier,
 		IconColor:      r.IconColor,
 	}
@@ -59,14 +63,18 @@ func (r *LinesOfCodeSuggestedRule) Calculate(ctx context.Context, params types.M
 		return nil, nil, err
 	}
 
-	// Calculate peers graph value and merge with main metric
-	peersGraphValue, err := r.aicodeassistantDB.CalculateLinesOfCodeSuggestedGraphForAccounts(ctx, *organizationID, peersExternalAccountIDs, toolNames, *startDate, *endDate, params.Interval)
-	if err != nil {
-		return nil, nil, err
+	// Calculate peers graph value and merge with main metric only if peer account IDs are provided
+	var mergedTimeSeries []types.TimeSeriesEntry
+	if len(peersExternalAccountIDs) > 0 {
+		peersGraphValue, err := r.aicodeassistantDB.CalculateLinesOfCodeSuggestedGraphForAccounts(ctx, *organizationID, peersExternalAccountIDs, toolNames, *startDate, *endDate, params.Interval)
+		if err != nil {
+			return nil, nil, err
+		}
+		// Merge peers data into time series by date
+		mergedTimeSeries = r.mergeTimeSeriesData(locSuggestedGraphValue, peersGraphValue)
+	} else {
+		mergedTimeSeries = locSuggestedGraphValue
 	}
-
-	// Merge peers data into time series by date
-	mergedTimeSeries := r.mergeTimeSeriesData(locSuggestedGraphValue, peersGraphValue)
 
 	graphMetric := types.GraphMetric{
 		Label:      r.Name,
