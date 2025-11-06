@@ -4,6 +4,7 @@ import { useOrganizationStore } from '../stores/organization'
 import Api from '../api/api'
 import { Team, TeamType } from '../types/team'
 import { Member } from '../types/member'
+import { Title } from '../types/title'
 import { OrganizationMetricsResponse } from '../types/organizationMetrics'
 import MetricChart from '../components/MetricChart'
 import MetricInfoButton from '../components/MetricInfoButton'
@@ -31,9 +32,11 @@ export default function Teams() {
   // Data state
   const [teams, setTeams] = useState<Team[]>([])
   const [members, setMembers] = useState<Member[]>([])
+  const [titles, setTitles] = useState<Title[]>([])
   const [teamMetrics, setTeamMetrics] = useState<Map<string, OrganizationMetricsResponse>>(new Map())
   const [teamMetricsLoading, setTeamMetricsLoading] = useState<Set<string>>(new Set())
   const [teamGraphIndices, setTeamGraphIndices] = useState<Map<string, number>>(new Map())
+  const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
 
   // Load teams
@@ -62,6 +65,20 @@ export default function Teams() {
       }
     }
     loadMembers()
+  }, [currentOrganization?.id])
+
+  // Load titles
+  useEffect(() => {
+    const loadTitles = async () => {
+      if (!currentOrganization?.id) return
+      try {
+        const titlesData = await Api.getOrganizationTitles(currentOrganization.id)
+        setTitles(titlesData)
+      } catch (err) {
+        console.error('Error loading titles:', err)
+      }
+    }
+    loadTitles()
   }, [currentOrganization?.id])
 
   // Filter teams by type
@@ -176,6 +193,18 @@ export default function Teams() {
     }
     
     setTeamGraphIndex(teamId, newIndex)
+  }
+
+  const toggleMembersExpansion = (teamId: string) => {
+    setExpandedMembers(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(teamId)) {
+        newSet.delete(teamId)
+      } else {
+        newSet.add(teamId)
+      }
+      return newSet
+    })
   }
 
   const handleDateChange = (field: 'startDate' | 'endDate', value: string) => {
@@ -298,38 +327,32 @@ export default function Teams() {
                   <div className="mb-4">
                     <button
                       onClick={() => navigate(`/teams/${team.id}/profile`)}
-                      className="text-left w-full"
+                      className="text-left w-full flex items-center justify-between group"
                     >
-                      <h3 className="text-xl font-semibold mb-2 hover:text-primary transition-colors">{team.name}</h3>
-                      {team.description && (
-                        <p className="text-sm text-muted-foreground">{team.description}</p>
-                      )}
+                      <div className="flex-1">
+                        <h3 className="text-xl font-semibold mb-2 group-hover:text-primary transition-colors">{team.name}</h3>
+                        {team.description && (
+                          <p className="text-sm text-muted-foreground">{team.description}</p>
+                        )}
+                      </div>
+                      <svg
+                        className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 ml-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
                     </button>
                   </div>
 
-                  {/* Team Members */}
-                  <div className="mb-6">
-                    <h4 className="text-sm font-medium text-muted-foreground mb-2">
-                      Members ({team.members.length})
-                    </h4>
-                    {team.members.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">No members</p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {team.members.map((teamMember) => (
-                          <span
-                            key={teamMember.id}
-                            className="px-2 py-1 text-xs bg-muted/50 rounded border border-border"
-                          >
-                            {getMemberName(teamMember.member_id)}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
                   {/* Team Metrics */}
-                  <div className="border-t border-border pt-4">
+                  <div className="border-t border-border pt-4 mb-4">
                     <h4 className="text-sm font-medium mb-4">Code Contribution Metrics</h4>
                     {isLoading ? (
                       <div className="flex justify-center items-center py-8">
@@ -421,6 +444,74 @@ export default function Teams() {
                       <p className="text-xs text-muted-foreground text-center py-4">
                         No metrics available for this team
                       </p>
+                    )}
+                  </div>
+
+                  {/* Team Members - Expandable */}
+                  <div className="border-t border-border pt-4">
+                    <button
+                      onClick={() => toggleMembersExpansion(team.id)}
+                      className="w-full flex items-center justify-between text-left"
+                    >
+                      <h4 className="text-sm font-medium text-muted-foreground">
+                        Members ({team.members.length})
+                      </h4>
+                      <svg
+                        className={`w-4 h-4 text-muted-foreground transition-transform ${
+                          expandedMembers.has(team.id) ? 'rotate-180' : ''
+                        }`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+                    {expandedMembers.has(team.id) && (
+                      <div className="mt-4">
+                        {team.members.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No members</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {team.members.map((teamMember) => {
+                              const member = members.find(m => m.id === teamMember.member_id)
+                              if (!member) return null
+                              
+                              const memberTitle = member.title_id 
+                                ? titles.find(t => t.id === member.title_id)?.name 
+                                : null
+                              
+                              return (
+                                <button
+                                  key={teamMember.id}
+                                  onClick={() => navigate(`/members/${member.id}/profile`)}
+                                  className="w-full flex items-center space-x-3 p-2 bg-muted/20 rounded border border-border/30 hover:bg-muted/30 transition-colors text-left"
+                                >
+                                  {/* Avatar */}
+                                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <span className="text-primary font-medium text-sm">
+                                      {member.username.charAt(0).toUpperCase()}
+                                    </span>
+                                  </div>
+                                  
+                                  {/* Member Info */}
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-medium text-foreground text-sm">{member.username}</h4>
+                                    {memberTitle && (
+                                      <p className="text-xs text-muted-foreground">{memberTitle}</p>
+                                    )}
+                                  </div>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
