@@ -163,24 +163,38 @@ export default function ConversationTemplates() {
 
   if (!currentOrganization) {
     return (
-      <div className="p-6">
-        <h1 className="text-2xl font-bold mb-6">Conversation Templates</h1>
-        <p>Please select an organization to manage conversation templates.</p>
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-foreground mb-2">Conversation Templates</h1>
+          </div>
+          <div className="bg-card rounded-lg p-6">
+            <p className="text-muted-foreground">Please select an organization to manage conversation templates.</p>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Conversation Templates</h1>
-        <Button onClick={() => setShowCreateForm(true)}>
-          Create Template
-        </Button>
-      </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Conversation Templates</h1>
+              <p className="text-muted-foreground">
+                Create and manage templates for performance conversations and 1:1s to standardize your team's feedback process.
+              </p>
+            </div>
+            <Button onClick={() => setShowCreateForm(true)}>
+              Create Template
+            </Button>
+          </div>
+        </div>
 
-      {showCreateForm && (
-        <Card className="p-6 mb-6">
+        {showCreateForm && (
+          <Card className="p-6 mb-6">
           <h2 className="text-xl font-semibold mb-4">
             {editingTemplate ? 'Edit Template' : 'Create New Template'}
           </h2>
@@ -216,69 +230,80 @@ export default function ConversationTemplates() {
               <Label htmlFor="isActive">Active</Label>
             </div>
 
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <Label>Template Fields</Label>
-                <Button type="button" variant="outline" onClick={addTemplateField}>
+            <div className="bg-muted/30 rounded-lg p-4 border-2 border-primary/20">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <Label className="text-base font-semibold">Template Fields</Label>
+                  <p className="text-xs text-muted-foreground mt-1">Configure the fields for this conversation template</p>
+                </div>
+                <Button type="button" onClick={addTemplateField}>
                   Add Field
                 </Button>
               </div>
 
-              {templateFields.map((field, index) => (
-                <Card key={field.id} className="p-4 mb-2">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Field Label</Label>
-                      <Input
-                        value={field.label}
-                        onChange={(e) => updateTemplateField(index, { label: e.target.value })}
-                        placeholder="e.g., What went well this week?"
-                      />
-                    </div>
-                    <div>
-                      <Label>Field Type</Label>
-                      <select
-                        className="w-full p-2 border rounded"
-                        value={field.type}
-                        onChange={(e) => updateTemplateField(index, { type: e.target.value as any })}
+              {templateFields.length === 0 ? (
+                <div className="text-center py-6 border-2 border-dashed border-border rounded-lg">
+                  <p className="text-sm text-muted-foreground">No fields added yet. Click "Add Field" to get started.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {templateFields.map((field, index) => (
+                    <Card key={field.id} className="p-4 bg-card border-2 border-border">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Field Label</Label>
+                          <Input
+                            value={field.label}
+                            onChange={(e) => updateTemplateField(index, { label: e.target.value })}
+                            placeholder="e.g., What went well this week?"
+                          />
+                        </div>
+                        <div>
+                          <Label>Field Type</Label>
+                          <select
+                            className="w-full p-2 border rounded bg-background"
+                            value={field.type}
+                            onChange={(e) => updateTemplateField(index, { type: e.target.value as any })}
+                          >
+                            <option value="text">Text</option>
+                            <option value="textarea">Textarea</option>
+                            <option value="select">Select</option>
+                            <option value="checkbox">Checkbox</option>
+                            <option value="rating">Rating</option>
+                            <option value="date">Date</option>
+                            <option value="number">Number</option>
+                          </select>
+                        </div>
+                        <div>
+                          <Label>Placeholder</Label>
+                          <Input
+                            value={field.placeholder || ''}
+                            onChange={(e) => updateTemplateField(index, { placeholder: e.target.value })}
+                            placeholder="Optional placeholder text"
+                          />
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={field.required}
+                            onChange={(e) => updateTemplateField(index, { required: e.target.checked })}
+                          />
+                          <Label>Required</Label>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => removeTemplateField(index)}
+                        className="mt-3"
                       >
-                        <option value="text">Text</option>
-                        <option value="textarea">Textarea</option>
-                        <option value="select">Select</option>
-                        <option value="checkbox">Checkbox</option>
-                        <option value="rating">Rating</option>
-                        <option value="date">Date</option>
-                        <option value="number">Number</option>
-                      </select>
-                    </div>
-                    <div>
-                      <Label>Placeholder</Label>
-                      <Input
-                        value={field.placeholder || ''}
-                        onChange={(e) => updateTemplateField(index, { placeholder: e.target.value })}
-                        placeholder="Optional placeholder text"
-                      />
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={field.required}
-                        onChange={(e) => updateTemplateField(index, { required: e.target.checked })}
-                      />
-                      <Label>Required</Label>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => removeTemplateField(index)}
-                    className="mt-2"
-                  >
-                    Remove Field
-                  </Button>
-                </Card>
-              ))}
+                        Remove Field
+                      </Button>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex space-x-2">
@@ -293,56 +318,60 @@ export default function ConversationTemplates() {
         </Card>
       )}
 
-      {loading ? (
-        <p>Loading conversation templates...</p>
-      ) : (
-        <div className="space-y-4">
-          {!templates || templates.length === 0 ? (
-            <Card className="p-6 text-center">
-              <p className="text-gray-500">No conversation templates found.</p>
-            </Card>
-          ) : (
-            (templates || []).filter(template => template).map((template) => (
-              <Card key={template.id} className="p-6">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="text-lg font-semibold">{template.name}</h3>
-                    {template.description && (
-                      <p className="text-gray-600 mt-1">{template.description}</p>
-                    )}
-                    <div className="flex items-center space-x-4 mt-2">
-                      <span className={`px-2 py-1 rounded text-sm ${
-                        template.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {template.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        {template.template_fields.length} field{template.template_fields.length !== 1 ? 's' : ''}
-                      </span>
+        {loading ? (
+          <div className="bg-card rounded-lg p-6 text-center">
+            <p className="text-muted-foreground">Loading conversation templates...</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {!templates || templates.length === 0 ? (
+              <Card className="p-6 text-center">
+                <p className="text-muted-foreground">No conversation templates found.</p>
+              </Card>
+            ) : (
+              (templates || []).filter(template => template).map((template) => (
+                <Card key={template.id} className="p-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground">{template.name}</h3>
+                      {template.description && (
+                        <p className="text-muted-foreground mt-1">{template.description}</p>
+                      )}
+                      <div className="flex items-center space-x-4 mt-2">
+                        <span className={`px-2 py-1 rounded text-sm ${
+                          template.is_active 
+                            ? 'bg-success/10 text-success dark:text-success' 
+                            : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {template.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                          {template.template_fields.length} field{template.template_fields.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        size="sm"
+                        onClick={() => startEdit(template)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteTemplate(template.id)}
+                      >
+                        Delete
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => startEdit(template)}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDeleteTemplate(template.id)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            ))
-          )}
-        </div>
-      )}
+                </Card>
+              ))
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

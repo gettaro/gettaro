@@ -352,7 +352,6 @@ export const ConversationsTab: React.FC<ConversationsTabProps> = ({
                             {conversation.status === 'draft' && (
                               <Button
                                 size="sm"
-                                variant="outline"
                                 onClick={() => handleEditConversation(conversation.id)}
                                 className="text-xs h-7"
                               >
