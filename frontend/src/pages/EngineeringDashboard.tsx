@@ -46,7 +46,7 @@ export default function EngineeringDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>('engineering-productivity')
   const [members, setMembers] = useState<Member[]>([])
   const [currentGraphIndex, setCurrentGraphIndex] = useState(0)
-  const [selectedTeamType, setSelectedTeamType] = useState<TeamType | 'all'>('all')
+  const [selectedTeamType, setSelectedTeamType] = useState<TeamType | 'all'>('squad')
 
   // Load teams
   useEffect(() => {
@@ -482,16 +482,25 @@ export default function EngineeringDashboard() {
           <div className="bg-card rounded-lg p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Coding Contribution Metrics</h2>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showTeamBreakdown}
-                  onChange={(e) => handleTeamBreakdownToggle(e.target.checked)}
-                  className="rounded"
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-foreground">Break down by team</span>
+              <button
+                type="button"
+                onClick={() => handleTeamBreakdownToggle(!showTeamBreakdown)}
+                className={`
+                  relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
+                  ${showTeamBreakdown ? 'bg-primary' : 'bg-muted'}
+                `}
+                role="switch"
+                aria-checked={showTeamBreakdown}
+              >
+                <span
+                  className={`
+                    inline-block h-4 w-4 transform rounded-full bg-white transition-transform
+                    ${showTeamBreakdown ? 'translate-x-6' : 'translate-x-1'}
+                  `}
                 />
-                <span className="text-sm">Break down by team</span>
-              </label>
+              </button>
             </div>
           </div>
 
@@ -538,15 +547,20 @@ export default function EngineeringDashboard() {
           </div>
 
           {showTeamBreakdown && teams.length > 0 && (
-            <div className="mb-4 p-4 bg-muted/30 rounded">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium">Select Teams:</h3>
+            <div className="mb-6 p-5 bg-card border border-border rounded-lg">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-base font-semibold text-foreground mb-1">Select Teams</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Choose which teams to include in the breakdown
+                  </p>
+                </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-sm text-muted-foreground">Filter by type:</label>
+                  <label className="text-xs font-medium text-muted-foreground">Filter:</label>
                   <select
                     value={selectedTeamType}
                     onChange={(e) => setSelectedTeamType(e.target.value as TeamType | 'all')}
-                    className="px-3 py-1 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm bg-background"
+                    className="px-3 py-1.5 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm bg-background text-foreground"
                   >
                     <option value="all">All Types</option>
                     <option value="squad">Squads</option>
@@ -558,27 +572,75 @@ export default function EngineeringDashboard() {
               </div>
               {filteredTeams.length > 0 ? (
                 <>
-                  <div className="flex flex-wrap gap-2">
-                    {filteredTeams.map(team => (
-                      <label key={team.id} className="flex items-center gap-2 cursor-pointer px-3 py-1 bg-background rounded border border-border hover:bg-muted">
-                        <input
-                          type="checkbox"
-                          checked={selectedTeams.includes(team.id)}
-                          onChange={() => toggleTeamSelection(team.id)}
-                          className="rounded"
-                        />
-                        <span className="text-sm">{team.name}</span>
-                      </label>
-                    ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-3">
+                    {filteredTeams.map(team => {
+                      const isSelected = selectedTeams.includes(team.id)
+                      return (
+                        <button
+                          key={team.id}
+                          type="button"
+                          onClick={() => toggleTeamSelection(team.id)}
+                          className={`
+                            relative flex items-center gap-3 p-3 rounded-lg border-2 transition-all
+                            ${isSelected 
+                              ? 'bg-primary/10 border-primary text-foreground' 
+                              : 'bg-background border-border hover:border-primary/50 text-foreground'
+                            }
+                          `}
+                        >
+                          <div className={`
+                            flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all
+                            ${isSelected 
+                              ? 'bg-primary border-primary' 
+                              : 'border-border bg-background'
+                            }
+                          `}>
+                            {isSelected && (
+                              <svg
+                                className="w-3 h-3 text-primary-foreground"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={3}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            )}
+                          </div>
+                          <span className="text-sm font-medium flex-1 text-left">{team.name}</span>
+                        </button>
+                      )
+                    })}
                   </div>
-                  {selectedTeams.length > 0 && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Showing metrics for {selectedTeams.length} team{selectedTeams.length !== 1 ? 's' : ''}
+                  <div className="flex items-center justify-between pt-3 border-t border-border">
+                    <p className="text-xs text-muted-foreground">
+                      {selectedTeams.length} of {filteredTeams.length} team{filteredTeams.length !== 1 ? 's' : ''} selected
                     </p>
-                  )}
+                    {filteredTeams.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (selectedTeams.length === filteredTeams.length) {
+                            setSelectedTeams([])
+                          } else {
+                            setSelectedTeams(filteredTeams.map(t => t.id))
+                          }
+                        }}
+                        className="text-xs text-primary hover:text-primary/80 font-medium"
+                      >
+                        {selectedTeams.length === filteredTeams.length ? 'Deselect all' : 'Select all'}
+                      </button>
+                    )}
+                  </div>
                 </>
               ) : (
-                <p className="text-sm text-muted-foreground">No teams of this type available</p>
+                <div className="text-center py-6">
+                  <p className="text-sm text-muted-foreground">No teams of this type available</p>
+                </div>
               )}
             </div>
           )}
