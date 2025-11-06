@@ -17,12 +17,21 @@ import { ChatContext } from '../types/ai'
 import MetricChart from '../components/MetricChart'
 import PullRequestItem from '../components/PullRequestItem'
 import { 
+  Code2, 
+  BarChart3,
+  Network, 
+  MessageSquare, 
+  Bot, 
+  Sparkles, 
+  Plug
+} from 'lucide-react'
+import { 
   GetMemberAICodeAssistantUsageParams,
   GetMemberAICodeAssistantMetricsParams,
   GetMemberAICodeAssistantMetricsResponse
 } from '../types/aicodeassistant'
 
-type TabType = 'overview' | 'source-control-metrics' | 'management-tree' | 'conversations' | 'ai-chat' | 'ai-code-assistant-usage' | 'integrations'
+type TabType = 'ic-contributions' | 'source-control-metrics' | 'management-tree' | 'conversations' | 'ai-chat' | 'ai-code-assistant-usage' | 'integrations'
 
 export default function MemberProfilePage() {
   const { memberId } = useParams<{ memberId: string }>()
@@ -38,7 +47,7 @@ export default function MemberProfilePage() {
   const [accountSearchQuery, setAccountSearchQuery] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<TabType>('overview')
+  const [activeTab, setActiveTab] = useState<TabType>('ic-contributions')
   
   // Date filter state for Code Contributions tab
   const [dateParams, setDateParams] = useState<GetMemberMetricsParams>(() => {
@@ -58,6 +67,7 @@ export default function MemberProfilePage() {
   const [metricsLoading, setMetricsLoading] = useState(false)
   const [pullRequests, setPullRequests] = useState<PullRequest[]>([])
   const [pullRequestsLoading, setPullRequestsLoading] = useState(false)
+  const [showOnlyOpenPRs, setShowOnlyOpenPRs] = useState(false)
   const [pullRequestReviews, setPullRequestReviews] = useState<MemberActivity[]>([])
   const [pullRequestReviewsLoading, setPullRequestReviewsLoading] = useState(false)
   const [managementTree, setManagementTree] = useState<OrgChartNode[]>([])
@@ -96,9 +106,10 @@ export default function MemberProfilePage() {
     }
   }, [currentOrganization, memberId])
 
-  // Load data when Code Contributions tab is selected or date parameters change
+
+  // Load data when Code Contributions or IC Contributions tab is selected or date parameters change
   useEffect(() => {
-    if (activeTab === 'source-control-metrics' && currentOrganization?.id && memberId) {
+    if ((activeTab === 'source-control-metrics' || activeTab === 'ic-contributions') && currentOrganization?.id && memberId) {
       loadCodeContributionsData()
     }
   }, [activeTab, currentOrganization?.id, memberId, dateParams.startDate, dateParams.endDate, dateParams.interval])
@@ -954,18 +965,6 @@ export default function MemberProfilePage() {
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'overview':
-        return (
-          <div className="space-y-4">
-            <div className="bg-card rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-foreground mb-3">Source Control Overview</h3>
-              <p className="text-muted-foreground text-sm">
-                This section will contain source control metrics. Coming soon...
-              </p>
-            </div>
-          </div>
-        )
-
       case 'source-control-metrics':
         return (
           <div className="space-y-4">
@@ -1213,13 +1212,65 @@ export default function MemberProfilePage() {
                 </div>
               )}
             </div>
+          </div>
+        )
 
-            {/* Recent Pull Requests Table */}
+      case 'ic-contributions':
+        const openPRsCount = pullRequests.filter(pr => pr.status === 'open').length
+        const displayedPRs = showOnlyOpenPRs ? pullRequests.filter(pr => pr.status === 'open') : pullRequests
+        
+        return (
+          <div className="space-y-4">
+            {/* Date Filter Controls */}
+            <div className="bg-card rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-foreground">Filter by Date Range</h3>
+                {(pullRequestsLoading || pullRequestReviewsLoading) && (
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Loading...</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex space-x-3">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={dateParams.startDate || ''}
+                    onChange={(e) => handleDateChange('startDate', e.target.value)}
+                    className="px-3 py-2 border border-border rounded bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                    style={{ colorScheme: 'dark light' }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={dateParams.endDate || ''}
+                    onChange={(e) => handleDateChange('endDate', e.target.value)}
+                    className="px-3 py-2 border border-border rounded bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                    style={{ colorScheme: 'dark light' }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Pull Requests Table */}
             <div className="bg-card rounded-lg">
               <div className="p-4 border-b border-border/50">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-foreground">Pull Requests</h3>
+                    <h3 className="text-lg font-semibold text-foreground">
+                      Pull Requests ({openPRsCount} open)
+                    </h3>
                     <p className="text-sm text-muted-foreground mt-1">
                       Pull requests created in the selected date range
                     </p>
@@ -1234,6 +1285,26 @@ export default function MemberProfilePage() {
                         <span>Loading...</span>
                       </div>
                     )}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-muted-foreground">Show only open</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowOnlyOpenPRs(!showOnlyOpenPRs)}
+                        className={`
+                          relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
+                          ${showOnlyOpenPRs ? 'bg-primary' : 'bg-muted'}
+                        `}
+                        role="switch"
+                        aria-checked={showOnlyOpenPRs}
+                      >
+                        <span
+                          className={`
+                            inline-block h-4 w-4 transform rounded-full bg-white transition-transform
+                            ${showOnlyOpenPRs ? 'translate-x-6' : 'translate-x-1'}
+                          `}
+                        />
+                      </button>
+                    </div>
                     <button
                       onClick={() => toggleTableExpanded('pull-requests')}
                       className="flex items-center space-x-2 text-sm text-primary hover:text-accent transition-colors"
@@ -1255,15 +1326,18 @@ export default function MemberProfilePage() {
               </div>
               {expandedTables.has('pull-requests') && (
                 <div className="divide-y divide-border/50">
-                  {pullRequests.length === 0 ? (
+                  {displayedPRs.length === 0 ? (
                     <div className="p-4 text-center">
                       <div className="text-muted-foreground text-sm">
-                        No pull requests found for the selected date range.
+                        {showOnlyOpenPRs 
+                          ? 'No open pull requests found for the selected date range.'
+                          : 'No pull requests found for the selected date range.'
+                        }
                       </div>
                     </div>
                   ) : (
                     <div className="max-h-80 overflow-y-auto">
-                      {(pullRequests || []).map((pr) => (
+                      {displayedPRs.map((pr) => (
                         <div key={pr.id} className="p-4">
                           <div className="flex items-start space-x-3">
                             <div className="flex-shrink-0 mt-1">
@@ -1997,102 +2071,117 @@ export default function MemberProfilePage() {
                 </div>
               </div>
             </div>
-            
-            {/* Role Badge */}
-            <div className="flex items-center space-x-2">
-              {member.is_owner && (
-                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800">
-                  Owner
-                </span>
-              )}
-              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                Member
-              </span>
-            </div>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-card rounded-lg">
-          <div className="border-b border-border/50">
-            <nav className="flex space-x-6 px-4">
-              <button
-                onClick={() => setActiveTab('overview')}
-                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'overview'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
-                }`}
-              >
-                Overview
-              </button>
-              <button
-                onClick={() => setActiveTab('source-control-metrics')}
-                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'source-control-metrics'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
-                }`}
-              >
-                Code Contributions
-              </button>
-              {title?.is_manager && (
+        {/* Sidebar Navigation with Content */}
+        <div className="flex gap-6">
+          {/* Sidebar */}
+          <aside className="w-64 flex-shrink-0">
+            <nav className="bg-card rounded-lg border border-border p-2">
+              <div className="space-y-1">
                 <button
-                  onClick={() => setActiveTab('management-tree')}
-                  className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === 'management-tree'
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
-                  }`}
+                  onClick={() => setActiveTab('ic-contributions')}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors
+                    ${activeTab === 'ic-contributions'
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    }
+                  `}
                 >
-                  Management Tree
+                  <Code2 className="w-4 h-4 flex-shrink-0" />
+                  <span>IC Contributions</span>
                 </button>
-              )}
-              <button
-                onClick={() => setActiveTab('conversations')}
-                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'conversations'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
-                }`}
-              >
-                Conversations
-              </button>
-              <button
-                onClick={() => setActiveTab('ai-chat')}
-                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'ai-chat'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
-                }`}
-              >
-                AI Assistant
-              </button>
-              <button
-                onClick={() => setActiveTab('ai-code-assistant-usage')}
-                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'ai-code-assistant-usage'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
-                }`}
-              >
-                AI Code Assistant Usage
-              </button>
-              <button
-                onClick={() => setActiveTab('integrations')}
-                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'integrations'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
-                }`}
-              >
-                Integrations
-              </button>
+                <button
+                  onClick={() => setActiveTab('source-control-metrics')}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors
+                    ${activeTab === 'source-control-metrics'
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    }
+                  `}
+                >
+                  <BarChart3 className="w-4 h-4 flex-shrink-0" />
+                  <span>Engineering Metrics</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('ai-code-assistant-usage')}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors
+                    ${activeTab === 'ai-code-assistant-usage'
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    }
+                  `}
+                >
+                  <Bot className="w-4 h-4 flex-shrink-0" />
+                  <span>AI Usage Metrics</span>
+                </button>
+                {title?.is_manager && (
+                  <button
+                    onClick={() => setActiveTab('management-tree')}
+                    className={`
+                      w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors
+                      ${activeTab === 'management-tree'
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                      }
+                    `}
+                  >
+                    <Network className="w-4 h-4 flex-shrink-0" />
+                    <span>Management Tree</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setActiveTab('conversations')}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors
+                    ${activeTab === 'conversations'
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    }
+                  `}
+                >
+                  <MessageSquare className="w-4 h-4 flex-shrink-0" />
+                  <span>Conversations</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('ai-chat')}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors
+                    ${activeTab === 'ai-chat'
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    }
+                  `}
+                >
+                  <Sparkles className="w-4 h-4 flex-shrink-0" />
+                  <span>AI Chat</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('integrations')}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors
+                    ${activeTab === 'integrations'
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    }
+                  `}
+                >
+                  <Plug className="w-4 h-4 flex-shrink-0" />
+                  <span>Integrations</span>
+                </button>
+              </div>
             </nav>
-          </div>
-          
-          <div className="p-4">
-            {renderTabContent()}
+          </aside>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="bg-card rounded-lg border border-border p-6">
+              {renderTabContent()}
+            </div>
           </div>
         </div>
       </div>
