@@ -51,8 +51,14 @@ export const useOrganizationStore = create<OrganizationState>()(
           set({ currentOrganization: orgs[0] })
         }
       } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch organizations'
         console.error('Error fetching organizations:', err)
-        set({ error: err instanceof Error ? err.message : 'Failed to fetch organizations' })
+        // Don't set error state for auth errors that might be temporary
+        if (errorMessage.includes('Authentication failed')) {
+          set({ error: null }) // Clear error, will retry on next auth check
+        } else {
+          set({ error: errorMessage })
+        }
       } finally {
         set({ isLoading: false })
       }

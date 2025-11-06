@@ -52,8 +52,12 @@ export default class Api {
   private static accessToken: string | null = null
 
   static setAccessToken(token: string | null) {
-    console.log("setting access token", token)
+    console.log("setting access token", token ? `${token.substring(0, 20)}...` : 'null')
     this.accessToken = token
+  }
+
+  static hasAccessToken(): boolean {
+    return this.accessToken !== null && this.accessToken !== ''
   }
 
   private static async get(path: string): Promise<any> {
@@ -68,7 +72,12 @@ export default class Api {
     })
 
     if (!response.ok) {
-      throw new Error('Failed to fetch data')
+      if (response.status === 401 || response.status === 403) {
+        // Clear invalid token
+        this.accessToken = null
+        throw new Error('Authentication failed. Please log in again.')
+      }
+      throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`)
     }
 
     return response.json()
@@ -89,7 +98,12 @@ export default class Api {
     })
 
     if (!response.ok) {
-      throw new Error('Failed to create data')
+      if (response.status === 401 || response.status === 403) {
+        // Clear invalid token
+        this.accessToken = null
+        throw new Error('Authentication failed. Please log in again.')
+      }
+      throw new Error(`Failed to create data: ${response.status} ${response.statusText}`)
     }
 
     // Handle empty responses (like 201 Created with no body)
@@ -117,7 +131,12 @@ export default class Api {
     })
 
     if (!response.ok) {
-      throw new Error('Failed to update data')
+      if (response.status === 401 || response.status === 403) {
+        // Clear invalid token
+        this.accessToken = null
+        throw new Error('Authentication failed. Please log in again.')
+      }
+      throw new Error(`Failed to update data: ${response.status} ${response.statusText}`)
     }
 
     // Handle empty responses (like 200 OK with no body)
@@ -143,7 +162,12 @@ export default class Api {
     })
 
     if (!response.ok) {
-      throw new Error('Failed to delete data')
+      if (response.status === 401 || response.status === 403) {
+        // Clear invalid token
+        this.accessToken = null
+        throw new Error('Authentication failed. Please log in again.')
+      }
+      throw new Error(`Failed to delete data: ${response.status} ${response.statusText}`)
     }
   }
 

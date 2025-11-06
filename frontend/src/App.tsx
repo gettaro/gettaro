@@ -37,6 +37,8 @@ export default function App() {
           redirect_uri: window.location.origin,
           audience: import.meta.env.VITE_AUTH0_AUDIENCE,
         }}
+        cacheLocation="localstorage"
+        useRefreshTokens={true}
       >
         <ThemeInitializer />
         <RouterProvider router={router} />

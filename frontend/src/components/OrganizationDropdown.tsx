@@ -1,16 +1,51 @@
 import { useState, useEffect } from 'react'
 import { Organization } from '../types/organization'
 import { useOrganizationStore } from '../stores/organization'
+import { useAuth } from '../hooks/useAuth'
+import Api from '../api/api'
 import CreateOrganizationModal from './CreateOrganizationModal'
 
 export default function OrganizationDropdown() {
   const [isOpen, setIsOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const { currentOrganization, organizations, setCurrentOrganization, fetchOrganizations, isLoading: isLoadingOrgs } = useOrganizationStore()
+  const { isAuthenticated, isLoading: isLoadingAuth, getToken } = useAuth()
+  const [hasTriedFetch, setHasTriedFetch] = useState(false)
 
+  // Ensure token is ready and fetch organizations when authenticated
   useEffect(() => {
-      fetchOrganizations()
-  }, [fetchOrganizations])
+    if (isAuthenticated && !isLoadingAuth && !hasTriedFetch) {
+      // Ensure token is set before fetching
+      const initializeAndFetch = async () => {
+        try {
+          // Get token and ensure it's set
+          const token = await getToken()
+          if (!token) {
+            console.error('Token is empty after getToken call')
+            setHasTriedFetch(false)
+            return
+          }
+          
+          // Verify token is actually set in API class before making calls
+          if (!Api.hasAccessToken()) {
+            console.error('Token not set in API class after getToken call')
+            setHasTriedFetch(false)
+            return
+          }
+          
+          setHasTriedFetch(true)
+          // Fetch organizations after token is confirmed set
+          await fetchOrganizations()
+        } catch (error) {
+          console.error('Failed to get token in OrganizationDropdown:', error)
+          setHasTriedFetch(false) // Reset to allow retry
+        }
+      }
+      initializeAndFetch()
+    } else if (!isAuthenticated) {
+      setHasTriedFetch(false)
+    }
+  }, [isAuthenticated, isLoadingAuth, hasTriedFetch, getToken, fetchOrganizations])
 
   const handleSelectOrganization = (orgId: string) => {
     const org = organizations.find((o: Organization) => o.id === orgId)
