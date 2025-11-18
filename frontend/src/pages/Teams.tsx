@@ -8,6 +8,7 @@ import { Title } from '../types/title'
 import { OrganizationMetricsResponse } from '../types/organizationMetrics'
 import MetricChart from '../components/MetricChart'
 import MetricInfoButton from '../components/MetricInfoButton'
+import { DateInput } from '../components/ui/date-input'
 
 export default function Teams() {
   const navigate = useNavigate()
@@ -264,22 +265,20 @@ export default function Teams() {
               <label className="block text-sm font-medium text-foreground mb-1">
                 Start Date
               </label>
-              <input
-                type="date"
+              <DateInput
                 value={dateParams.startDate || ''}
                 onChange={(e) => handleDateChange('startDate', e.target.value)}
-                className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                className="text-sm"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">
                 End Date
               </label>
-              <input
-                type="date"
+              <DateInput
                 value={dateParams.endDate || ''}
                 onChange={(e) => handleDateChange('endDate', e.target.value)}
-                className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                className="text-sm"
               />
             </div>
             <div>

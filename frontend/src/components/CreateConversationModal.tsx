@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
+import { DateInput } from './ui/date-input';
 import { Label } from './ui/label';
 import { useToast } from '../hooks/useToast';
 import Api from '../api/api';
@@ -256,9 +257,8 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
             {/* Conversation Date */}
             <div>
               <Label htmlFor="conversationDate">Conversation Date (Optional)</Label>
-              <Input
+              <DateInput
                 id="conversationDate"
-                type="date"
                 value={conversationDate}
                 onChange={(e) => setConversationDate(e.target.value)}
               />
