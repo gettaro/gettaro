@@ -10,68 +10,16 @@ import (
 	"gorm.io/datatypes"
 )
 
-// CalculateOrganizationAICodeAssistantMetrics calculates aggregated AI code assistant metrics for an organization
-// Params:
-// - ctx: The context for the request
-// - params: Parameters containing organization ID, date range, and interval
-// Returns:
-// - MetricsResponse: Aggregated AI code assistant metrics
-// - error: If any error occurs during calculation
-func (a *Api) CalculateOrganizationAICodeAssistantMetrics(ctx context.Context, params types.OrganizationMetricsParams) (*aicodeassistanttypes.MetricsResponse, error) {
-	// Get all external accounts for the organization (filter by ai-code-assistant type)
-	accountType := "ai-code-assistant"
-	externalAccounts, err := a.memberApi.GetExternalAccounts(ctx, &membertypes.ExternalAccountParams{
-		OrganizationID: params.OrganizationID,
-		AccountType:    &accountType,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	externalAccountIDs := []string{}
-	for _, account := range externalAccounts {
-		externalAccountIDs = append(externalAccountIDs, account.ID)
-	}
-
-	if len(externalAccountIDs) == 0 {
-		// Return empty metrics response instead of error
-		return &aicodeassistanttypes.MetricsResponse{
-			SnapshotMetrics: []*aicodeassistanttypes.SnapshotCategory{},
-			GraphMetrics:    []*aicodeassistanttypes.GraphCategory{},
-		}, nil
-	}
-
-	// For organization-level metrics, we don't need peer comparison
-	// Create the metric params with the external account IDs
-	metricParamsMap := map[string]interface{}{
-		"organizationId":          params.OrganizationID,
-		"externalAccountIDs":      externalAccountIDs,
-		"peersExternalAccountIDs": []string{}, // No peer comparison at org level
-	}
-
-	// Marshal to JSON bytes
-	metricParamsJSON, err := json.Marshal(metricParamsMap)
-	if err != nil {
-		return nil, err
-	}
-
-	interval := params.Interval
-	if interval == "" {
-		interval = "weekly" // default
-	}
-
-	metricParams := aicodeassistanttypes.MetricRuleParams{
-		MetricParams: datatypes.JSON(metricParamsJSON),
-		StartDate:    params.StartDate,
-		EndDate:      params.EndDate,
-		Interval:     interval,
-	}
-
-	return a.aiCodeAssistantApi.CalculateMetrics(ctx, metricParams)
-}
-
 // CalculateTeamAICodeAssistantMetrics calculates AI code assistant metrics for a specific team
 // by getting all team members and their external accounts
+// Params:
+// - ctx: The context for the request
+// - organizationID: The organization ID
+// - teamID: The team ID
+// - params: Parameters containing date range and interval
+// Returns:
+// - MetricsResponse: AI code assistant metrics for the team
+// - error: If any error occurs during calculation
 func (a *Api) CalculateTeamAICodeAssistantMetrics(ctx context.Context, organizationID string, teamID string, params types.OrganizationMetricsParams) (*aicodeassistanttypes.MetricsResponse, error) {
 	// Get team to access team members
 	team, err := a.teamApi.GetTeamByOrganization(ctx, teamID, organizationID)
