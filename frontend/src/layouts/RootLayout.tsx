@@ -2,10 +2,12 @@ import { Outlet } from "react-router-dom";
 import Navigation from "../components/Navigation";
 import { useEffect, useRef } from "react";
 import { useAuth } from "../hooks/useAuth";
+import { useApiErrorStore } from "../stores/apiError";
 
 export default function RootLayout() {
   const { getToken, isAuthenticated } = useAuth()
   const tokenInitializedRef = useRef(false)
+  const { isApiUnavailable } = useApiErrorStore()
 
   useEffect(() => {
     // Only initialize token once when authenticated
@@ -24,7 +26,7 @@ export default function RootLayout() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-background/80">
-      <header className="bg-card/50 backdrop-blur-sm border-b">
+      <header className={`bg-card/50 backdrop-blur-sm border-b ${isApiUnavailable ? 'pt-14' : ''}`}>
         <div className="container">
           <div className="flex items-center justify-between py-4">
             <img 

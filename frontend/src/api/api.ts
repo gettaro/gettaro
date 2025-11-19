@@ -46,10 +46,137 @@ import {
   CreateTeamResponse,
   UpdateTeamResponse
 } from '../types/team'
+import { useApiErrorStore } from '../stores/apiError'
 
 export default class Api {
   private static API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
   private static accessToken: string | null = null
+  private static REQUEST_TIMEOUT = 30000 // 30 seconds
+
+  /**
+   * Checks if an error indicates API unavailability (network or server errors)
+   * Returns error type if API is unavailable, null otherwise
+   */
+  private static isApiUnavailableError(error: unknown, status?: number): 'network' | 'server' | null {
+    // Network errors (TypeError from fetch, connection refused, timeouts)
+    if (error instanceof TypeError) {
+      // Common network error messages
+      const errorMessage = error.message.toLowerCase()
+      if (
+        errorMessage.includes('failed to fetch') ||
+        errorMessage.includes('networkerror') ||
+        errorMessage.includes('network request failed') ||
+        errorMessage.includes('connection refused') ||
+        errorMessage.includes('connection reset') ||
+        errorMessage.includes('connection closed')
+      ) {
+        return 'network'
+      }
+    }
+
+    // Server errors (500, 502, 503, 504)
+    if (status !== undefined) {
+      if (status === 500 || status === 502 || status === 503 || status === 504) {
+        return 'server'
+      }
+    }
+
+    // Timeout errors
+    if (error instanceof Error && error.message.toLowerCase().includes('timeout')) {
+      return 'network'
+    }
+
+    return null
+  }
+
+  /**
+   * Handles API errors and sets global error state if API is unavailable
+   */
+  private static handleApiError(error: unknown, status?: number): void {
+    const errorType = this.isApiUnavailableError(error, status)
+    
+    if (errorType) {
+      // Set global error state
+      const store = useApiErrorStore.getState()
+      store.setApiUnavailable(errorType)
+    } else {
+      // Clear error state on successful requests or non-API-unavailability errors
+      // (401, 403, 404, 400 are not API unavailability)
+      const store = useApiErrorStore.getState()
+      if (store.isApiUnavailable) {
+        // Only clear if we had an error before - successful requests will clear it
+        // This allows the error to persist until a successful request
+      }
+    }
+  }
+
+  /**
+   * Clears API error state on successful requests
+   */
+  private static clearApiError(): void {
+    const store = useApiErrorStore.getState()
+    if (store.isApiUnavailable) {
+      store.clearApiError()
+    }
+  }
+
+  /**
+   * Wraps fetch with timeout and error handling
+   */
+  private static async fetchWithTimeout(
+    url: string,
+    options: RequestInit = {},
+    timeout: number = this.REQUEST_TIMEOUT
+  ): Promise<Response> {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+      return response
+    } catch (error) {
+      clearTimeout(timeoutId)
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Request timeout')
+      }
+      throw error
+    }
+  }
+
+  /**
+   * Wraps fetch calls with error handling for methods that use fetch directly
+   */
+  private static async fetchWithErrorHandling(
+    url: string,
+    options: RequestInit = {}
+  ): Promise<Response> {
+    try {
+      const response = await this.fetchWithTimeout(url, options)
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          this.accessToken = null
+          throw new Error('Authentication failed. Please log in again.')
+        }
+        this.handleApiError(new Error(`Server error: ${response.status}`), response.status)
+      } else {
+        this.clearApiError()
+      }
+
+      return response
+    } catch (error) {
+      if (error instanceof TypeError || (error instanceof Error && error.message.includes('timeout'))) {
+        this.handleApiError(error)
+      } else if (error instanceof Error && !error.message.includes('Authentication failed')) {
+        this.handleApiError(error)
+      }
+      throw error
+    }
+  }
 
   static setAccessToken(token: string | null) {
     console.log("setting access token", token ? `${token.substring(0, 20)}...` : 'null')
@@ -65,22 +192,37 @@ export default class Api {
       throw new Error('No access token available')
     }
 
-    const response = await fetch(`${this.API_BASE_URL}${path}`, {
-      headers: {
-        'Authorization': `Bearer ${this.accessToken}`,
-      },
-    })
+    try {
+      const response = await this.fetchWithTimeout(`${this.API_BASE_URL}${path}`, {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+        },
+      })
 
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        // Clear invalid token
-        this.accessToken = null
-        throw new Error('Authentication failed. Please log in again.')
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          // Clear invalid token
+          this.accessToken = null
+          throw new Error('Authentication failed. Please log in again.')
+        }
+        // Check if this is a server error indicating API unavailability
+        this.handleApiError(new Error(`Server error: ${response.status}`), response.status)
+        throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`)
       }
-      throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`)
-    }
 
-    return response.json()
+      // Clear error state on successful request
+      this.clearApiError()
+      return response.json()
+    } catch (error) {
+      // Handle network errors
+      if (error instanceof TypeError || (error instanceof Error && error.message.includes('timeout'))) {
+        this.handleApiError(error)
+      } else if (error instanceof Error && !error.message.includes('Authentication failed')) {
+        // Re-throw auth errors without handling as API unavailability
+        this.handleApiError(error)
+      }
+      throw error
+    }
   }
 
   private static async post(path: string, data: any): Promise<any> {
@@ -88,32 +230,48 @@ export default class Api {
       throw new Error('No access token available')
     }
 
-    const response = await fetch(`${this.API_BASE_URL}${path}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    })
+    try {
+      const response = await this.fetchWithTimeout(`${this.API_BASE_URL}${path}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
 
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        // Clear invalid token
-        this.accessToken = null
-        throw new Error('Authentication failed. Please log in again.')
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          // Clear invalid token
+          this.accessToken = null
+          throw new Error('Authentication failed. Please log in again.')
+        }
+        // Check if this is a server error indicating API unavailability
+        this.handleApiError(new Error(`Server error: ${response.status}`), response.status)
+        throw new Error(`Failed to create data: ${response.status} ${response.statusText}`)
       }
-      throw new Error(`Failed to create data: ${response.status} ${response.statusText}`)
-    }
 
-    // Handle empty responses (like 201 Created with no body)
-    const contentType = response.headers.get('content-type')
-    if (contentType && contentType.includes('application/json')) {
-      return response.json()
+      // Clear error state on successful request
+      this.clearApiError()
+
+      // Handle empty responses (like 201 Created with no body)
+      const contentType = response.headers.get('content-type')
+      if (contentType && contentType.includes('application/json')) {
+        return response.json()
+      }
+      
+      // Return null for empty responses
+      return null
+    } catch (error) {
+      // Handle network errors
+      if (error instanceof TypeError || (error instanceof Error && error.message.includes('timeout'))) {
+        this.handleApiError(error)
+      } else if (error instanceof Error && !error.message.includes('Authentication failed')) {
+        // Re-throw auth errors without handling as API unavailability
+        this.handleApiError(error)
+      }
+      throw error
     }
-    
-    // Return null for empty responses
-    return null
   }
 
   private static async put(path: string, data: any): Promise<any> {
@@ -121,32 +279,48 @@ export default class Api {
       throw new Error('No access token available')
     }
 
-    const response = await fetch(`${this.API_BASE_URL}${path}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${this.accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    })
+    try {
+      const response = await this.fetchWithTimeout(`${this.API_BASE_URL}${path}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
 
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        // Clear invalid token
-        this.accessToken = null
-        throw new Error('Authentication failed. Please log in again.')
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          // Clear invalid token
+          this.accessToken = null
+          throw new Error('Authentication failed. Please log in again.')
+        }
+        // Check if this is a server error indicating API unavailability
+        this.handleApiError(new Error(`Server error: ${response.status}`), response.status)
+        throw new Error(`Failed to update data: ${response.status} ${response.statusText}`)
       }
-      throw new Error(`Failed to update data: ${response.status} ${response.statusText}`)
-    }
 
-    // Handle empty responses (like 200 OK with no body)
-    const contentType = response.headers.get('content-type')
-    if (contentType && contentType.includes('application/json')) {
-      return response.json()
+      // Clear error state on successful request
+      this.clearApiError()
+
+      // Handle empty responses (like 200 OK with no body)
+      const contentType = response.headers.get('content-type')
+      if (contentType && contentType.includes('application/json')) {
+        return response.json()
+      }
+      
+      // Return null for empty responses
+      return null
+    } catch (error) {
+      // Handle network errors
+      if (error instanceof TypeError || (error instanceof Error && error.message.includes('timeout'))) {
+        this.handleApiError(error)
+      } else if (error instanceof Error && !error.message.includes('Authentication failed')) {
+        // Re-throw auth errors without handling as API unavailability
+        this.handleApiError(error)
+      }
+      throw error
     }
-    
-    // Return null for empty responses
-    return null
   }
 
   private static async delete(path: string): Promise<void> {
@@ -154,20 +328,36 @@ export default class Api {
       throw new Error('No access token available')
     }
 
-    const response = await fetch(`${this.API_BASE_URL}${path}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${this.accessToken}`,
-      },
-    })
+    try {
+      const response = await this.fetchWithTimeout(`${this.API_BASE_URL}${path}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+        },
+      })
 
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        // Clear invalid token
-        this.accessToken = null
-        throw new Error('Authentication failed. Please log in again.')
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          // Clear invalid token
+          this.accessToken = null
+          throw new Error('Authentication failed. Please log in again.')
+        }
+        // Check if this is a server error indicating API unavailability
+        this.handleApiError(new Error(`Server error: ${response.status}`), response.status)
+        throw new Error(`Failed to delete data: ${response.status} ${response.statusText}`)
       }
-      throw new Error(`Failed to delete data: ${response.status} ${response.statusText}`)
+
+      // Clear error state on successful request
+      this.clearApiError()
+    } catch (error) {
+      // Handle network errors
+      if (error instanceof TypeError || (error instanceof Error && error.message.includes('timeout'))) {
+        this.handleApiError(error)
+      } else if (error instanceof Error && !error.message.includes('Authentication failed')) {
+        // Re-throw auth errors without handling as API unavailability
+        this.handleApiError(error)
+      }
+      throw error
     }
   }
 
@@ -180,43 +370,76 @@ export default class Api {
     if (!this.accessToken) {
       throw new Error('No access token available')
     }
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${id}`, {
-      headers: {
-        'Authorization': `Bearer ${this.accessToken}`,
-      },
-    })
+    try {
+      const response = await this.fetchWithTimeout(`${this.API_BASE_URL}/organizations/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+        },
+      })
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch organization')
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          this.accessToken = null
+          throw new Error('Authentication failed. Please log in again.')
+        }
+        this.handleApiError(new Error(`Server error: ${response.status}`), response.status)
+        throw new Error('Failed to fetch organization')
+      }
+
+      this.clearApiError()
+      const data = await response.json()
+      return data.organization
+    } catch (error) {
+      if (error instanceof TypeError || (error instanceof Error && error.message.includes('timeout'))) {
+        this.handleApiError(error)
+      } else if (error instanceof Error && !error.message.includes('Authentication failed')) {
+        this.handleApiError(error)
+      }
+      throw error
     }
-
-    const data = await response.json()
-    return data.organization
   }
 
   static async createOrganization(name: string, slug: string): Promise<Organization> {
     if (!this.accessToken) {
       throw new Error('No access token available')
     }
-    const response = await fetch(`${this.API_BASE_URL}/organizations`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ name, slug }),
-    })
+    try {
+      const response = await this.fetchWithTimeout(`${this.API_BASE_URL}/organizations`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, slug }),
+      })
 
-    if (response.status === 409) {
-      throw new OrganizationConflictError('An organization with this name already exists')
+      if (response.status === 409) {
+        throw new OrganizationConflictError('An organization with this name already exists')
+      }
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          this.accessToken = null
+          throw new Error('Authentication failed. Please log in again.')
+        }
+        this.handleApiError(new Error(`Server error: ${response.status}`), response.status)
+        throw new Error('Failed to create organization')
+      }
+
+      this.clearApiError()
+      const data = await response.json()
+      return data.organization
+    } catch (error) {
+      if (error instanceof OrganizationConflictError) {
+        throw error
+      }
+      if (error instanceof TypeError || (error instanceof Error && error.message.includes('timeout'))) {
+        this.handleApiError(error)
+      } else if (error instanceof Error && !error.message.includes('Authentication failed')) {
+        this.handleApiError(error)
+      }
+      throw error
     }
-
-    if (!response.ok) {
-      throw new Error('Failed to create organization')
-    }
-
-    const data = await response.json()
-    return data.organization
   }
 
   static async getOrganizationIntegrations(organizationId: string): Promise<IntegrationConfig[]> {
@@ -224,18 +447,33 @@ export default class Api {
       throw new Error('No access token available')
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/integrations`, {
-      headers: {
-        'Authorization': `Bearer ${this.accessToken}`,
-      },
-    })
+    try {
+      const response = await this.fetchWithTimeout(`${this.API_BASE_URL}/organizations/${organizationId}/integrations`, {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+        },
+      })
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch integrations')
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          this.accessToken = null
+          throw new Error('Authentication failed. Please log in again.')
+        }
+        this.handleApiError(new Error(`Server error: ${response.status}`), response.status)
+        throw new Error('Failed to fetch integrations')
+      }
+
+      this.clearApiError()
+      const data = await response.json()
+      return data.integrations
+    } catch (error) {
+      if (error instanceof TypeError || (error instanceof Error && error.message.includes('timeout'))) {
+        this.handleApiError(error)
+      } else if (error instanceof Error && !error.message.includes('Authentication failed')) {
+        this.handleApiError(error)
+      }
+      throw error
     }
-
-    const data = await response.json()
-    return data.integrations
   }
 
   static async createIntegrationConfig(organizationId: string, config: CreateIntegrationConfigRequest): Promise<IntegrationConfig> {
@@ -243,21 +481,36 @@ export default class Api {
       throw new Error('No access token available')
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/integrations`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(config),
-    })
+    try {
+      const response = await this.fetchWithTimeout(`${this.API_BASE_URL}/organizations/${organizationId}/integrations`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(config),
+      })
 
-    if (!response.ok) {
-      throw new Error('Failed to create integration')
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          this.accessToken = null
+          throw new Error('Authentication failed. Please log in again.')
+        }
+        this.handleApiError(new Error(`Server error: ${response.status}`), response.status)
+        throw new Error('Failed to create integration')
+      }
+
+      this.clearApiError()
+      const data = await response.json()
+      return data.integration
+    } catch (error) {
+      if (error instanceof TypeError || (error instanceof Error && error.message.includes('timeout'))) {
+        this.handleApiError(error)
+      } else if (error instanceof Error && !error.message.includes('Authentication failed')) {
+        this.handleApiError(error)
+      }
+      throw error
     }
-
-    const data = await response.json()
-    return data.integration
   }
 
   static async updateIntegrationConfig(organizationId: string, integrationId: string, config: UpdateIntegrationConfigRequest): Promise<IntegrationConfig> {
@@ -265,21 +518,36 @@ export default class Api {
       throw new Error('No access token available')
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/integrations/${integrationId}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${this.accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(config),
-    })
+    try {
+      const response = await this.fetchWithTimeout(`${this.API_BASE_URL}/organizations/${organizationId}/integrations/${integrationId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(config),
+      })
 
-    if (!response.ok) {
-      throw new Error('Failed to update integration')
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          this.accessToken = null
+          throw new Error('Authentication failed. Please log in again.')
+        }
+        this.handleApiError(new Error(`Server error: ${response.status}`), response.status)
+        throw new Error('Failed to update integration')
+      }
+
+      this.clearApiError()
+      const data = await response.json()
+      return data.integration
+    } catch (error) {
+      if (error instanceof TypeError || (error instanceof Error && error.message.includes('timeout'))) {
+        this.handleApiError(error)
+      } else if (error instanceof Error && !error.message.includes('Authentication failed')) {
+        this.handleApiError(error)
+      }
+      throw error
     }
-
-    const data = await response.json()
-    return data.integration
   }
 
   static async deleteIntegrationConfig(organizationId: string, integrationId: string): Promise<void> {
@@ -287,15 +555,31 @@ export default class Api {
       throw new Error('No access token available')
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/integrations/${integrationId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${this.accessToken}`,
-      },
-    })
+    try {
+      const response = await this.fetchWithTimeout(`${this.API_BASE_URL}/organizations/${organizationId}/integrations/${integrationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+        },
+      })
 
-    if (!response.ok) {
-      throw new Error('Failed to delete integration')
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          this.accessToken = null
+          throw new Error('Authentication failed. Please log in again.')
+        }
+        this.handleApiError(new Error(`Server error: ${response.status}`), response.status)
+        throw new Error('Failed to delete integration')
+      }
+
+      this.clearApiError()
+    } catch (error) {
+      if (error instanceof TypeError || (error instanceof Error && error.message.includes('timeout'))) {
+        this.handleApiError(error)
+      } else if (error instanceof Error && !error.message.includes('Authentication failed')) {
+        this.handleApiError(error)
+      }
+      throw error
     }
   }
 
@@ -341,7 +625,10 @@ export default class Api {
 
   // Get member source control metrics
   static async getMemberMetrics(organizationId: string, memberId: string, params: GetMemberMetricsParams): Promise<GetMemberMetricsResponse> {
-    const token = this.accessToken
+    if (!this.accessToken) {
+      throw new Error('No access token available')
+    }
+
     const queryParams = new URLSearchParams()
     
     if (params.startDate) {
@@ -354,10 +641,10 @@ export default class Api {
       queryParams.append('interval', params.interval)
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/sourcecontrol/metrics?${queryParams}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/sourcecontrol/metrics?${queryParams}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${this.accessToken}`,
         'Content-Type': 'application/json',
       },
     })
@@ -390,7 +677,10 @@ export default class Api {
 
   // Member Pull Requests API functions
   static async getMemberPullRequests(organizationId: string, memberId: string, params: GetMemberPullRequestsParams): Promise<PullRequest[]> {
-    const token = this.accessToken
+    if (!this.accessToken) {
+      throw new Error('No access token available')
+    }
+
     const queryParams = new URLSearchParams()
     
     if (params.startDate) {
@@ -400,10 +690,10 @@ export default class Api {
       queryParams.append('endDate', params.endDate)
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/pull-requests?${queryParams}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/pull-requests?${queryParams}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${this.accessToken}`,
         'Content-Type': 'application/json',
       },
     })
@@ -418,7 +708,10 @@ export default class Api {
 
   // Member Pull Request Reviews API functions
   static async getMemberPullRequestReviews(organizationId: string, memberId: string, params: GetMemberPullRequestReviewsParams): Promise<MemberActivity[]> {
-    const token = this.accessToken
+    if (!this.accessToken) {
+      throw new Error('No access token available')
+    }
+
     const queryParams = new URLSearchParams()
     
     if (params.startDate) {
@@ -428,10 +721,10 @@ export default class Api {
       queryParams.append('endDate', params.endDate)
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/pull-request-reviews?${queryParams}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/pull-request-reviews?${queryParams}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${this.accessToken}`,
         'Content-Type': 'application/json',
       },
     })
@@ -446,7 +739,10 @@ export default class Api {
 
   // Member AI Code Assistant Usage API functions
   static async getMemberAICodeAssistantMetrics(organizationId: string, memberId: string, params?: GetMemberAICodeAssistantMetricsParams): Promise<GetMemberAICodeAssistantMetricsResponse> {
-    const token = this.accessToken
+    if (!this.accessToken) {
+      throw new Error('No access token available')
+    }
+
     const queryParams = new URLSearchParams()
     
     if (params?.startDate) {
@@ -459,10 +755,10 @@ export default class Api {
       queryParams.append('interval', params.interval)
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/ai-code-assistant/metrics?${queryParams}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/ai-code-assistant/metrics?${queryParams}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${this.accessToken}`,
         'Content-Type': 'application/json',
       },
     })
@@ -475,7 +771,10 @@ export default class Api {
   }
 
   static async getOrganizationAICodeAssistantMetrics(organizationId: string, params?: GetMemberAICodeAssistantMetricsParams): Promise<GetMemberAICodeAssistantMetricsResponse> {
-    const token = this.accessToken
+    if (!this.accessToken) {
+      throw new Error('No access token available')
+    }
+
     const queryParams = new URLSearchParams()
     
     if (params?.startDate) {
@@ -488,10 +787,10 @@ export default class Api {
       queryParams.append('interval', params.interval)
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/ai-code-assistant/metrics?${queryParams}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/ai-code-assistant/metrics?${queryParams}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${this.accessToken}`,
         'Content-Type': 'application/json',
       },
     })
@@ -504,7 +803,10 @@ export default class Api {
   }
 
   static async getTeamAICodeAssistantMetrics(organizationId: string, teamId: string, params?: GetMemberAICodeAssistantMetricsParams): Promise<GetMemberAICodeAssistantMetricsResponse> {
-    const token = this.accessToken
+    if (!this.accessToken) {
+      throw new Error('No access token available')
+    }
+
     const queryParams = new URLSearchParams()
     
     if (params?.startDate) {
@@ -517,10 +819,10 @@ export default class Api {
       queryParams.append('interval', params.interval)
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/teams/${teamId}/ai-code-assistant/metrics?${queryParams}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/teams/${teamId}/ai-code-assistant/metrics?${queryParams}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${this.accessToken}`,
         'Content-Type': 'application/json',
       },
     })
@@ -541,7 +843,10 @@ export default class Api {
     endDate?: string
     status?: string
   }): Promise<PullRequest[]> {
-    const token = this.accessToken
+    if (!this.accessToken) {
+      throw new Error('No access token available')
+    }
+
     const queryParams = new URLSearchParams()
     
     if (params?.userIds && params.userIds.length > 0) {
@@ -563,10 +868,10 @@ export default class Api {
       queryParams.append('status', params.status)
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/pull-requests?${queryParams}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/pull-requests?${queryParams}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${this.accessToken}`,
         'Content-Type': 'application/json',
       },
     })
@@ -586,7 +891,10 @@ export default class Api {
     interval?: string
     teamIds?: string[]
   }): Promise<OrganizationMetricsResponse> {
-    const token = this.accessToken
+    if (!this.accessToken) {
+      throw new Error('No access token available')
+    }
+
     const queryParams = new URLSearchParams()
     
     if (params.startDate) {
@@ -602,10 +910,10 @@ export default class Api {
       params.teamIds.forEach(id => queryParams.append('teamIds', id))
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/sourcecontrol/metrics?${queryParams}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/sourcecontrol/metrics?${queryParams}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${this.accessToken}`,
         'Content-Type': 'application/json',
       },
     })
