@@ -9,6 +9,18 @@ import (
 	"gorm.io/gorm"
 )
 
+// DB defines the interface for conversation database operations
+type DB interface {
+	CreateConversation(ctx context.Context, conversation *types.Conversation) error
+	GetConversation(ctx context.Context, id string) (*types.Conversation, error)
+	GetConversationWithDetails(ctx context.Context, id string) (*types.ConversationWithDetails, error)
+	ListConversations(ctx context.Context, organizationID string, query *types.ListConversationsQuery) ([]*types.Conversation, error)
+	ListConversationsWithDetails(ctx context.Context, organizationID string, query *types.ListConversationsQuery) ([]*types.ConversationWithDetails, error)
+	UpdateConversation(ctx context.Context, id string, req *types.UpdateConversationRequest) error
+	DeleteConversation(ctx context.Context, id string) error
+	GetConversationStats(ctx context.Context, organizationID string, managerMemberID *string) (map[string]int, error)
+}
+
 type ConversationDB struct {
 	db *gorm.DB
 }
