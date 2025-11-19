@@ -4,11 +4,23 @@ alwaysApply: true
 
 # PR Creation Rules
 
-- [ ] The PR title must exactly match the corresponding issue title.
-- [ ] The branch name must match the ticket identifier or ticket title, following the project’s established branch-naming convention.
+- [ ] The PR title must begin with the issue ID, followed by the exact issue title.
+  - Example:
+    - Issue ID: GET-5
+    - Issue title: Update calendar input box on the frontend
+    - Expected output: `GET-5 Update calendar input behavior`
+- [ ] The branch name must begin with the issue ID, followed by a short, descriptive slug.
+  - Example:
+    - Issue ID: GET-5
+    - Issue title: Update calendar input box on the frontend
+    - Expected output: `GET-5-update-calendar-input`
+- [ ] The PR description should follow the template in `<project_root>/.github/pr_template.md`
 
 # Commit Rules
 
-- [ ] Each commit message must begin with the issue key, followed by a valid commit type (`feat`, `fix`, or `chore`).
+- [ ] Each commit message must begin with the issue id, followed by a valid commit type (`feat`, `fix`, or `chore`).
 - [ ] The commit description must clearly and succinctly state the change introduced.
-- [ ] Example: `GET-5 fix: Update calendar input box on the frontend`
+- [ ] Example:
+  - Issue ID: GET-5
+  - Issue title: Update calendar input box on the frontend
+  - Expected commit message: `GET-5 fix: Update calendar input box on the frontend`s
