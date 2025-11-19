@@ -46,10 +46,12 @@ import {
   CreateTeamResponse,
   UpdateTeamResponse
 } from '../types/team'
+import { useApiErrorStore } from '../stores/apiError'
 
 export default class Api {
   private static API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
   private static accessToken: string | null = null
+  private static REQUEST_TIMEOUT = 30000 // 30 seconds
 
   static setAccessToken(token: string | null) {
     console.log("setting access token", token ? `${token.substring(0, 20)}...` : 'null')
@@ -60,12 +62,122 @@ export default class Api {
     return this.accessToken !== null && this.accessToken !== ''
   }
 
+  /**
+   * Detects if an error indicates API unavailability (network or server errors).
+   * Does NOT treat auth errors (401, 403) or validation errors (400, 404) as API unavailability.
+   */
+  private static isApiUnavailableError(error: any, status?: number): boolean {
+    // Check status codes first - server errors indicate API unavailability
+    if (status !== undefined) {
+      // Server errors (500, 502, 503, 504) indicate API unavailability
+      if (status >= 500 && status <= 504) {
+        return true
+      }
+      // Auth errors (401, 403) are NOT API unavailability
+      if (status === 401 || status === 403) {
+        return false
+      }
+      // Validation errors (400, 404) are NOT API unavailability
+      if (status === 400 || status === 404) {
+        return false
+      }
+    }
+
+    // Network errors indicate API unavailability
+    if (error instanceof TypeError) {
+      // TypeError typically indicates network failure (fetch failed, connection refused, etc.)
+      return true
+    }
+
+    // Check error message for network-related keywords
+    if (error instanceof Error) {
+      const message = error.message.toLowerCase()
+      const networkKeywords = [
+        'failed to fetch',
+        'network error',
+        'connection refused',
+        'timeout',
+        'network request failed',
+        'fetch failed',
+        'connection closed',
+        'connection reset',
+      ]
+      return networkKeywords.some(keyword => message.includes(keyword))
+    }
+
+    return false
+  }
+
+  /**
+   * Wraps fetch calls with timeout and error handling.
+   * Detects API unavailability and updates global error state.
+   */
+  private static async fetchWithErrorHandling(
+    url: string,
+    options: RequestInit = {}
+  ): Promise<Response> {
+    const errorStore = useApiErrorStore.getState()
+
+    try {
+      // Create abort controller for timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), this.REQUEST_TIMEOUT)
+
+      // Clear error state before making request
+      errorStore.clearApiError()
+
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      })
+
+      clearTimeout(timeoutId)
+
+      // Check if response indicates API unavailability
+      if (!response.ok) {
+        const isUnavailable = this.isApiUnavailableError(null, response.status)
+        if (isUnavailable) {
+          errorStore.setApiError(
+            'server',
+            'The service is temporarily unavailable. Please try again later.'
+          )
+        }
+      } else {
+        // Success - ensure error is cleared
+        errorStore.clearApiError()
+      }
+
+      return response
+    } catch (error: any) {
+      // Handle timeout
+      if (error.name === 'AbortError') {
+        errorStore.setApiError(
+          'network',
+          'Request timed out. Please check your connection and try again.'
+        )
+        throw new Error('Request timed out')
+      }
+
+      // Handle network errors
+      if (this.isApiUnavailableError(error)) {
+        errorStore.setApiError(
+          'network',
+          'Unable to connect to the server. Please check your connection and try again.'
+        )
+        throw error
+      }
+
+      // Re-throw other errors (they'll be handled by calling code)
+      throw error
+    }
+  }
+
   private static async get(path: string): Promise<any> {
     if (!this.accessToken) {
       throw new Error('No access token available')
     }
 
-    const response = await fetch(`${this.API_BASE_URL}${path}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}${path}`, {
       headers: {
         'Authorization': `Bearer ${this.accessToken}`,
       },
@@ -88,7 +200,7 @@ export default class Api {
       throw new Error('No access token available')
     }
 
-    const response = await fetch(`${this.API_BASE_URL}${path}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}${path}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.accessToken}`,
@@ -121,7 +233,7 @@ export default class Api {
       throw new Error('No access token available')
     }
 
-    const response = await fetch(`${this.API_BASE_URL}${path}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}${path}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${this.accessToken}`,
@@ -154,7 +266,7 @@ export default class Api {
       throw new Error('No access token available')
     }
 
-    const response = await fetch(`${this.API_BASE_URL}${path}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}${path}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${this.accessToken}`,
@@ -180,7 +292,7 @@ export default class Api {
     if (!this.accessToken) {
       throw new Error('No access token available')
     }
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${id}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${id}`, {
       headers: {
         'Authorization': `Bearer ${this.accessToken}`,
       },
@@ -198,7 +310,7 @@ export default class Api {
     if (!this.accessToken) {
       throw new Error('No access token available')
     }
-    const response = await fetch(`${this.API_BASE_URL}/organizations`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.accessToken}`,
@@ -224,7 +336,7 @@ export default class Api {
       throw new Error('No access token available')
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/integrations`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/integrations`, {
       headers: {
         'Authorization': `Bearer ${this.accessToken}`,
       },
@@ -243,7 +355,7 @@ export default class Api {
       throw new Error('No access token available')
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/integrations`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/integrations`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.accessToken}`,
@@ -265,7 +377,7 @@ export default class Api {
       throw new Error('No access token available')
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/integrations/${integrationId}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/integrations/${integrationId}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${this.accessToken}`,
@@ -287,7 +399,7 @@ export default class Api {
       throw new Error('No access token available')
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/integrations/${integrationId}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/integrations/${integrationId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${this.accessToken}`,
@@ -354,7 +466,7 @@ export default class Api {
       queryParams.append('interval', params.interval)
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/sourcecontrol/metrics?${queryParams}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/sourcecontrol/metrics?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -400,7 +512,7 @@ export default class Api {
       queryParams.append('endDate', params.endDate)
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/pull-requests?${queryParams}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/pull-requests?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -428,7 +540,7 @@ export default class Api {
       queryParams.append('endDate', params.endDate)
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/pull-request-reviews?${queryParams}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/pull-request-reviews?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -459,7 +571,7 @@ export default class Api {
       queryParams.append('interval', params.interval)
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/ai-code-assistant/metrics?${queryParams}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/members/${memberId}/ai-code-assistant/metrics?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -488,7 +600,7 @@ export default class Api {
       queryParams.append('interval', params.interval)
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/ai-code-assistant/metrics?${queryParams}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/ai-code-assistant/metrics?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -517,7 +629,7 @@ export default class Api {
       queryParams.append('interval', params.interval)
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/teams/${teamId}/ai-code-assistant/metrics?${queryParams}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/teams/${teamId}/ai-code-assistant/metrics?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -563,7 +675,7 @@ export default class Api {
       queryParams.append('status', params.status)
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/pull-requests?${queryParams}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/pull-requests?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -602,7 +714,7 @@ export default class Api {
       params.teamIds.forEach(id => queryParams.append('teamIds', id))
     }
 
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${organizationId}/sourcecontrol/metrics?${queryParams}`, {
+    const response = await this.fetchWithErrorHandling(`${this.API_BASE_URL}/organizations/${organizationId}/sourcecontrol/metrics?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,

@@ -3,6 +3,7 @@ import { router } from "./router";
 import { Auth0Provider } from '@auth0/auth0-react'
 import { Toaster } from "sonner";
 import { useEffect } from "react";
+import ApiErrorBanner from "./components/ApiErrorBanner";
 
 // Initialize theme on app load
 function ThemeInitializer() {
@@ -41,6 +42,7 @@ export default function App() {
         useRefreshTokens={true}
       >
         <ThemeInitializer />
+        <ApiErrorBanner />
         <RouterProvider router={router} />
         <Toaster />
       </Auth0Provider>
