@@ -1,0 +1,14 @@
+---
+alwaysApply: true
+---
+
+# PR Creation Rules
+
+- [ ] The PR title must exactly match the corresponding issue title.
+- [ ] The branch name must match the ticket identifier or ticket title, following the project’s established branch-naming convention.
+
+# Commit Rules
+
+- [ ] Each commit message must begin with the issue key, followed by a valid commit type (`feat`, `fix`, or `chore`).
+- [ ] The commit description must clearly and succinctly state the change introduced.
+- [ ] Example: `GET-5 fix: Update calendar input box on the frontend`

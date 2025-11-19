@@ -1,0 +1,24 @@
+---
+alwaysApply: true
+---
+
+# Issue rules
+
+## Always use the following template:
+
+### User story
+
+- [ ] Create a user story using the "As a [user type], I want to [action] so that [benefit]"
+
+### Context
+
+- [ ] Contains the detailed context
+- [ ] Contains the impact
+
+### Technical Details
+
+- [ ] Contains the technical details of the implementation
+
+### Acceptance Criteria
+
+- [ ] Contains the list of ACs
