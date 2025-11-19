@@ -11,6 +11,7 @@ import Api from '../api/api'
 import MetricChart from '../components/MetricChart'
 import MetricInfoButton from '../components/MetricInfoButton'
 import PullRequestItem from '../components/PullRequestItem'
+import { DateInput } from '../components/ui/date-input'
 
 type TabType = 'overview' | 'members' | 'code-contributions' | 'ai-code-assistant'
 
@@ -590,8 +591,7 @@ export default function TeamProfilePage() {
                       <label className="block text-sm font-medium text-foreground mb-1">
                         Start Date
                       </label>
-                      <input
-                        type="date"
+                      <DateInput
                         value={dateParams.startDate || ''}
                         onChange={(e) => handleDateChange('startDate', e.target.value)}
                         className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
@@ -601,8 +601,7 @@ export default function TeamProfilePage() {
                       <label className="block text-sm font-medium text-foreground mb-1">
                         End Date
                       </label>
-                      <input
-                        type="date"
+                      <DateInput
                         value={dateParams.endDate || ''}
                         onChange={(e) => handleDateChange('endDate', e.target.value)}
                         className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
@@ -835,8 +834,7 @@ export default function TeamProfilePage() {
                       <label className="block text-sm font-medium text-foreground mb-1">
                         Start Date
                       </label>
-                      <input
-                        type="date"
+                      <DateInput
                         value={dateParams.startDate || ''}
                         onChange={(e) => handleDateChange('startDate', e.target.value)}
                         className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
@@ -846,8 +844,7 @@ export default function TeamProfilePage() {
                       <label className="block text-sm font-medium text-foreground mb-1">
                         End Date
                       </label>
-                      <input
-                        type="date"
+                      <DateInput
                         value={dateParams.endDate || ''}
                         onChange={(e) => handleDateChange('endDate', e.target.value)}
                         className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"

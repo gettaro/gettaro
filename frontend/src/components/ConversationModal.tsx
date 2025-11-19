@@ -3,6 +3,7 @@ import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { DateInput } from './ui/date-input';
 import { useToast } from '../hooks/useToast';
 import Api from '../api/api';
 import { ConversationWithDetails, UpdateConversationRequest, TemplateField } from '../types/conversation';
@@ -179,9 +180,8 @@ export const ConversationModal: React.FC<ConversationModalProps> = ({
             <div>
               <Label htmlFor="conversationDate">Conversation Date</Label>
               {isEditing ? (
-                <Input
+                <DateInput
                   id="conversationDate"
-                  type="date"
                   value={conversationDate}
                   onChange={(e) => setConversationDate(e.target.value)}
                 />
