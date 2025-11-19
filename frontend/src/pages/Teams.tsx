@@ -8,6 +8,7 @@ import { Title } from '../types/title'
 import { OrganizationMetricsResponse } from '../types/organizationMetrics'
 import MetricChart from '../components/MetricChart'
 import MetricInfoButton from '../components/MetricInfoButton'
+import { DateInput } from '../components/ui/date-input'
 
 export default function Teams() {
   const navigate = useNavigate()
@@ -260,28 +261,26 @@ export default function Teams() {
                 <option value="guild">Guild</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                Start Date
-              </label>
-              <input
-                type="date"
-                value={dateParams.startDate || ''}
-                onChange={(e) => handleDateChange('startDate', e.target.value)}
-                className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                End Date
-              </label>
-              <input
-                type="date"
-                value={dateParams.endDate || ''}
-                onChange={(e) => handleDateChange('endDate', e.target.value)}
-                className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
-              />
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Start Date
+                  </label>
+                  <DateInput
+                    value={dateParams.startDate || ''}
+                    onChange={(e) => handleDateChange('startDate', e.target.value)}
+                    className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    End Date
+                  </label>
+                  <DateInput
+                    value={dateParams.endDate || ''}
+                    onChange={(e) => handleDateChange('endDate', e.target.value)}
+                    className="px-3 py-2 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                  />
+                </div>
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">
                 Interval

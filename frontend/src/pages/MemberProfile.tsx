@@ -25,6 +25,7 @@ import {
   Sparkles, 
   Plug
 } from 'lucide-react'
+import { DateInput } from '../components/ui/date-input'
 import { 
   GetMemberAICodeAssistantUsageParams,
   GetMemberAICodeAssistantMetricsParams,
@@ -987,24 +988,20 @@ export default function MemberProfilePage() {
                   <label className="block text-sm font-medium text-foreground mb-1">
                     Start Date
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={dateParams.startDate || ''}
                     onChange={(e) => handleDateChange('startDate', e.target.value)}
                     className="px-3 py-2 border border-border rounded bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                    style={{ colorScheme: 'dark light' }}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
                     End Date
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={dateParams.endDate || ''}
                     onChange={(e) => handleDateChange('endDate', e.target.value)}
                     className="px-3 py-2 border border-border rounded bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                    style={{ colorScheme: 'dark light' }}
                   />
                 </div>
                 {metricsViewMode === 'graph' && (
@@ -1240,24 +1237,20 @@ export default function MemberProfilePage() {
                   <label className="block text-sm font-medium text-foreground mb-1">
                     Start Date
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={dateParams.startDate || ''}
                     onChange={(e) => handleDateChange('startDate', e.target.value)}
                     className="px-3 py-2 border border-border rounded bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                    style={{ colorScheme: 'dark light' }}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
                     End Date
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={dateParams.endDate || ''}
                     onChange={(e) => handleDateChange('endDate', e.target.value)}
                     className="px-3 py-2 border border-border rounded bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                    style={{ colorScheme: 'dark light' }}
                   />
                 </div>
               </div>
@@ -1736,24 +1729,20 @@ export default function MemberProfilePage() {
                   <label className="block text-sm font-medium text-foreground mb-1">
                     Start Date
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={aiCodeAssistantMetricsDateParams.startDate || ''}
                     onChange={(e) => handleAiCodeAssistantMetricsDateChange('startDate', e.target.value)}
                     className="px-3 py-2 border border-border rounded bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                    style={{ colorScheme: 'dark light' }}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
                     End Date
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={aiCodeAssistantMetricsDateParams.endDate || ''}
                     onChange={(e) => handleAiCodeAssistantMetricsDateChange('endDate', e.target.value)}
                     className="px-3 py-2 border border-border rounded bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                    style={{ colorScheme: 'dark light' }}
                   />
                 </div>
                 <div>

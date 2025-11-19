@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { DateInput } from './ui/date-input';
 import { useToast } from '../hooks/useToast';
 import Api from '../api/api';
 import { ConversationWithDetails, UpdateConversationRequest, CreateConversationRequest, TemplateField, ConversationTemplate } from '../types/conversation';
@@ -473,9 +474,8 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
             Conversation Date
           </Label>
           {isEditing || mode === 'create' ? (
-            <Input
+            <DateInput
               id="conversationDate"
-              type="date"
               value={conversationDate}
               onChange={(e) => setConversationDate(e.target.value)}
               className="text-sm mt-1"
