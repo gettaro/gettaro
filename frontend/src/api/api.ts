@@ -58,32 +58,39 @@ export default class Api {
    * Returns error type if API is unavailable, null otherwise
    */
   private static isApiUnavailableError(error: unknown, status?: number): 'network' | 'server' | null {
-    // Network errors (TypeError from fetch, connection refused, timeouts)
+    // Server errors (500, 502, 503, 504) - check status first
+    if (status !== undefined) {
+      if (status === 500 || status === 502 || status === 503 || status === 504) {
+        return 'server'
+      }
+      // Don't treat 401, 403, 404, 400 as API unavailability
+      if (status === 401 || status === 403 || status === 404 || status === 400) {
+        return null
+      }
+    }
+
+    // Network errors (TypeError from fetch failures)
     if (error instanceof TypeError) {
-      // Common network error messages
+      // TypeError from fetch usually indicates network failure
+      // Common error messages include: "Failed to fetch", "NetworkError", etc.
+      return 'network'
+    }
+
+    // Timeout errors
+    if (error instanceof Error) {
       const errorMessage = error.message.toLowerCase()
       if (
+        errorMessage.includes('timeout') ||
         errorMessage.includes('failed to fetch') ||
         errorMessage.includes('networkerror') ||
         errorMessage.includes('network request failed') ||
         errorMessage.includes('connection refused') ||
         errorMessage.includes('connection reset') ||
-        errorMessage.includes('connection closed')
+        errorMessage.includes('connection closed') ||
+        errorMessage.includes('load failed')
       ) {
         return 'network'
       }
-    }
-
-    // Server errors (500, 502, 503, 504)
-    if (status !== undefined) {
-      if (status === 500 || status === 502 || status === 503 || status === 504) {
-        return 'server'
-      }
-    }
-
-    // Timeout errors
-    if (error instanceof Error && error.message.toLowerCase().includes('timeout')) {
-      return 'network'
     }
 
     return null
@@ -99,15 +106,10 @@ export default class Api {
       // Set global error state
       const store = useApiErrorStore.getState()
       store.setApiUnavailable(errorType)
-    } else {
-      // Clear error state on successful requests or non-API-unavailability errors
-      // (401, 403, 404, 400 are not API unavailability)
-      const store = useApiErrorStore.getState()
-      if (store.isApiUnavailable) {
-        // Only clear if we had an error before - successful requests will clear it
-        // This allows the error to persist until a successful request
-      }
     }
+    // Note: We don't clear error state here for non-API-unavailability errors
+    // (401, 403, 404, 400 are not API unavailability)
+    // Error state is cleared only on successful requests via clearApiError()
   }
 
   /**
@@ -162,16 +164,25 @@ export default class Api {
           this.accessToken = null
           throw new Error('Authentication failed. Please log in again.')
         }
+        // Check if this is a server error indicating API unavailability
         this.handleApiError(new Error(`Server error: ${response.status}`), response.status)
       } else {
+        // Clear error state on successful request
         this.clearApiError()
       }
 
       return response
     } catch (error) {
-      if (error instanceof TypeError || (error instanceof Error && error.message.includes('timeout'))) {
+      // Handle network errors (TypeError from fetch failures, timeouts)
+      if (error instanceof TypeError) {
         this.handleApiError(error)
-      } else if (error instanceof Error && !error.message.includes('Authentication failed')) {
+      } else if (error instanceof Error && error.message.includes('timeout')) {
+        this.handleApiError(error)
+      } else if (error instanceof Error && error.message.includes('Authentication failed')) {
+        // Don't treat auth errors as API unavailability
+        // Error is already thrown, just re-throw
+      } else if (error instanceof Error) {
+        // For other errors, check if they might be network-related
         this.handleApiError(error)
       }
       throw error

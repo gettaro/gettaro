@@ -26,7 +26,7 @@ export default function RootLayout() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-background/80">
-      <header className={`bg-card/50 backdrop-blur-sm border-b ${isApiUnavailable ? 'pt-14' : ''}`}>
+      <header className={`bg-card/50 backdrop-blur-sm border-b transition-all ${isApiUnavailable ? 'pt-14' : ''}`}>
         <div className="container">
           <div className="flex items-center justify-between py-4">
             <img 
